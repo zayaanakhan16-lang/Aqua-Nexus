@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-abyss-950 text-ink-100 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+  }
+
+  /* A subtle grid horizon rather than a flat gradient, to read as a workspace. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(
+        1200px 600px at 78% -10%,
+        rgba(18, 163, 201, 0.13),
+        transparent 60%
+      ),
+      radial-gradient(
+        900px 500px at 8% 108%,
+        rgba(22, 176, 146, 0.09),
+        transparent 55%
+      ),
+      linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+    background-size: auto, auto, 64px 64px, 64px 64px;
+    z-index: 0;
+  }
+
+  ::selection {
+    background: rgba(44, 192, 228, 0.35);
+  }
+
+  /* Focus visibility everywhere, keyboard-first. */
+  :focus-visible {
+    outline: none;
+    @apply ring-2 ring-water-300/70 ring-offset-0;
+    border-radius: 0.375rem;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(111, 131, 153, 0.35);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(111, 131, 153, 0.6);
+    background-clip: content-box;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-xl border border-white/[0.06] bg-abyss-900/80 backdrop-blur-sm shadow-panel;
+  }
+
+  .panel-header {
+    @apply flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3;
+  }
+
+  .label-caps {
+    @apply text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-ink-400;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-xs font-medium text-ink-200;
+  }
+
+  .divider {
+    @apply h-px w-full bg-white/[0.06];
+  }
+
+  /* MapLibre chrome, restyled to match the platform. */
+  .maplibregl-ctrl-group {
+    @apply !bg-abyss-800/90 !border !border-white/10 !shadow-float backdrop-blur;
+  }
+  .maplibregl-ctrl-group button + button {
+    @apply !border-t !border-white/10;
+  }
+  .maplibregl-ctrl-icon {
+    filter: invert(0.9) hue-rotate(160deg);
+  }
+  .maplibregl-popup-content {
+    @apply !bg-abyss-850 !text-ink-100 !rounded-lg !border !border-white/10 !shadow-float;
+    font-family: var(--font-sans);
+  }
+  .maplibregl-popup-tip {
+    @apply !border-t-abyss-850;
+  }
+  .maplibregl-ctrl-attrib {
+    @apply !bg-abyss-950/70 !text-ink-400;
+  }
+  .maplibregl-ctrl-attrib a {
+    @apply !text-ink-300;
+  }
+
+  /* Selected-location marker: a precise dot with a soft expanding ring. */
+  .aquanexus-marker {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+  }
+  .aquanexus-marker__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #eafcff;
+    border: 2px solid #12a3c9;
+    box-shadow: 0 0 0 3px rgba(18, 163, 201, 0.25), 0 4px 12px rgba(0, 0, 0, 0.6);
+  }
+  .aquanexus-marker__ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    border: 1.5px solid rgba(99, 216, 243, 0.8);
+    animation: pulse-ring 2.4s ease-out infinite;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
