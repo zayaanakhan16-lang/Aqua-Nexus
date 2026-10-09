@@ -41,6 +41,11 @@ export function WaterAtlasMap() {
     });
     mapRef.current = map;
 
+    // MapLibre sizes from the container's box on load, so keep it in sync when
+    // the surrounding grid/rails change size (window resize alone is not enough).
+    const resizeObserver = new ResizeObserver(() => map.resize());
+    resizeObserver.observe(containerRef.current);
+
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
@@ -69,6 +74,7 @@ export function WaterAtlasMap() {
     });
 
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
     };
@@ -170,7 +176,13 @@ export function WaterAtlasMap() {
 
   return (
     <div className="relative h-full w-full">
-      <div ref={containerRef} className="absolute inset-0" aria-label="Interactive global map" />
+      {/* The map container must always fill its parent. MapLibre's own stylesheet
+          is injected at runtime and sets `.maplibregl-map { position: relative }`
+          with the same specificity as Tailwind's `.absolute` but later in the
+          cascade, which would override it and collapse the element to zero
+          height (inset-0 cannot stretch a relative box). `!absolute` forces the
+          override so the map has a non-zero box. */}
+      <div ref={containerRef} className="!absolute inset-0" aria-label="Interactive global map" />
       {showSceneBadge ? (
         <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-white/10 bg-abyss-900/85 px-3 py-2 backdrop-blur">
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-ink-300">
