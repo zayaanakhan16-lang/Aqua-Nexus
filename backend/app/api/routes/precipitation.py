@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Query
 
-from app.errors import InsufficientDataError
+from app.errors import InsufficientDataError, ValidationError
 from app.models.aggregates import (
     LocationSummary,
     PrecipitationComparison,
@@ -15,11 +15,11 @@ from app.models.common import (
     DataClassification,
     GeoPoint,
     Provenance,
-    TimeSeriesPoint,
 )
 from app.providers import open_meteo
 from app.services.aggregation import aggregate_precipitation
 from app.services.anomaly import compute_anomaly
+from app.services.baseline import align_daily_by_date, expected_window_days, prior_year_window
 from app.services.summary import build_location_summary
 
 router = APIRouter(tags=["precipitation"])
@@ -61,7 +61,15 @@ async def historical_precipitation(
     end_date: date | None = Query(None),
 ) -> PrecipitationSeries:
     point = GeoPoint(latitude=latitude, longitude=longitude)
+    # An explicitly supplied date range must be complete and coherent; silently
+    # ignoring a lone start or end date would mislead the caller.
+    if (start_date is None) != (end_date is None):
+        raise ValidationError(
+            "Provide both start_date and end_date, or neither. A lone date is ambiguous."
+        )
     if start_date and end_date:
+        if end_date < start_date:
+            raise ValidationError("end_date must be on or after start_date.")
         return await open_meteo.fetch_archive_precipitation(
             point, start=start_date, end=end_date
         )
@@ -71,23 +79,27 @@ async def historical_precipitation(
 
 async def _build_multi_year_baseline(
     point: GeoPoint, start: date, end: date, baseline_years: int
-) -> tuple[PrecipitationSeries, list[int]]:
-    """Average the same calendar window across prior years, aligned by index."""
+) -> tuple[PrecipitationSeries, list[int], list[int]]:
+    """Average the same calendar window across prior years, aligned by date.
+
+    Each prior-year window is aligned on **calendar dates**, so a missing daily
+    value is never treated as zero and leap years (29 February) are handled
+    deterministically. Returns the baseline series, the years that contributed,
+    and the years that were skipped.
+    """
     series_list: list[PrecipitationSeries] = []
     years: list[int] = []
+    skipped: list[int] = []
     for offset in range(1, baseline_years + 1):
-        try:
-            b_start = start.replace(year=start.year - offset)
-            b_end = end.replace(year=end.year - offset)
-        except ValueError:
-            # Feb 29 in a non-leap year: skip that year honestly.
-            continue
+        target_year = start.year - offset
+        b_start, b_end = prior_year_window(start, end, offset)
         try:
             series_list.append(
                 await open_meteo.fetch_archive_precipitation(point, start=b_start, end=b_end)
             )
-            years.append(start.year - offset)
+            years.append(target_year)
         except Exception:  # a provider gap for one year must not kill the baseline
+            skipped.append(target_year)
             continue
 
     if not series_list:
@@ -95,16 +107,7 @@ async def _build_multi_year_baseline(
             "No historical baseline period could be retrieved for this location."
         )
 
-    common_len = min(len(s.points) for s in series_list)
-    template = series_list[0].points
-    baseline_points = [
-        TimeSeriesPoint(
-            timestamp=template[idx].timestamp,
-            value=sum((s.points[idx].value or 0.0) for s in series_list) / len(series_list),
-            unit="mm",
-        )
-        for idx in range(common_len)
-    ]
+    baseline_points = align_daily_by_date(series_list)
     baseline = PrecipitationSeries(
         location=point,
         start_date=baseline_points[0].timestamp.date(),
@@ -114,25 +117,31 @@ async def _build_multi_year_baseline(
         points=baseline_points,
         provenance=Provenance(
             source_id=open_meteo.ARCHIVE.id,
-            source_name=f"{open_meteo.ARCHIVE.name} (multi-year baseline)",
+            source_name=f"{open_meteo.ARCHIVE.name} (year-over-year baseline)",
             classification=DataClassification.REANALYSIS,
             observed_at=baseline_points[-1].timestamp,
-            method="Mean of the same calendar window across prior years, aligned by day index",
-            method_version="1.0",
-            notes=["Baseline years: " + ", ".join(str(y) for y in years)],
+            method=(
+                "Mean of the same calendar window across prior years, aligned by "
+                "date; dates missing from any year are excluded and never imputed"
+            ),
+            method_version="1.1",
+            notes=[
+                "Baseline years: " + ", ".join(str(y) for y in years),
+                "This is a year-over-year comparison, not a long-term climate normal.",
+            ],
         ),
         provider=open_meteo.ARCHIVE,
         coverage=f"Baseline averaged over years: {', '.join(str(y) for y in years)}",
-        missing_days=0,
+        missing_days=sum(1 for p in baseline_points if p.value is None),
         total=sum(p.value for p in baseline_points if p.value is not None),
     )
-    return baseline, years
+    return baseline, years, skipped
 
 
 @router.get(
     "/precipitation/comparison",
     response_model=PrecipitationComparison,
-    summary="Observed vs. historical baseline rainfall comparison",
+    summary="Observed vs. same-period-in-prior-year rainfall comparison",
 )
 async def precipitation_comparison(
     latitude: float = Query(..., ge=-90, le=90),
@@ -142,11 +151,14 @@ async def precipitation_comparison(
 ) -> PrecipitationComparison:
     point = GeoPoint(latitude=latitude, longitude=longitude)
     start, end = _default_window(days)
+    window_len = expected_window_days(start, end)
 
     observed = await open_meteo.fetch_archive_precipitation(point, start=start, end=end)
-    observed_agg = aggregate_precipitation(observed.points)
+    observed_agg = aggregate_precipitation(observed.points, expected_days=window_len)
 
-    baseline, years = await _build_multi_year_baseline(point, start, end, baseline_years)
+    baseline, years, skipped = await _build_multi_year_baseline(
+        point, start, end, baseline_years
+    )
     baseline_agg = aggregate_precipitation(baseline.points)
 
     try:
@@ -159,6 +171,17 @@ async def precipitation_comparison(
     except ValueError as exc:
         raise InsufficientDataError(str(exc)) from exc
 
+    compare_label = ", ".join(str(y) for y in years) if years else "prior year"
+    notes = list(anomaly.notes)
+    notes.append(
+        f"Comparison is a year-over-year change versus the same period in {compare_label}, "
+        "not a 30-year climate normal."
+    )
+    if skipped:
+        notes.append(
+            "Years skipped for lack of data: " + ", ".join(str(y) for y in skipped) + "."
+        )
+
     return PrecipitationComparison(
         location=point,
         observed=observed,
@@ -170,7 +193,7 @@ async def precipitation_comparison(
         ),
         classification={"band": anomaly.band, "label": anomaly.band_label},
         supported=True,
-        notes=anomaly.notes,
+        notes=notes,
     )
 
 

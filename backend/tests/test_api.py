@@ -192,3 +192,110 @@ async def test_stac_scenes_endpoint(client):
     body = r.json()
     assert body["count"] == 1
     assert "not yet" in body["note"].lower()
+
+
+async def test_historical_rejects_lone_start_date(client):
+    # A supplied start date without an end date is ambiguous and must be rejected
+    # rather than silently ignored.
+    r = await client.get(
+        "/api/v1/precipitation/historical",
+        params={"latitude": 10, "longitude": 20, "start_date": "2024-01-01"},
+    )
+    assert r.status_code == 422
+    assert "both" in r.json()["error"]["message"].lower()
+
+
+async def test_historical_rejects_reversed_range(client):
+    r = await client.get(
+        "/api/v1/precipitation/historical",
+        params={
+            "latitude": 10,
+            "longitude": 20,
+            "start_date": "2024-02-01",
+            "end_date": "2024-01-01",
+        },
+    )
+    assert r.status_code == 422
+
+
+@respx.mock
+async def test_comparison_zero_baseline_reports_undefined_percent(client):
+    # Observed has rain; the prior-year baseline is entirely zero. The percentage
+    # must be null and the band must not be "near_normal".
+    def _archive_for_year(request):
+        params = request.url.params
+        year = params["start_date"][:4]
+        # 2025 baseline is bone dry; the 2026 observed window is wet.
+        values = [0.0] * 30 if year == "2025" else [2.0] * 30
+        from datetime import date as _date, timedelta as _td
+
+        s = _date.fromisoformat(params["start_date"])
+        e = _date.fromisoformat(params["end_date"])
+        days = (e - s).days + 1
+        times = [(s + _td(days=i)).isoformat() for i in range(days)]
+        return httpx.Response(
+            200,
+            json={"daily": {"time": times, "precipitation_sum": (values * 40)[:days]}},
+        )
+
+    respx.get(ARCHIVE_URL).mock(side_effect=_archive_for_year)
+    r = await client.get(
+        "/api/v1/precipitation/comparison", params={"latitude": 10, "longitude": 20}
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["anomaly_percent"] is None
+    assert body["classification"]["band"] != "near_normal"
+    assert body["classification"]["band"] == "undefined_baseline"
+    assert any("year-over-year" in note for note in body["notes"])
+    assert any("not a 30-year climate normal" in note for note in body["notes"])
+
+
+async def test_readiness_reports_configuration_not_availability(client):
+    r = await client.get("/api/v1/readiness")
+    assert r.status_code == 200
+    providers = {p["provider_id"]: p for p in r.json()["providers"]}
+    # Credential-free providers must not claim a live network check.
+    assert "per request" in (providers["open_meteo_archive"]["message"] or "").lower()
+    # Credential-gated providers report unconfigured without a credential.
+    assert providers["cdse_stac"]["status"] == "ok"  # STAC search is anonymous
+
+
+@respx.mock
+async def test_summary_reports_observed_and_forecast_freshness_separately(client):
+    respx.get(ARCHIVE_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "daily": {
+                    "time": [f"2026-09-{d:02d}" for d in range(1, 31)],
+                    "precipitation_sum": [1.0] * 30,
+                }
+            },
+        )
+    )
+    respx.get(FORECAST_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "daily": {
+                    "time": ["2026-10-09", "2026-10-10"],
+                    "precipitation_sum": [0.5, 0.2],
+                }
+            },
+        )
+    )
+    respx.get(FLOOD_URL).mock(return_value=httpx.Response(500))
+    respx.get(POWER_URL).mock(return_value=httpx.Response(500))
+
+    r = await client.get(
+        "/api/v1/location/summary", params={"latitude": 10, "longitude": 20}
+    )
+    assert r.status_code == 200
+    keys = {i["key"] for i in r.json()["indicators"]}
+    assert "observed_freshness" in keys
+    assert "forecast_freshness" in keys
+    # The generic key must no longer be emitted, so freshness cannot be conflated.
+    assert "data_freshness" not in keys
+
+

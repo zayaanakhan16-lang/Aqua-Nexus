@@ -42,19 +42,43 @@ async def health() -> HealthResponse:
 
 @router.get("/readiness", response_model=ReadinessResponse, summary="Provider readiness")
 async def readiness() -> ReadinessResponse:
+    """Report provider *configuration* separately from live *availability*.
+
+    This endpoint performs no network calls, so it must not claim a provider is
+    reachable. Providers that need no credential report ``configured`` (carried on
+    the ``ok`` status); credential-gated providers report ``unconfigured``. Actual
+    availability is observed per request in ``/location/summary``.
+    """
+    settings = get_settings()
     reports: list[ProviderReport] = []
     for provider in ALL_PROVIDERS:
-        is_free = provider.id in _CREDENTIAL_FREE
+        requires_credential = provider.id not in _CREDENTIAL_FREE
+        if requires_credential:
+            configured = settings.provider_configured(_credential_key_for(provider.id))
+            status = ProviderStatus.OK if configured else ProviderStatus.UNCONFIGURED
+            message = None if configured else "Requires configuration (credential not set)."
+        else:
+            status = ProviderStatus.OK
+            message = "No credential required; availability is checked per request."
         reports.append(
             ProviderReport(
                 provider_id=provider.id,
                 provider_name=provider.name,
-                status=ProviderStatus.OK if is_free else ProviderStatus.UNCONFIGURED,
-                message=None if is_free else "Requires configuration.",
+                status=status,
+                message=message,
                 classification=provider.classification,
             )
         )
     return ReadinessResponse(status="ok", providers=reports)
+
+
+def _credential_key_for(provider_id: str) -> str:
+    """Map a provider id to the credential key understood by ``Settings``."""
+    if provider_id.startswith("cdse"):
+        return "cdse_stac_auth"
+    if provider_id.startswith("earthdata") or "earthdata" in provider_id:
+        return "earthdata"
+    return provider_id
 
 
 @router.get("/providers", summary="Provider catalog with provenance metadata")

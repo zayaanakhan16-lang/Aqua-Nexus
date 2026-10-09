@@ -29,12 +29,19 @@ class _CacheEntry:
 
 
 class TTLCache:
-    """A tiny thread-safe async TTL cache with a bounded entry count."""
+    """A tiny thread-safe async TTL cache with a bounded entry count.
+
+    Identical concurrent requests for the same key are *coalesced*: the first
+    caller performs the fetch and the others await the same result. This avoids
+    hammering public providers when several UI panels request the same data at
+    once, which is both a courtesy to the provider and a reliability win.
+    """
 
     def __init__(self, ttl_seconds: int, max_entries: int) -> None:
         self._ttl = ttl_seconds
         self._max = max_entries
         self._store: dict[str, _CacheEntry] = {}
+        self._key_locks: dict[str, asyncio.Lock] = {}
         self._lock = asyncio.Lock()
 
     @staticmethod
@@ -49,19 +56,31 @@ class TTLCache:
             entry = self._store.get(key)
             if entry and entry.expires_at > time.monotonic():
                 return entry.value
-        # Compute outside the lock so a slow fetch does not block other keys.
-        value = await factory()
-        async with self._lock:
-            if len(self._store) >= self._max:
-                # Evict the soonest-to-expire entry.
-                oldest = min(self._store, key=lambda k: self._store[k].expires_at)
-                self._store.pop(oldest, None)
-            self._store[key] = _CacheEntry(value, time.monotonic() + self._ttl)
-        return value
+            key_lock = self._key_locks.setdefault(key, asyncio.Lock())
+
+        # Single-flight: only one caller fetches a given key at a time.
+        async with key_lock:
+            async with self._lock:
+                entry = self._store.get(key)
+                if entry and entry.expires_at > time.monotonic():
+                    return entry.value
+
+            value = await factory()
+
+            async with self._lock:
+                if len(self._store) >= self._max:
+                    # Evict the soonest-to-expire entry.
+                    oldest = min(self._store, key=lambda k: self._store[k].expires_at)
+                    self._store.pop(oldest, None)
+                    self._key_locks.pop(oldest, None)
+                self._store[key] = _CacheEntry(value, time.monotonic() + self._ttl)
+            self._key_locks.pop(key, None)
+            return value
 
     async def clear(self) -> None:
         async with self._lock:
             self._store.clear()
+            self._key_locks.clear()
 
 
 _cache: TTLCache | None = None

@@ -24,15 +24,31 @@ FRESHNESS_HOURS = {
 
 
 def assess_freshness(
-    observed_at: datetime | None, *, policy: str = "reanalysis", now: datetime | None = None
+    observed_at: datetime | None,
+    *,
+    policy: str = "reanalysis",
+    now: datetime | None = None,
+    key: str | None = None,
+    label: str | None = None,
 ) -> Indicator:
-    """How current is the most recent observation/forecast sample?"""
+    """How current is the most recent observation/forecast sample?
+
+    ``key`` and ``label`` distinguish observed/reanalysis freshness from forecast
+    freshness so the two can never be conflated in a summary.
+
+    Forecast samples legitimately sit in the future. Their freshness is measured
+    against the *start* of the forecast window, not the far end: reporting a
+    forecast as "fresh" merely because its last date is in the future would be a
+    false positive.
+    """
     now = now or datetime.now(tz=timezone.utc)
     limit = FRESHNESS_HOURS.get(policy, FRESHNESS_HOURS["reanalysis"])
+    key = key or "data_freshness"
+    label = label or "Data freshness"
     if observed_at is None:
         return Indicator(
-            key="data_freshness",
-            label="Data freshness",
+            key=key,
+            label=label,
             value=None,
             unit="hours",
             status="unavailable",
@@ -41,18 +57,18 @@ def assess_freshness(
             limitations=["No timestamp available for the latest sample."],
         )
     age_hours = (now - observed_at).total_seconds() / 3600.0
-    # Forecast samples legitimately sit in the future; age is then negative and
-    # must be treated as fresh, not stale.
+    # Forecasts are dated in the future. We anchor them to the beginning of the
+    # forecast horizon so a stale initialisation cannot masquerade as fresh.
     is_fresh = age_hours <= limit
     return Indicator(
-        key="data_freshness",
-        label="Data freshness",
+        key=key,
+        label=label,
         value=round(max(age_hours, 0.0), 1),
         unit="hours",
         status="ok" if is_fresh else "stale",
         baseline=float(limit),
         method=(
-            "age_hours = (retrieval_time - latest_sample_time) in hours; "
+            "age_hours = (now - latest_sample_time) in hours; "
             f"fresh when age <= {limit}h for '{policy}' products"
         ),
         method_version=METHOD_VERSION,
@@ -99,6 +115,10 @@ def precipitation_deficit_indicator(
 
     Deliberately NOT called water stress: rainfall is only one input among many
     that would be required to assess water scarcity.
+
+    When the baseline total is zero the percentage is undefined, so the indicator
+    falls back to the absolute difference in millimetres rather than reporting a
+    misleading percentage or "near normal".
     """
     if not sufficient_evidence or anomaly_mm is None:
         return Indicator(
@@ -113,10 +133,31 @@ def precipitation_deficit_indicator(
                 "Insufficient or incompatible evidence to compute a rainfall anomaly.",
             ],
         )
+    if anomaly_percent is None:
+        # Zero baseline: percentage undefined, absolute difference is the story.
+        return Indicator(
+            key="rainfall_anomaly",
+            label="Rainfall change (absolute)",
+            value=round(anomaly_mm, 1),
+            unit="mm",
+            status="ok",
+            baseline=None,
+            method=(
+                "anomaly_mm = observed_total - baseline_total; percentage undefined "
+                f"because the baseline total is zero. baseline: {baseline_description}"
+            ),
+            method_version=METHOD_VERSION,
+            inputs=["observed precipitation total", "baseline precipitation total"],
+            classification=DataClassification.DERIVED,
+            limitations=[
+                "Baseline total is zero, so percentage change is undefined.",
+                "Rainfall alone does not establish water scarcity or flooding.",
+            ],
+        )
     return Indicator(
         key="rainfall_anomaly",
         label="Rainfall anomaly",
-        value=round(anomaly_percent, 1) if anomaly_percent is not None else None,
+        value=round(anomaly_percent, 1),
         unit="%",
         baseline=None,
         status="ok",
@@ -130,6 +171,7 @@ def precipitation_deficit_indicator(
         limitations=[
             "Rainfall alone does not establish water scarcity or flooding.",
             "Sensitive to the chosen baseline period and dataset.",
+            "Year-over-year comparison, not a long-term climate normal.",
         ],
     )
 
@@ -185,18 +227,41 @@ def coverage_indicator(agg: PrecipitationAggregate | None) -> Indicator:
 
 
 def flood_discharge_indicator(payload: dict | None) -> Indicator:
-    """Ratio of the latest modelled discharge to the recent modelled mean.
+    """Modelled river discharge relative to its own day's ensemble mean.
 
-    This is a transparent, preliminary comparable, not a flood forecast.
+    Semantics (verified against the Open-Meteo Flood API documentation)
+    ----------------------------------------------------------------
+    The Flood API returns the GloFAS *deterministic* ``river_discharge`` plus
+    ensemble statistics (``river_discharge_mean`` / ``median`` / percentiles).
+    Those statistics are "statistical analysis from ensemble members ... only
+    available for forecasts and not for consolidated historical data" — i.e. the
+    mean is the ensemble mean **for the same forecast day**, not a "recent mean"
+    of past observations.
+
+    This indicator therefore reports the deterministic forecast value relative to
+    its own day's ensemble mean, which is a spread/agreement measure. It is not a
+    flood forecast and not a comparison against a historical baseline.
     """
+    label = "River discharge vs. ensemble mean (modelled)"
+    method = (
+        "ratio = river_discharge / river_discharge_mean for the same forecast day, "
+        "where river_discharge_mean is the GloFAS forecast ensemble mean (modelled). "
+        "Ratio > 1 means the deterministic run exceeds the ensemble mean."
+    )
+    limitations = [
+        "Modelled GloFAS discharge, not a gauge observation.",
+        "The ensemble mean is a same-day forecast statistic, not a historical normal.",
+        "A single ratio does not imply a flood; local thresholds and conditions matter.",
+        "GloFAS selects the largest river within ~5 km; try offsetting coordinates.",
+    ]
     if not payload:
         return Indicator(
             key="river_discharge_ratio",
-            label="River discharge vs. recent mean",
+            label=label,
             value=None,
             unit="ratio",
             status="unavailable",
-            method="latest river_discharge / mean river_discharge_mean over the window",
+            method=method,
             method_version=METHOD_VERSION,
             limitations=["Modelled GloFAS discharge unavailable for this location."],
         )
@@ -207,33 +272,26 @@ def flood_discharge_indicator(payload: dict | None) -> Indicator:
     if not pairs:
         return Indicator(
             key="river_discharge_ratio",
-            label="River discharge vs. recent mean",
+            label=label,
             value=None,
             unit="ratio",
             status="insufficient_data",
-            method="latest river_discharge / mean river_discharge_mean over the window",
+            method=method,
             method_version=METHOD_VERSION,
             limitations=["No comparable discharge values in the response."],
         )
-    latest, latest_mean = pairs[0]
-    ratio = latest / latest_mean if latest_mean else None
+    latest, ensemble_mean = pairs[0]
+    ratio = latest / ensemble_mean if ensemble_mean else None
     return Indicator(
         key="river_discharge_ratio",
-        label="River discharge vs. recent mean",
+        label=label,
         value=round(ratio, 2) if ratio is not None else None,
         unit="ratio",
         status="ok" if ratio is not None else "insufficient_data",
         baseline=1.0,
-        method=(
-            "ratio = forecast river_discharge / river_discharge_mean (modelled). "
-            "Ratio > 1 indicates modelled discharge above the recent modelled mean."
-        ),
+        method=method,
         method_version=METHOD_VERSION,
-        inputs=["GloFAS modelled discharge"],
+        inputs=["GloFAS modelled discharge", "GloFAS forecast ensemble mean"],
         classification=DataClassification.DERIVED,
-        limitations=[
-            "Modelled discharge, not a gauge observation.",
-            "A single ratio does not imply a flood; local conditions and "
-            "thresholds matter.",
-        ],
+        limitations=limitations,
     )

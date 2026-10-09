@@ -49,8 +49,18 @@ class PrecipitationAggregate:
         return self.coverage_ratio >= 0.8 and self.valid_days > 0
 
 
-def aggregate_precipitation(points: list[TimeSeriesPoint]) -> PrecipitationAggregate:
-    """Aggregate normalized daily precipitation points."""
+def aggregate_precipitation(
+    points: list[TimeSeriesPoint],
+    *,
+    expected_days: int | None = None,
+) -> PrecipitationAggregate:
+    """Aggregate normalized daily precipitation points.
+
+    ``expected_days`` sets the calendar-window length used for coverage. When a
+    provider omits days entirely (rather than returning explicit nulls), passing
+    the true window length prevents coverage from being overstated. It is never
+    smaller than the number of points actually returned.
+    """
     if not points:
         raise ValueError("Cannot aggregate an empty precipitation series.")
 
@@ -67,7 +77,12 @@ def aggregate_precipitation(points: list[TimeSeriesPoint]) -> PrecipitationAggre
             )
         valid.append(float(point.value))
 
-    total_days = len(points)
+    returned_days = len(points)
+    total_days = max(returned_days, expected_days) if expected_days else returned_days
+    if total_days < returned_days:
+        total_days = returned_days
+    # Days the provider never returned at all still count against coverage.
+    missing += total_days - returned_days
     valid_days = len(valid)
     total = sum(valid)
     return PrecipitationAggregate(

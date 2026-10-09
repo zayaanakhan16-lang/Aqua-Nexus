@@ -196,3 +196,39 @@ async def test_http_error_surfaces_as_provider_error():
     respx.get(FORECAST_URL).mock(return_value=httpx.Response(400))
     with pytest.raises(ProviderError):
         await open_meteo.fetch_forecast_precipitation(POINT, days=3)
+
+
+@respx.mock
+async def test_geocoder_distinguishes_no_results_from_failure():
+    # An empty successful response is "no matches", not an outage.
+    respx.get(GEOCODE_URL).mock(return_value=httpx.Response(200, json={"results": []}))
+    results, report = await geocoding.search_places("zzzzzz")
+    assert results == []
+    assert "no matching places" in (report.message or "").lower()
+
+    # A provider failure reads differently.
+    respx.get(GEOCODE_URL).mock(return_value=httpx.Response(503))
+    results, report = await geocoding.search_places("berlin")
+    assert results == []
+    assert "no matching places" not in (report.message or "").lower()
+
+
+async def test_ttl_cache_coalesces_concurrent_identical_requests():
+    from app.providers.base import TTLCache
+
+    cache = TTLCache(ttl_seconds=60, max_entries=8)
+    calls = {"n": 0}
+
+    async def factory():
+        calls["n"] += 1
+        return "value"
+
+    import asyncio
+
+    results = await asyncio.gather(
+        *(cache.get_or_set("ns", {"a": 1}, factory) for _ in range(5))
+    )
+    assert results == ["value"] * 5
+    # Only the first caller should have performed the fetch.
+    assert calls["n"] == 1
+

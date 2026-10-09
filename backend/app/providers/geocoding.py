@@ -72,7 +72,12 @@ async def search_places(query: str, *, limit: int = 8, language: str = "en") -> 
             continue
 
     status = ProviderStatus.OK if results else ProviderStatus.UNAVAILABLE
-    message = None if results else f"No places matched '{query}'."
+    if results:
+        message = None
+    else:
+        # Distinguish "the geocoder ran and found nothing" from "the geocoder
+        # failed". These are different facts and must not share a label.
+        message = f"No matching places found for '{query}'."
     return results, ProviderReport(
         provider_id=PROVIDER.id,
         provider_name=PROVIDER.name,

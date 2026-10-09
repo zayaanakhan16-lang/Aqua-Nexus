@@ -68,6 +68,16 @@ class AnomalyResult:
     notes: list[str] = None  # type: ignore[assignment]
 
 
+# A named band is only meaningful when a percentage can be computed. When the
+# baseline total is zero the percentage is undefined, so we report an explicit
+# "undefined_baseline" band rather than reusing the near-normal band by default.
+UNDEFINED_BAND = "undefined_baseline"
+UNDEFINED_BAND_LABEL = (
+    "Percentage change is undefined because the comparison baseline total is "
+    "zero; only the absolute difference is meaningful."
+)
+
+
 def classify_band(anomaly_percent: float) -> tuple[str, str]:
     """Map an anomaly percentage to a named band and human explanation.
 
@@ -125,14 +135,14 @@ def compute_anomaly(
     anomaly_mm = observed.total_mm - baseline.total_mm
     if baseline.total_mm > 0:
         anomaly_percent: float | None = (anomaly_mm / baseline.total_mm) * 100.0
+        band, band_label = classify_band(anomaly_percent)
     else:
+        # Zero baseline: the ratio is undefined and must NOT be classified as
+        # near normal. Report the absolute difference and an explicit band.
         anomaly_percent = None
-        notes.append(
-            "Baseline total is zero; a percentage anomaly is undefined. "
-            "Interpret the absolute difference only."
-        )
+        band, band_label = UNDEFINED_BAND, UNDEFINED_BAND_LABEL
+        notes.append(UNDEFINED_BAND_LABEL)
 
-    band, band_label = classify_band(anomaly_percent if anomaly_percent is not None else 0.0)
     notes.append(
         "Deficit and excess bands are preliminary AquaNexus indicators. "
         "They describe rainfall relative to a comparison baseline, not water scarcity."
