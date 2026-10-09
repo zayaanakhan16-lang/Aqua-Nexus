@@ -15,34 +15,55 @@ function AnomalyCard({ comparison }: { comparison: PrecipitationComparison | nul
   if (!comparison) return null;
   const pct = comparison.anomaly_percent;
   const band = comparison.classification.band;
-  const positive = (pct ?? comparison.anomaly_mm) >= 0;
-  const Icon = pct === null || Math.abs(pct) < 5 ? Minus : positive ? TrendingUp : TrendingDown;
+  const isUndefined = band === "undefined_baseline" || pct === null;
+  const pctValue = pct ?? 0;
+  const positive = comparison.anomaly_mm >= 0;
+  const Icon = isUndefined
+    ? Minus
+    : Math.abs(pctValue) < 5
+      ? Minus
+      : positive
+        ? TrendingUp
+        : TrendingDown;
   const tone =
     band === "near_normal"
       ? "text-ink-200"
-      : positive
-        ? "text-water-300"
-        : "text-signal-caution";
+      : isUndefined
+        ? "text-ink-200"
+        : positive
+          ? "text-water-300"
+          : "text-signal-caution";
 
   return (
     <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="label-caps">Rainfall anomaly</p>
-        <span className="text-[0.6875rem] text-ink-500">
-          vs. {comparison.baseline_years.join(", ")}
+        <p className="label-caps">Rainfall vs. baseline</p>
+        <span className="text-[0.6875rem] text-ink-400">
+          vs. {comparison.baseline_years.join(", ") || "prior year"}
         </span>
       </div>
-      <div className="mt-1.5 flex items-center gap-2">
-        <Icon className={cn("h-5 w-5", tone)} aria-hidden />
+      <div className="mt-1.5 flex items-baseline gap-2">
+        <Icon className={cn("h-5 w-5 shrink-0", tone)} aria-hidden />
         <p className={cn("font-mono text-xl font-semibold", tone)}>
-          {pct === null
-            ? formatNumber(comparison.anomaly_mm, 1)
-            : `${pct > 0 ? "+" : ""}${formatNumber(pct, 1)}%`}
+          {/* Percent is undefined when the baseline total is zero; fall back to mm. */}
+          {isUndefined ? (
+            <>
+              {positive ? "+" : ""}
+              {formatNumber(comparison.anomaly_mm, 1)}
+              <span className="ml-1 text-xs font-normal text-ink-400">mm</span>
+            </>
+          ) : (
+            <>
+              {pct > 0 ? "+" : ""}
+              {formatNumber(pct, 1)}
+              <span className="ml-1 text-xs font-normal text-ink-400">%</span>
+            </>
+          )}
         </p>
       </div>
       <p className="mt-1 text-xs text-ink-300">{comparison.classification.label}</p>
       {comparison.notes.length ? (
-        <p className="mt-2 border-t border-white/[0.06] pt-2 text-[0.6875rem] leading-relaxed text-ink-500">
+        <p className="mt-2 border-t border-white/[0.06] pt-2 text-[0.6875rem] leading-relaxed text-ink-400">
           {comparison.notes[0]}
         </p>
       ) : null}

@@ -74,7 +74,7 @@ function LocationChip() {
 }
 
 function Workspace() {
-  const { summary, comparison, forecast, refresh } = useWorkspace();
+  const { summary, comparison, forecast, refresh, layers } = useWorkspace();
   const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -102,7 +102,9 @@ function Workspace() {
             <LocationSearch />
             <LocationChip />
           </div>
-          <div className="hidden min-h-0 lg:block">
+          {/* Layer controls are shown on every breakpoint so the toggles are
+              reachable on mobile too. */}
+          <div className="min-h-0">
             <LayerControls />
           </div>
         </div>
@@ -116,7 +118,9 @@ function Workspace() {
         <div className="flex min-h-0 flex-col gap-3 overflow-y-auto lg:pr-1">
           <OnboardingCard />
           <IntelligencePanel slice={summary} onRetry={refresh} />
-          <RainfallPanel comparison={comparison} forecast={forecast} onRetry={refresh} />
+          {layers.precipitation ? (
+            <RainfallPanel comparison={comparison} forecast={forecast} onRetry={refresh} />
+          ) : null}
           <SourcesPanel />
         </div>
       </div>

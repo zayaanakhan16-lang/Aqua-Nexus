@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { classificationStyle, formatCoord, formatDateTime, formatNumber, indicatorStatusLabel } from "@/lib/format";
 import { ClassificationBadge, Chip, Panel, PanelHeader, Skeleton, StatusDot } from "@/components/ui/primitives";
 import { ErrorState, UnavailableNotice } from "@/components/ui/states";
-import type { SliceState } from "@/lib/workspace";
+import { useWorkspace, type SliceState } from "@/lib/workspace";
 
 const INDICATOR_GROUPS: Record<string, { title: string; keys: string[] }> = {
   rainfall: {
@@ -135,8 +135,18 @@ function SummaryBody({
   onRetry: () => void;
 }) {
   const [tab, setTab] = useState<"indicators" | "sources" | "notes">("indicators");
+  const { layers } = useWorkspace();
   const byKey = new Map(summary.indicators.map((i) => [i.key, i]));
   const unavailableCount = summary.indicators.filter((i) => i.status === "unavailable").length;
+  // Rainfall-group indicators follow the "Precipitation" layer; the discharge
+  // indicator follows the "River discharge" layer. A hidden layer also hides its
+  // indicators, so the toggle has a real, visible effect.
+  const visibleGroups = Object.entries(INDICATOR_GROUPS).filter(([groupId]) => {
+    if (groupId === "rainfall") return layers.precipitation;
+    if (groupId === "water") return layers.discharge;
+    return true;
+  });
+  const visibleKeys = new Set(visibleGroups.flatMap(([, g]) => g.keys));
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -154,8 +164,8 @@ function SummaryBody({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <Chip title="Providers that returned usable data">
             <Database className="h-3 w-3" aria-hidden />
-            {summary.providers.filter((p) => p.status === "ok").length}/
-            {summary.providers.length} live
+            {summary.providers.filter((p) => p.status === "ok").length} of{" "}
+            {summary.providers.length} available
           </Chip>
           <Chip title="Time the summary was assembled">
             {formatDateTime(summary.generated_at)}
@@ -175,7 +185,19 @@ function SummaryBody({
             key={id}
             role="tab"
             aria-selected={tab === id}
+            tabIndex={tab === id ? 0 : -1}
             onClick={() => setTab(id)}
+            onKeyDown={(event) => {
+              const tabs = ["indicators", "sources", "notes"] as const;
+              const current = tabs.indexOf(id);
+              if (event.key === "ArrowRight") {
+                event.preventDefault();
+                setTab(tabs[(current + 1) % tabs.length]!);
+              } else if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                setTab(tabs[(current - 1 + tabs.length) % tabs.length]!);
+              }
+            }}
             className={cn(
               "relative px-3 py-2 text-xs font-medium transition",
               tab === id ? "text-water-200" : "text-ink-400 hover:text-ink-200",
@@ -200,7 +222,7 @@ function SummaryBody({
                 />
               </div>
             ) : null}
-            {Object.entries(INDICATOR_GROUPS).map(([groupId, group]) => {
+            {visibleGroups.map(([groupId, group]) => {
               const items = group.keys
                 .map((key) => byKey.get(key))
                 .filter((i): i is Indicator => Boolean(i));
@@ -222,6 +244,12 @@ function SummaryBody({
               .map((indicator) => (
                 <IndicatorRow key={indicator.key} indicator={indicator} />
               ))}
+            {visibleKeys.size === 0 ? (
+              <p className="px-4 py-4 text-xs leading-relaxed text-ink-400">
+                All layer-based indicators are hidden. Re-enable the Precipitation or River
+                discharge layer to see them.
+              </p>
+            ) : null}
           </div>
         ) : null}
 

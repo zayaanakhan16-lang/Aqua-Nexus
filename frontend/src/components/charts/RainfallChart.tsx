@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useRef } from "react";
 
+import { shiftDateYears } from "@/lib/format";
 import type { PrecipitationComparison, PrecipitationSeries } from "@/lib/schemas";
 
 interface RainfallChartProps {
@@ -23,13 +24,20 @@ const COLOR = {
   baseline: "#8fa3b8",
   forecast: "#39d3b4",
   grid: "rgba(255,255,255,0.06)",
-  axis: "#6f8399",
+  axis: "#8ea0b6",
+  gap: "rgba(143,163,184,0.10)",
 };
 
-function seriesData(series: PrecipitationSeries | null | undefined): [string, number | null][] {
+/** Date-only ISO key for a point. */
+function dateKey(p: { timestamp: string }): string {
+  return p.timestamp.slice(0, 10);
+}
+
+/** Map a series to (date, value) pairs, keeping nulls as explicit gaps. */
+function seriesPairs(series: PrecipitationSeries | null | undefined): [string, number | null][] {
   if (!series) return [];
   return series.points.map((p) => [
-    p.timestamp.slice(0, 10),
+    dateKey(p),
     p.value === null ? null : Number(p.value.toFixed(2)),
   ]);
 }
@@ -44,14 +52,21 @@ export function RainfallChart({
   const chartRef = useRef<import("echarts").ECharts | null>(null);
 
   const option = useMemo(() => {
-    const observedData = seriesData(observed);
-    const baselineData = seriesData(baseline);
-    const forecastData = seriesData(forecast);
+    const observedData = seriesPairs(observed);
+    const baselineRaw = seriesPairs(baseline);
+    const forecastData = seriesPairs(forecast);
+
+    // The baseline is the *same calendar window one year earlier*. Shift it
+    // forward one year so it overlays the observed window instead of sitting a
+    // year to the left — this is the alignment the audit asked for.
+    const baselineData = baselineRaw.map(
+      ([day, value]) => [shiftDateYears(day, 1), value] as [string, number | null],
+    );
 
     const series: Record<string, unknown>[] = [];
     if (baselineData.length) {
       series.push({
-        name: "Baseline",
+        name: "Baseline (same window, prior year)",
         type: "line",
         data: baselineData,
         smooth: false,
@@ -80,6 +95,22 @@ export function RainfallChart({
         barMaxWidth: 12,
         itemStyle: { color: COLOR.forecast, borderRadius: [2, 2, 0, 0] },
         emphasis: { focus: "series" },
+        // Draw a boundary where the forecast begins, so modelled values are not
+        // mistaken for a continuation of the observed series.
+        markLine: observedData.length
+          ? {
+              silent: true,
+              symbol: "none",
+              lineStyle: { color: COLOR.forecast, type: "dotted", width: 1 },
+              label: {
+                formatter: "forecast →",
+                color: COLOR.axis,
+                fontSize: 10,
+                position: "insideEndTop",
+              },
+              data: [{ xAxis: forecastData[0]![0] }],
+            }
+          : undefined,
       });
     }
 
@@ -90,6 +121,26 @@ export function RainfallChart({
         ...forecastData.map((d) => d[0]),
       ]),
     ).sort();
+
+    // Shade the gap between the last observed day and the first forecast day so
+    // the observation-to-forecast discontinuity is visible rather than implied.
+    const observedEnd = observedData.length ? observedData[observedData.length - 1]![0] : null;
+    const forecastStart = forecastData.length ? forecastData[0]![0] : null;
+    const gapMarkArea =
+      observedEnd && forecastStart && forecastStart > observedEnd
+        ? {
+            silent: true,
+            itemStyle: { color: COLOR.gap },
+            label: {
+              show: true,
+              position: "top",
+              color: COLOR.axis,
+              fontSize: 10,
+              formatter: "no observed data",
+            },
+            data: [[{ xAxis: observedEnd }, { xAxis: forecastStart }]],
+          }
+        : undefined;
 
     return {
       backgroundColor: "transparent",
@@ -120,12 +171,12 @@ export function RainfallChart({
       },
       yAxis: {
         type: "value",
-        name: "mm",
+        name: "mm/day",
         nameTextStyle: { color: COLOR.axis, fontSize: 10 },
         splitLine: { lineStyle: { color: COLOR.grid } },
         axisLabel: { color: COLOR.axis, fontSize: 10 },
       },
-      series,
+      series: gapMarkArea ? [...series, { type: "line", data: [], markArea: gapMarkArea }] : series,
     };
   }, [observed, baseline, forecast]);
 

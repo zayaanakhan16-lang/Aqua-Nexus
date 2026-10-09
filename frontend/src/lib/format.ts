@@ -40,6 +40,20 @@ export function formatCoord(value: number, kind: "lat" | "lon"): string {
   return `${Math.abs(value).toFixed(4)}° ${hemisphere}`;
 }
 
+/**
+ * Shift a `YYYY-MM-DD` date by whole years, mapping 29 Feb onto 28 Feb when the
+ * target year is not a leap year. Used to overlay a prior-year baseline on the
+ * current window without a leap day crashing the chart.
+ */
+export function shiftDateYears(isoDate: string, years: number): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  if (!y || !m || !d) return isoDate;
+  const target = y + years;
+  const isLeap = (year: number) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const day = m === 2 && d === 29 && !isLeap(target) ? 28 : d;
+  return `${String(target).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 export interface ClassificationStyle {
   label: string;
   short: string;
@@ -101,7 +115,9 @@ export const CLASSIFICATION_STYLES: Record<DataClassification, ClassificationSty
 };
 
 export const STATUS_STYLES: Record<ProviderStatus, { label: string; className: string }> = {
-  ok: { label: "Live", className: "text-signal-good" },
+  // "Available" rather than "Live": a provider may return delayed reanalysis,
+  // so a successful response does not mean real-time data.
+  ok: { label: "Available", className: "text-signal-good" },
   partial: { label: "Partial", className: "text-signal-caution" },
   unconfigured: { label: "Not configured", className: "text-ink-400" },
   unavailable: { label: "Unavailable", className: "text-signal-alert" },

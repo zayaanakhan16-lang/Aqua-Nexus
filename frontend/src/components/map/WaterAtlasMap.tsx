@@ -75,11 +75,12 @@ export function WaterAtlasMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Recenter and mark when the selected location changes.
+  // Recenter and mark when the selected location changes. The marker respects
+  // the "Place markers" layer toggle.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (!location) {
+    if (!location || !layers.places) {
       markerRef.current?.remove();
       markerRef.current = null;
       return;
@@ -96,7 +97,12 @@ export function WaterAtlasMap() {
     } else {
       markerRef.current.setLngLat([location.longitude, location.latitude]);
     }
+  }, [location, layers.places]);
 
+  // Recenter on a new selection, independently of marker visibility.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !location) return;
     map.easeTo({
       center: [location.longitude, location.latitude],
       zoom: Math.max(map.getZoom(), 4),
@@ -158,6 +164,9 @@ export function WaterAtlasMap() {
 
   const sceneCount = scenes.data?.items.length ?? 0;
   const showSceneBadge = layers.satellite && sceneCount > 0;
+  const showSceneError = layers.satellite && scenes.error && !scenes.loading;
+  const showSceneEmpty =
+    layers.satellite && !scenes.error && !scenes.loading && scenes.data !== null && sceneCount === 0;
 
   return (
     <div className="relative h-full w-full">
@@ -170,6 +179,25 @@ export function WaterAtlasMap() {
           <p className="mt-0.5 text-xs text-ink-400">
             {sceneCount} Sentinel scene{sceneCount === 1 ? "" : "s"} — metadata only
           </p>
+        </div>
+      ) : null}
+      {showSceneError ? (
+        <div
+          role="status"
+          className="absolute bottom-3 left-3 z-10 max-w-xs rounded-lg border border-signal-alert/30 bg-abyss-900/90 px-3 py-2 backdrop-blur"
+        >
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-signal-alert">
+            Satellite scenes unavailable
+          </p>
+          <p className="mt-0.5 text-xs text-ink-300">{scenes.error}</p>
+        </div>
+      ) : null}
+      {showSceneEmpty ? (
+        <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-white/10 bg-abyss-900/85 px-3 py-2 backdrop-blur">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-ink-300">
+            Satellite footprints
+          </p>
+          <p className="mt-0.5 text-xs text-ink-400">No scenes in this window.</p>
         </div>
       ) : null}
     </div>

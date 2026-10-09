@@ -46,7 +46,7 @@ export function TopBar({ apiHealthy }: { apiHealthy: boolean | null }) {
           {apiHealthy === null
             ? "Checking API"
             : apiHealthy
-              ? "API live"
+              ? "API available"
               : "API unreachable"}
         </span>
         <a

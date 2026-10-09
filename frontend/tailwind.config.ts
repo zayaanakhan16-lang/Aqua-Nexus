@@ -43,7 +43,9 @@ const config: Config = {
           200: "#c7d3e0",
           300: "#9fb0c4",
           400: "#6f8399",
-          500: "#4c5f74",
+          // 500 raised from #4c5f74 so small muted text meets WCAG AA (~5.6:1)
+          // on the abyss palette instead of the previous ~2.8:1.
+          500: "#7d90a6",
           600: "#35465a",
           700: "#233246",
           800: "#162233",
