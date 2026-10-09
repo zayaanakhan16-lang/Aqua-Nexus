@@ -42,11 +42,37 @@ npm run dev            # port 3000
 
 ## Verified state
 
-- Backend: 65 pytest tests pass. Frontend: 30 vitest tests pass; typecheck, lint
-  and `next build` all clean.
+- Backend: 97 pytest tests pass (includes the IMERG adapter suite). Frontend:
+  30 vitest tests pass; typecheck, lint and `next build` all clean.
 - Live smoke test (real network, not mocked) verified 200 for `/health`,
   `/geocode`, `/precipitation/historical`, `/precipitation/comparison`,
   `/readiness` and `/location/summary`.
+- `/readiness` reports `nasa_imerg_late_daily` as `unconfigured` unless
+  Earthdata Login credentials are set. Live authenticated retrieval is **not**
+  yet verified in this environment (see below).
+
+## NASA GPM IMERG Late Daily V07 (credential-gated)
+
+- Adapter: `providers/imerg.py`; signer `providers/sigv4.py`; credential
+  handling `providers/gesdisc_credentials.py`; catalog entry
+  `GPM_IMERG_LATE_DAILY` (`nasa_imerg_late_daily`).
+- **Value semantics (critical):** `precipitation` is **mm/day** (a daily *mean
+  rate*, mean valid half-hourly rate × 24). `precipitation_cnt == 0` ⇒ filled
+  cell ⇒ `None`, **never 0 mm**. `count > 0` with `0.0` ⇒ valid dry day ⇒ keep
+  `0.0`. Count is preserved and drives coverage.
+- Object layout:
+  `gesdisc-cumulus-prod-protected/GPM_L3/GPM_3IMERGDL.07/YYYY/MM/3B-DAY-L.MS.MRG.3IMERG.YYYYMMDD-S000000-E235959.V07B.nc4`
+  (region `us-west-2`, NetCDF4, fill `-9999.900390625`).
+- Credentials: EDL username/password → `/s3credentials` → AWS STS keys **valid
+  1 hour**; cached in memory, refreshed before expiry. Never logged, never
+  client-side.
+- Needs the optional reader: `pip install -e "backend[imerg]"` (`xarray`,
+  `h5netcdf`). The base app runs without it.
+- **Blocker to record honestly:** no Earthdata credentials and no NetCDF reader
+  are present here, and both HTTPS/OPeNDAP return `302 → EDL login`, so
+  authenticated retrieval and spatial subsetting are **unverified live**. Do
+  not wire a map layer for IMERG until a real authenticated fetch + georeference
+  has been observed.
 
 ## Conventions and gotchas
 

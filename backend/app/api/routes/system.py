@@ -76,6 +76,8 @@ def _credential_key_for(provider_id: str) -> str:
     """Map a provider id to the credential key understood by ``Settings``."""
     if provider_id.startswith("cdse"):
         return "cdse_stac_auth"
+    if "imerg" in provider_id:
+        return "nasa_imerg"
     if provider_id.startswith("earthdata") or "earthdata" in provider_id:
         return "earthdata"
     return provider_id

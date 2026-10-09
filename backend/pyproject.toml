@@ -13,6 +13,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.2", "pytest-asyncio>=0.23", "respx>=0.21"]
+# Reading NASA GPM IMERG NetCDF4 granules. Kept optional so the base app and
+# every credential-free provider keep running with no scientific stack.
+imerg = ["xarray>=2023.1", "h5netcdf>=1.3", "numpy>=1.26"]
 
 [build-system]
 requires = ["hatchling"]

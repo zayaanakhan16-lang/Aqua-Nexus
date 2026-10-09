@@ -158,6 +158,32 @@ NASA_POWER = ProviderMetadata(
     ],
 )
 
+# --- Satellite precipitation estimate: NASA GPM IMERG (Late Daily V07) ---
+GPM_IMERG_LATE_DAILY = ProviderMetadata(
+    id="nasa_imerg_late_daily",
+    name="NASA GPM IMERG Late Daily",
+    product="GPM IMERG Late Precipitation L3 1 day 0.1 x 0.1 degree V07",
+    version="V07 (GPM_3IMERGDL)",
+    url="https://doi.org/10.5067/GPM/IMERGDL/DAY/07",
+    attribution="NASA GPM IMERG (GES DISC)",
+    license="Creative Commons Attribution 4.0 (CC-BY-4.0)",
+    classification=DataClassification.SATELLITE_ESTIMATE,
+    spatial_resolution="0.1 x 0.1 degree (~10 x 10 km)",
+    temporal_resolution="Daily (UTC)",
+    units="mm/day (daily mean rate)",
+    latency_note="Late Run, ~14 h after UTC day close.",
+    coverage_note=(
+        "Global, 1998-01-01 to near-present. Full skill 60N-60S; lower skill over "
+        "frozen surfaces, complex terrain and coasts."
+    ),
+    limitations=[
+        "Satellite/infrared estimate, not a gauge measurement.",
+        "Value is a daily mean rate (mean valid half-hourly rate x 24), not an accumulated total.",
+        "Grid cells with precipitation_cnt=0 are fill (-9999.9): no estimate, never 0 mm.",
+        "Requires NASA Earthdata credentials; retrieval is server-side only.",
+    ],
+)
+
 ALL_PROVIDERS = [
     OPEN_METEO_GEOCODING,
     OPEN_METEO_FORECAST,
@@ -166,6 +192,7 @@ ALL_PROVIDERS = [
     OPEN_METEO_FLOOD,
     CDSE_STAC,
     NASA_POWER,
+    GPM_IMERG_LATE_DAILY,
 ]
 
 

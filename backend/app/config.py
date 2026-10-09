@@ -53,8 +53,32 @@ class Settings(BaseSettings):
     # downloads (search itself is anonymous).
     cdse_username: str | None = None
     cdse_password: str | None = None
-    # NASA Earthdata: needed for GPM IMERG downloads (not for POWER).
+    # NASA Earthdata token (personal access token). Needed for authenticated
+    # NASA GPM IMERG access. Create at https://urs.earthdata.nasa.gov/.
     earthdata_token: str | None = None
+    # NASA Earthdata username/password (Earthdata Login). Used ONLY server-side
+    # to obtain short-lived (1-hour) AWS STS credentials from the GES DISC
+    # /s3credentials endpoint. Never logged, never sent to the browser.
+    earthdata_username: str | None = None
+    earthdata_password: str | None = None
+
+    # GPM IMERG (GES DISC) access configuration.
+    # Bucket/prefix are stable and documented; endpoints are overridable so
+    # tests can point at local fixtures.
+    gesdisc_s3credentials_url: str = "https://data.gesdisc.earthdata.nasa.gov/s3credentials"
+    gesdisc_https_data_url: str = "https://data.gesdisc.earthdata.nasa.gov/data"
+    gesdisc_opendap_url: str = "https://opendap.earthdata.nasa.gov"
+    gesdisc_s3_bucket: str = "gesdisc-cumulus-prod-protected"
+    gesdisc_imerg_prefix: str = "GPM_L3/GPM_3IMERGDL.07"
+    gesdisc_s3_region: str = "us-west-2"
+    gesdisc_s3_endpoint: str = "https://gesdisc-cumulus-prod-protected.s3.us-west-2.amazonaws.com"
+    imerg_short_name: str = "GPM_3IMERGDL"
+    imerg_version: str = "07"
+    # Bounded download: never exceed this many bytes for a single granule.
+    imerg_max_download_bytes: int = 64 * 1024 * 1024
+    # Bounded date range per request (the Late Daily product is 1998-present).
+    imerg_max_days: int = 366
+
     # Optional geocoding fallback (e.g. a commercial geocoder).
     nominatim_base_url: str = "https://nominatim.openstreetmap.org"
 
@@ -81,6 +105,10 @@ class Settings(BaseSettings):
         requirements = {
             "cdse_stac_auth": bool(self.cdse_username and self.cdse_password),
             "earthdata": bool(self.earthdata_token),
+            # IMERG retrieval needs the EDL username/password pair used to
+            # obtain short-lived S3 credentials (a bare token is not sufficient
+            # for the /s3credentials exchange).
+            "nasa_imerg": bool(self.earthdata_username and self.earthdata_password),
         }
         return requirements.get(name, True)
 
