@@ -64,10 +64,13 @@ changes.
 The scientific engine, deliberately independent of HTTP and independent of React:
 
 - `aggregation.py` — unit-safe, null-aware summarization.
+- `baseline.py` — calendar-date alignment of prior-year windows (leap-safe) and
+  shared-valid-date pairing for cross-source comparison.
 - `anomaly.py` — baseline compatibility rules and bounded anomaly maths.
 - `indicators.py` — freshness, coverage, classification, cross-check.
-- `summary.py` — graceful orchestration: a failed provider degrades one slice,
-  never the whole response.
+- `summary.py` — graceful orchestration: independent providers are fetched
+  concurrently, and a failed provider degrades one slice, never the whole
+  response.
 
 Each function is pure given its inputs and has its own tests.
 

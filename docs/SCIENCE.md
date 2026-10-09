@@ -27,6 +27,12 @@ days.
 | `missing_days` | total_days − valid_days |
 | `coverage_ratio` | valid_days / total_days |
 
+`total_days` is the **expected calendar window** when supplied by the caller
+(`expected_days`), not merely the number of points returned. This matters for
+providers such as NASA POWER that omit days with no value: an omitted day counts
+as missing and lowers coverage, rather than being silently dropped and inflating
+coverage.
+
 A day is "wet" at or above the 1 mm hydrometeorological threshold.
 
 **Quality gate.** `has_sufficient_coverage` requires `coverage_ratio ≥ 0.80`
@@ -53,10 +59,16 @@ anomaly_mm      = O - B
 anomaly_percent = (O - B) / B * 100        (undefined when B <= 0)
 ```
 
+When the baseline total `B` is zero or negative the percentage is **undefined
+and reported as `null`** — it is never coerced to 0%, because doing so would
+falsely imply "near normal". The band becomes `undefined_baseline` and the
+indicator falls back to the absolute `anomaly_mm` value with unit `mm`.
+
 ### Deficit / excess bands (preliminary AquaNexus indicator)
 
 | Condition | Band | Meaning |
 | --- | --- | --- |
+| baseline `B <= 0` | `undefined_baseline` | percentage undefined; absolute mm reported |
 | `pct ≥ 50` | `well_above` | well above the comparison baseline |
 | `20 ≤ pct < 50` | `above` | above the comparison baseline |
 | `-20 < pct < 20` | `near_normal` | broadly near the comparison baseline |
@@ -109,12 +121,30 @@ All are labelled `derived` and carry `method`, `method_version`, `inputs`,
 | --- | --- | --- | --- |
 | `coverage` | % | valid days / total days | Evidence completeness |
 | `wet_day_fraction` | ratio | wet days / valid days | Rainfall persistence |
-| `data_freshness` | hours | age of latest sample vs a product-family policy | See policies below |
+| `observed_freshness` | hours | age of latest observed/reanalysis sample | Separate from forecast |
+| `forecast_freshness` | hours | age of the first forecast day | Anchored to lead time, not the future end date |
 | `rainfall_anomaly` | % | see §2 | Unavailable if incompatible |
 | `data_classification` | category | provenance classification | Never a number |
 | `forecast_7d_total` | mm | Σ forecast daily precipitation | Modelled, not observed |
-| `river_discharge_ratio` | ratio | forecast discharge / historical mean | Modelled (GloFAS) |
-| `cross_check_delta` | % | (NASA POWER − ERA5) / ERA5 | Independent reanalysis check |
+| `river_discharge_ratio` | ratio | forecast discharge / same-day ensemble mean | Modelled (GloFAS) |
+| `cross_check_delta` | % | (ERA5 − MERRA-2) / MERRA-2 over shared valid dates | Independent reanalysis check |
+
+Observed/reanalysis freshness and forecast freshness are reported under
+**distinct keys** so a brand-new forecast can never mask stale observations (or
+vice versa). `forecast_freshness` is measured from the **first** forecast day;
+a forecast whose initialisation is old is stale even though its dates lie in the
+future.
+
+`river_discharge_ratio` divides the forecast river discharge by
+`river_discharge_mean` for the **same forecast day**. Per the Open-Meteo Flood
+API, `river_discharge_mean` is the mean of the ensemble members for that day —
+it is *not* a historical or multi-year mean, and the indicator is labelled
+accordingly.
+
+`cross_check_delta` pairs ERA5 and MERRA-2 only on dates where **both** products
+have a real value, and applies the coverage gate to the paired subset. If the
+shared valid dates are too few it reports `insufficient_data` rather than a
+number.
 
 ### Freshness policies
 
@@ -124,8 +154,9 @@ All are labelled `derived` and carry `method`, `method_version`, `inputs`,
 | `recent_estimate` | 72 h |
 | `reanalysis` | 240 h (10 days) |
 
-Forecast samples legitimately sit in the future; a negative age is clamped to
-zero and treated as fresh rather than as stale evidence.
+Forecast freshness is measured from the first forecast day, not the last. A
+forecast whose first day is older than the policy is reported `stale` even
+though its later days lie in the future.
 
 ### Water-stress framing
 

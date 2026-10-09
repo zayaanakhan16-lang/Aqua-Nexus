@@ -42,17 +42,32 @@ npm run dev            # port 3000
 
 ## Verified state
 
-- Backend: 45 pytest tests pass. Frontend: 26 vitest tests pass; typecheck, lint
+- Backend: 65 pytest tests pass. Frontend: 30 vitest tests pass; typecheck, lint
   and `next build` all clean.
 - Live smoke test (real network, not mocked) verified 200 for `/health`,
-  `/geocode`, `/precipitation/historical`, `/location/summary`.
+  `/geocode`, `/precipitation/historical`, `/precipitation/comparison`,
+  `/readiness` and `/location/summary`.
 
 ## Conventions and gotchas
 
 - All timestamps are UTC and timezone-aware internally. Precipitation in mm,
   discharge in m³/s. Reject unit mismatches before arithmetic.
-- Forecast samples legitimately sit in the future; clamp a negative age to zero
-  (do not flag forecasts as stale).
+- Coverage is measured against the **expected calendar window** (`expected_days`),
+  never just the number of points returned: a provider that omits a day must not
+  have that omission inflate coverage.
+- A `null` daily value means "missing", never zero. Never impute 0.0 for a
+  missing day in a baseline — only use 0.0 when the product genuinely reported 0.0.
+- Forecast freshness is anchored to the **first** forecast day; distinct
+  freshness keys (`observed_freshness`, `forecast_freshness`) keep the two from
+  masking each other.
+- A zero/negative baseline gives an **undefined** anomaly percentage (`null`,
+  band `undefined_baseline`) and falls back to millimetres — never 0% / "near normal".
+- The comparison is **year-over-year** (same calendar window, prior year,
+  leap-safe), explicitly not a 30-year climate normal.
+- Cross-source checks pair only on dates valid in **both** products and apply
+  the coverage gate to that subset.
+- `river_discharge_mean` from the Open-Meteo Flood API is a same-day ensemble
+  statistic, not a historical mean.
 - Anomaly baselines must be classification-compatible (see
   `services/anomaly.py`); never difference a forecast against climatology.
 - Frontend fetches are proxied same-origin: Next rewrites `/api/*` to
