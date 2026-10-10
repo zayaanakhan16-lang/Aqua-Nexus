@@ -37,7 +37,7 @@ export function ProductPreview() {
           </h2>
           <p className="mt-4 text-base leading-relaxed text-ink-300">
             A three-part workspace: search and layer controls on the left, the interactive
-            globe in the centre, and evidence-backed intelligence on the right. Values are
+            map in the centre, and evidence-backed intelligence on the right. Values are
             shown with their unit, classification and limitations.
           </p>
         </div>

@@ -40,10 +40,21 @@ npm run typecheck && npm run lint && npm test && npm run build
 npm run dev            # port 3000
 ```
 
+## Map (2D, MapLibre GL JS v4 — do not reintroduce a globe)
+
+The Atlas map is MapLibre GL JS **4.7.1** with the default 2D Mercator view.
+A change that upgraded to v5 and set `map.setProjection({type:'globe'})` made the
+map fail to initialise in sessions without a WebGL2 context (MapLibre reported
+"Failed to initialize WebGL"), so the map panel fell back for everyone. The flat
+map is the known-good implementation: it keeps zoom, pan, click-to-select and the
+layer controls working. Keep the WebGL probe (`lib/webgl.ts`) and the accessible
+fallback in `WaterAtlasMap.tsx` — they keep the rest of the workspace usable when
+WebGL is genuinely absent. Do not re-enable a globe projection.
+
 ## Verified state
 
 - Backend: 97 pytest tests pass (includes the IMERG adapter suite). Frontend:
-  30 vitest tests pass; typecheck, lint and `next build` all clean.
+  46 vitest tests pass; typecheck, lint and `next build` all clean.
 - Live smoke test (real network, not mocked) verified 200 for `/health`,
   `/geocode`, `/precipitation/historical`, `/precipitation/comparison`,
   `/readiness` and `/location/summary`.

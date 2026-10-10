@@ -3,12 +3,18 @@
 /**
  * Global water atlas map.
  *
- * MapLibre GL JS v5 with a genuine 3D globe projection (default) and a key-free
- * OpenFreeMap style (BSD-3-Clause / OpenMapTiles / OpenStreetMap data). Clicking
- * the map selects a coordinate; a marker shows the active location; satellite
- * scene footprints render only when the satellite layer is enabled and real
- * scene metadata has loaded. Nothing decorative is drawn: every overlay is tied
- * to state, and no map style or layer invents imagery or water data.
+ * MapLibre GL JS v4 with a key-free OpenFreeMap style. Clicking the map selects a
+ * coordinate; a marker shows the active location; satellite scene footprints
+ * render only when the satellite layer is enabled and real scene metadata has
+ * loaded. Nothing decorative is drawn: every overlay is tied to state, and no map
+ * style or layer invents imagery or water data.
+ *
+ * 2D by design: this is the last known-good implementation — MapLibre GL JS v4
+ * with the default Mercator projection. A later change moved to MapLibre v5 and a
+ * globe projection, but the globe render path needs a WebGL2 context that is not
+ * available in every session, so the map failed to initialise there. Rendering the
+ * flat map keeps zoom, pan, click-to-select and layer controls working everywhere.
+ * WebGL is still required to draw the map, so the fallback below remains.
  *
  * WebGL safety: MapLibre hard-requires a WebGL context. When the browser session
  * cannot provide one (e.g. `GL_VENDOR = Disabled`), constructing the map throws
@@ -17,7 +23,7 @@
  * an explicit, accessible fallback so the rest of the workspace stays usable.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Compass, Globe2, Minus, Plus, RefreshCw, RotateCcw } from "lucide-react";
+import { AlertTriangle, Globe2, RefreshCw } from "lucide-react";
 import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from "maplibre-gl";
 
 import { useWorkspace, type SelectedLocation } from "@/lib/workspace";
@@ -30,15 +36,13 @@ const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
 const SCENES_SOURCE = "aquanexus-scenes";
 const SCENES_FILL = "aquanexus-scenes-fill";
 
-// Global view constants. The globe is always reachable at these values, and
-// "Reset to global view" returns here. The camera never locks to a region.
-const GLOBAL_CENTER: [number, number] = [0, 20];
-const GLOBAL_ZOOM = 1.7;
-const GLOBAL_PITCH = 0;
-const GLOBAL_BEARING = 0;
-const MIN_ZOOM = 0.9;
+// Camera bounds. Zoom-out never restricts navigation: the whole world stays
+// reachable and the camera never locks to a region.
+const GLOBAL_CENTER: [number, number] = [20, 15];
+const GLOBAL_ZOOM = 1.6;
+const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 14;
-const FOCUS_ZOOM = 3.2;
+const FOCUS_ZOOM = 4;
 
 type MapStatus =
   | { kind: "pending" }
@@ -161,9 +165,9 @@ function MapUnavailable({
           </div>
           <h2 className="mt-3 text-sm font-semibold text-ink-100">Interactive map unavailable</h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-300">
-            This browser session cannot create a WebGL context, so the live globe, zoom
-            controls and map click-to-select are disabled. Everything else — search, layer
-            toggles, location intelligence, rainfall and source panels — keeps working.
+            This browser session cannot create a WebGL context, so the live map, zoom controls and
+            map click-to-select are disabled. Everything else — search, layer toggles, location
+            intelligence, rainfall and source panels — keeps working.
           </p>
           <p className="mt-2 flex items-start gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-left text-[0.6875rem] leading-relaxed text-ink-400">
             <AlertTriangle
@@ -181,89 +185,12 @@ function MapUnavailable({
             Retry map
           </button>
           <p className="mt-3 text-[0.625rem] leading-relaxed text-ink-500">
-            The reference grid behind this message is a static coordinate guide, not a
-            basemap. Enable hardware acceleration or use a WebGL-capable browser, then retry.
+            The reference grid behind this message is a static coordinate guide, not a basemap.
+            Enable hardware acceleration or use a WebGL-capable browser, then retry.
           </p>
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * Map camera controls. These bind to the MapLibre instance on the client so
- * they remain fully keyboard-accessible (real buttons) and do not rely on the
- * style's own control DOM. Zoom-out is enabled down to the global view.
- */
-function MapCanvasControls({ mapRef }: { mapRef: React.RefObject<MapLibreMap | null> }) {
-  const { location, clearLocation } = useWorkspace();
-
-  const zoomBy = (delta: number) =>
-    mapRef.current?.zoomTo(mapRef.current.getZoom() + delta, { duration: 260 });
-  const resetGlobal = () =>
-    mapRef.current?.flyTo({
-      center: GLOBAL_CENTER,
-      zoom: GLOBAL_ZOOM,
-      pitch: GLOBAL_PITCH,
-      bearing: GLOBAL_BEARING,
-      duration: 900,
-    });
-
-  const buttonClass =
-    "flex h-8 w-8 items-center justify-center text-ink-200 transition hover:text-ink-50 disabled:cursor-not-allowed disabled:text-ink-600";
-
-  return (
-    <>
-      <div className="pointer-events-auto absolute right-3 top-3 z-10 flex flex-col overflow-hidden rounded-lg border border-white/10 bg-abyss-800/90 shadow-float backdrop-blur">
-        <button
-          type="button"
-          onClick={() => zoomBy(1)}
-          aria-label="Zoom in"
-          title="Zoom in"
-          className={buttonClass}
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => zoomBy(-1)}
-          aria-label="Zoom out"
-          title="Zoom out"
-          className={`${buttonClass} border-t border-white/10`}
-        >
-          <Minus className="h-4 w-4" aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={resetGlobal}
-          aria-label="Reset to global view"
-          title="Reset to global view"
-          className={`${buttonClass} border-t border-white/10`}
-        >
-          <Compass className="h-4 w-4" aria-hidden />
-        </button>
-      </div>
-
-      <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={resetGlobal}
-          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-abyss-800/90 px-2.5 py-1.5 text-xs font-medium text-ink-100 shadow-float backdrop-blur transition hover:text-ink-50"
-        >
-          <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-          Reset to global view
-        </button>
-        {location ? (
-          <button
-            type="button"
-            onClick={clearLocation}
-            className="pointer-events-auto inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-abyss-800/90 px-2.5 py-1.5 text-xs font-medium text-ink-300 shadow-float backdrop-blur transition hover:text-ink-100"
-          >
-            Clear selection
-          </button>
-        ) : null}
-      </div>
-    </>
   );
 }
 
@@ -272,8 +199,6 @@ export function WaterAtlasMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
-  // Whether the initial location (if any) has been framed once.
-  const initialFramedRef = useRef(false);
   // Guards the "map engine failed" transition so a stream of error events cannot
   // flip us back and forth or re-render in a loop.
   const failedRef = useRef(false);
@@ -287,7 +212,7 @@ export function WaterAtlasMap() {
     setAttempt((n) => n + 1);
   }, []);
 
-  // Initialise the map once, in the 3D globe projection.
+  // Initialise the map once, in the default 2D projection.
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
     failedRef.current = false;
@@ -309,8 +234,6 @@ export function WaterAtlasMap() {
         style: STYLE_URL,
         center: GLOBAL_CENTER,
         zoom: GLOBAL_ZOOM,
-        pitch: GLOBAL_PITCH,
-        bearing: GLOBAL_BEARING,
         minZoom: MIN_ZOOM,
         maxZoom: MAX_ZOOM,
         attributionControl: { compact: true },
@@ -325,7 +248,6 @@ export function WaterAtlasMap() {
 
     let removed = false;
     let resizeObserver: ResizeObserver | null = null;
-    let onStyleLoad: (() => void) | null = null;
     let onLoad: (() => void) | null = null;
     let onClick: ((event: { lngLat: { lat: number; lng: number } }) => void) | null = null;
 
@@ -335,7 +257,6 @@ export function WaterAtlasMap() {
       if (removed) return;
       removed = true;
       resizeObserver?.disconnect();
-      if (onStyleLoad) map.off("style.load", onStyleLoad);
       if (onLoad) map.off("load", onLoad);
       if (onClick) map.off("click", onClick);
       try {
@@ -370,18 +291,12 @@ export function WaterAtlasMap() {
       }
     });
 
-    // Genuine 3D globe projection (MapLibre GL JS v5). No new library needed.
-    onStyleLoad = () => {
-      map.setProjection({ type: "globe" });
-    };
-    map.on("style.load", onStyleLoad);
-
     // MapLibre sizes from the container's box on load, so keep it in sync when
     // the surrounding grid/rails change size (window resize alone is not enough).
     resizeObserver = new ResizeObserver(() => map.resize());
     resizeObserver.observe(containerRef.current);
 
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "bottom-right");
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
     onClick = (event) => {
@@ -443,39 +358,16 @@ export function WaterAtlasMap() {
     }
   }, [location, layers.places, status.kind]);
 
-  // Navigate to a new selection without ever restricting the map: fly to the
-  // point at a fixed focus zoom (not a country bbox). A location cleared back to
-  // null (e.g. "Clear selection") returns the camera to the full global view.
+  // Recenter on a new selection, independently of marker visibility. Zoom never
+  // drops below the current view, so navigating to a place cannot restrict the
+  // world or lock the camera to a region.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-
-    if (!location) {
-      // Only recentre on an explicit clear, not on the initial empty render.
-      if (initialFramedRef.current) {
-        map.flyTo({
-          center: GLOBAL_CENTER,
-          zoom: GLOBAL_ZOOM,
-          pitch: GLOBAL_PITCH,
-          bearing: GLOBAL_BEARING,
-          duration: 900,
-        });
-      }
-      return;
-    }
-
-    if (!initialFramedRef.current) {
-      initialFramedRef.current = true;
-      map.jumpTo({ center: [location.longitude, location.latitude], zoom: FOCUS_ZOOM });
-      return;
-    }
-
-    map.flyTo({
+    if (!map || !location) return;
+    map.easeTo({
       center: [location.longitude, location.latitude],
-      zoom: FOCUS_ZOOM,
-      pitch: GLOBAL_PITCH,
-      bearing: GLOBAL_BEARING,
-      duration: 900,
+      zoom: Math.max(map.getZoom(), FOCUS_ZOOM),
+      duration: 700,
     });
   }, [location, status.kind]);
 
@@ -557,13 +449,12 @@ export function WaterAtlasMap() {
         ref={containerRef}
         className="!absolute inset-0"
         aria-hidden={mapUnavailable}
-        aria-label={mapUnavailable ? undefined : "Interactive global 3D globe"}
+        aria-label={mapUnavailable ? undefined : "Interactive global map"}
       />
       {mapUnavailable ? (
         <MapUnavailable message={status.message} location={location} onRetry={retry} />
       ) : (
         <>
-          <MapCanvasControls mapRef={mapRef} />
           {showSceneBadge ? (
             <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-white/10 bg-abyss-900/85 px-3 py-2 backdrop-blur">
               <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-ink-300">
