@@ -87,11 +87,31 @@ const config: Config = {
           "0%": { transform: "scale(0.8)", opacity: "0.7" },
           "100%": { transform: "scale(2.2)", opacity: "0" },
         },
+        drift: {
+          "0%": { transform: "translate3d(0, 0, 0) rotate(0deg)" },
+          "100%": { transform: "translate3d(0, 0, 0) rotate(360deg)" },
+        },
+        "float-slow": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        aurora: {
+          "0%, 100%": { opacity: "0.45", transform: "translate3d(0,0,0) scale(1)" },
+          "50%": { opacity: "0.75", transform: "translate3d(0,-2%,0) scale(1.06)" },
+        },
+        sheen: {
+          "0%": { backgroundPosition: "0% 50%" },
+          "100%": { backgroundPosition: "200% 50%" },
+        },
       },
       animation: {
         "fade-in": "fade-in 220ms ease-out both",
         shimmer: "shimmer 1.6s linear infinite",
         "pulse-ring": "pulse-ring 2.2s ease-out infinite",
+        drift: "drift 120s linear infinite",
+        "float-slow": "float-slow 9s ease-in-out infinite",
+        aurora: "aurora 14s ease-in-out infinite",
+        sheen: "sheen 6s ease-in-out infinite alternate",
       },
     },
   },

@@ -1,25 +1,21 @@
 "use client";
 
-import { Droplets, Github, Waves } from "lucide-react";
+import Link from "next/link";
+import { Droplets, Github, Home } from "lucide-react";
 
+import { BrandLockup } from "@/components/brand/Brand";
 import { StatusDot } from "@/components/ui/primitives";
 
 export function TopBar({ apiHealthy }: { apiHealthy: boolean | null }) {
   return (
     <header className="relative z-20 flex h-14 shrink-0 items-center gap-4 border-b border-white/[0.06] bg-abyss-900/80 px-4 backdrop-blur">
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-water-400/30 bg-water-400/10 text-water-300">
-          <Waves className="h-4 w-4" aria-hidden />
-        </span>
-        <div className="leading-tight">
-          <p className="font-display text-sm font-semibold tracking-tight text-ink-50">
-            AquaNexus
-          </p>
-          <p className="text-[0.625rem] uppercase tracking-[0.16em] text-ink-500">
-            Global water intelligence
-          </p>
-        </div>
-      </div>
+      <Link
+        href="/"
+        className="shrink-0 rounded-md transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-water-400/60"
+        aria-label="AquaNexus home"
+      >
+        <BrandLockup markClassName="h-8 w-8" />
+      </Link>
 
       <nav aria-label="Primary" className="ml-2 hidden items-center gap-1 md:flex">
         <span className="rounded-md bg-white/[0.06] px-3 py-1.5 text-xs font-medium text-ink-100">
@@ -49,6 +45,13 @@ export function TopBar({ apiHealthy }: { apiHealthy: boolean | null }) {
               ? "API available"
               : "API unreachable"}
         </span>
+        <Link
+          href="/"
+          className="rounded-md border border-white/[0.08] bg-white/[0.02] p-1.5 text-ink-400 transition hover:text-ink-100"
+          aria-label="Back to landing page"
+        >
+          <Home className="h-4 w-4" aria-hidden />
+        </Link>
         <a
           href="https://github.com/zayaanakhan16-lang/Aqua-Nexus"
           target="_blank"

@@ -150,4 +150,45 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+
+  /* Landing helper: a soft top-to-bottom scrim so hero copy stays legible over
+     the illustrative globe without resorting to heavy glassmorphism. */
+  .hero-scrim {
+    background: linear-gradient(
+      to bottom,
+      rgba(3, 9, 20, 0.55) 0%,
+      rgba(3, 9, 20, 0.35) 34%,
+      rgba(6, 20, 38, 0.72) 72%,
+      #030914 100%
+    );
+  }
+
+  .text-gradient-water {
+    background-image: linear-gradient(100deg, #eafcff 0%, #63d8f3 45%, #39d3b4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Hairline grid used behind the landing sections. */
+  .grid-lines {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+    background-size: 72px 72px;
+  }
+}
+
+/* Respect the user's motion preference: stop looping and entrance animations
+   rather than merely slowing them. Scroll-reveal content stays visible because
+   its resting state is the fully-shown state (see the Reveal component). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
