@@ -5,15 +5,25 @@ can each change without disturbing the others.
 
 ```
 ┌──────────────────────────── frontend/ (Next.js, browser) ────────────────────────────┐
-│  app/atlas            workspace shell, responsive three-rail layout                  │
-│  components/map       MapLibre GL atlas (dynamic, ssr:false)                          │
-│  components/charts    ECharts rainfall chart (dynamic import)                         │
-│  components/panels    search, layers, intelligence, rainfall, sources, onboarding     │
-│  components/ui        primitives, states (empty/error/unavailable), design tokens     │
+│  app/(app)            route group sharing the app shell (nav + providers)            │
+│    /home              Intelligence Home: saved areas, sources, primary actions        │
+│    /explore           map-first location discovery + create study area                │
+│    /study-areas       list/manage saved study areas                                   │
+│    /study-areas/[id]  location-specific intelligence workspace (tabs)                 │
+│    /atlas             original single-location Water Atlas workspace                  │
+│  components/shell     AppShell (nav), AppProviders (store + toasts)                   │
+│  components/map       MapLibre GL atlas + non-WebGL raster fallback (dynamic)         │
+│  components/charts    ECharts rainfall, weather and discharge charts (dynamic import) │
+│  components/panels    search, layers, intelligence, rainfall, weather, discharge,     │
+│                       satellite, water-stress, sources, onboarding                    │
+│  components/study-areas create dialog + saved-area cards                              │
+│  components/ui        primitives, states, modal (accessible dialog)                   │
 │  lib/workspace.tsx    React context store: location, layers, window, fetched slices   │
+│  lib/study-areas.tsx  study-area store: list + CRUD against the backend               │
+│  lib/toast.tsx        transient success/error feedback                                │
 │  lib/api.ts           typed fetch client; validates every response with Zod           │
 │  lib/schemas.ts       Zod schemas mirroring the backend response models               │
-│  lib/geo.ts|format.ts pure, unit-tested helpers                                        │
+│  lib/geo.ts|format.ts|weather.ts  pure, unit-tested helpers                           │
 └───────────────────────────────────────────┬──────────────────────────────────────────┘
                                             │  same-origin rewrite /api/*  (next.config.mjs)
                                             ▼
@@ -26,7 +36,7 @@ can each change without disturbing the others.
 │  api/schemas.py       request/response Pydantic models                                │
 │  models/*             domain models: Provenance, ProviderMetadata, classification…    │
 │  providers/*          one adapter per external source, normalized responses           │
-│  services/*           aggregation · anomaly · indicators · summary orchestration      │
+│  services/*           aggregation · anomaly · indicators · summary · study_areas       │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -48,7 +58,14 @@ provider-specific logic and no scientific arithmetic.
 | `GET /api/v1/precipitation/historical` | Observed reanalysis series |
 | `GET /api/v1/precipitation/forecast` | Forecast series |
 | `GET /api/v1/precipitation/comparison` | Baseline comparison + anomaly |
+| `GET /api/v1/weather` | Modelled current conditions + daily forecast |
+| `GET /api/v1/discharge` | Modelled GloFAS river discharge series |
 | `GET /api/v1/satellite/scenes` | STAC scene metadata search |
+| `GET /api/v1/study-areas` | List saved study areas |
+| `POST /api/v1/study-areas` | Create a saved study area |
+| `GET /api/v1/study-areas/{id}` | Fetch one saved study area |
+| `PATCH /api/v1/study-areas/{id}` | Rename a saved study area |
+| `DELETE /api/v1/study-areas/{id}` | Delete a saved study area |
 
 ### Providers (`app/providers/`)
 One adapter per source. Each returns **normalized** domain objects plus a
@@ -106,18 +123,25 @@ never untyped dicts passed around internally.
 5. Results become independent slices; the UI renders each honestly, showing
    `insufficient_data` / unavailable states where evidence is thin.
 
-## Why no database yet
+## Persistence (study areas)
 
-The current product is a live-investigation workspace: it reads from providers
-on demand and holds nothing between sessions. A database earns its place when
-saved workspaces, historical archiving or geographic queries are required — at
-which point PostGIS is the natural choice. Introducing one now would add
-operational weight without a matching capability.
+Saved study areas are the one piece of state AquaNexus keeps between sessions.
+They are stored by `services/study_areas.py` in a single JSON file under the
+configured data directory (`backend/data/study_areas.json`, gitignored). Writes
+are guarded by an async lock and use an atomic temp-file rename, so a crash
+cannot leave a half-written file. The service validates names and coordinates
+through the same domain models the API uses.
+
+This is deliberately small: a file-backed store earns its place for saved
+locations without the operational weight of a database. When multi-user access
+or geographic queries are required, PostGIS is the natural next step — see the
+`StudyArea` model, which is already shaped to move.
 
 ## Testing strategy
 
 - **Backend (Pytest).** Domain validation, unit/timestamp normalization,
-  aggregation, anomaly boundaries and refusals, provider error handling, API
+  aggregation, anomaly boundaries and refusals, provider error handling, study-area
+  CRUD and persistence, and API
   contracts. All providers are mocked, so tests are deterministic and need no
   credentials.
 - **Frontend (Vitest).** Pure helpers, Zod contract validation, the API client's

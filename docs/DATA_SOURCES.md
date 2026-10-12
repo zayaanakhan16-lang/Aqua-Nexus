@@ -44,6 +44,13 @@ call, so a location can always be selected even when a dataset does not cover it
 
 Forecasts are kept visually and structurally separate from observations.
 
+The same provider supplies the **Weather** endpoint (`GET /api/v1/weather`):
+current conditions and a daily timeline of temperature (max/min), precipitation,
+wind and WMO weather code. Current values are the model's latest step and are
+labelled modelled — never presented as an observation. The WMO code is only
+translated to a label when it is a known code; unknown codes are omitted rather
+than guessed.
+
 ---
 
 ## C. Precipitation — recent past (reanalysis)
@@ -103,6 +110,12 @@ next planned upgrade (see README).
 The hydrological **interface** is modular so a regional gauge network can be
 added later — but no provider covering one country is ever presented as a global
 monitoring network.
+
+The **River Discharge** tab (`GET /api/v1/discharge`) renders this series with a
+same-day ensemble mean where the provider returns one. Both lines are labelled
+modelled. Where no modelled river passes near the point, the provider returns no
+values and the panel explains the coverage limitation rather than showing a
+zero-flow reading.
 
 ---
 

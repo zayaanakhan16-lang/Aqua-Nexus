@@ -48,7 +48,7 @@ export function Hero() {
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              href="/atlas"
+              href="/home"
               className="group inline-flex items-center gap-2 rounded-lg bg-water-400 px-5 py-3 text-sm font-semibold text-abyss-950 shadow-float transition hover:bg-water-300"
             >
               Explore Water Intelligence

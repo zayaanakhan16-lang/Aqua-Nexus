@@ -16,6 +16,11 @@ import {
   precipitationSeriesSchema,
   providerCatalogSchema,
   stacSearchResultSchema,
+  studyAreaListResponseSchema,
+  studyAreaSchema,
+  dischargeSeriesSchema,
+  weatherForecastSchema,
+  type DischargeSeries,
   type Health,
   type LocationSummary,
   type PlaceSearchResponse,
@@ -23,6 +28,9 @@ import {
   type PrecipitationSeries,
   type ProviderCatalog,
   type StacSearchResult,
+  type StudyArea,
+  type StudyAreaListResponse,
+  type WeatherForecast,
 } from "./schemas";
 
 // Calls are proxied by Next.js to the FastAPI backend (see next.config.mjs),
@@ -118,6 +126,56 @@ async function request<T extends z.ZodTypeAny>(
   return parsed.data;
 }
 
+/** Perform a request that is expected to return no body (e.g. HTTP 204). */
+async function requestNoContent(
+  path: string,
+  init?: RequestInit & { timeoutMs?: number },
+): Promise<void> {
+  const { timeoutMs = 45000, ...rest } = init ?? {};
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...rest,
+      signal: controller.signal,
+      headers: { Accept: "application/json", ...(rest.headers ?? {}) },
+      cache: "no-store",
+    });
+  } catch (error) {
+    clearTimeout(timer);
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new ApiError("The request timed out.", { code: "timeout" });
+    }
+    throw new ApiError("Could not reach the AquaNexus API.", { code: "network_error" });
+  }
+  clearTimeout(timer);
+
+  if (!response.ok) {
+    const text = await response.text();
+    let payload: unknown = null;
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = null;
+      }
+    }
+    const parsedError = apiErrorSchema.safeParse(payload);
+    if (parsedError.success) {
+      throw new ApiError(parsedError.data.error.message, {
+        code: parsedError.data.error.code,
+        status: response.status,
+        details: parsedError.data.error.details,
+      });
+    }
+    throw new ApiError(`Request failed with status ${response.status}.`, {
+      code: "http_error",
+      status: response.status,
+    });
+  }
+}
+
 function qs(params: Record<string, string | number | undefined | null>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -208,5 +266,55 @@ export const api = {
       })}`,
       stacSearchResultSchema,
     );
+  },
+
+  weather(lat: number, lon: number, days = 7): Promise<WeatherForecast> {
+    return request(
+      `/api/v1/weather${qs({ latitude: lat, longitude: lon, days })}`,
+      weatherForecastSchema,
+    );
+  },
+
+  discharge(lat: number, lon: number, days = 14): Promise<DischargeSeries> {
+    return request(
+      `/api/v1/discharge${qs({ latitude: lat, longitude: lon, days })}`,
+      dischargeSeriesSchema,
+    );
+  },
+
+  listStudyAreas(): Promise<StudyAreaListResponse> {
+    return request("/api/v1/study-areas", studyAreaListResponseSchema);
+  },
+
+  getStudyArea(id: string): Promise<StudyArea> {
+    return request(`/api/v1/study-areas/${encodeURIComponent(id)}`, studyAreaSchema);
+  },
+
+  createStudyArea(input: {
+    name: string;
+    latitude: number;
+    longitude: number;
+    label?: string | null;
+    place?: unknown;
+  }): Promise<StudyArea> {
+    return request("/api/v1/study-areas", studyAreaSchema, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  },
+
+  renameStudyArea(id: string, name: string): Promise<StudyArea> {
+    return request(`/api/v1/study-areas/${encodeURIComponent(id)}`, studyAreaSchema, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  deleteStudyArea(id: string): Promise<void> {
+    return requestNoContent(`/api/v1/study-areas/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
   },
 };

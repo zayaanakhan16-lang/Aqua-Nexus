@@ -23,12 +23,13 @@
  * an explicit, accessible fallback so the rest of the workspace stays usable.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Globe2, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from "maplibre-gl";
 
 import { useWorkspace, type SelectedLocation } from "@/lib/workspace";
 import type { StacItem } from "@/lib/schemas";
 import { detectWebGLSupport } from "@/lib/webgl";
+import { RasterMap } from "@/components/map/RasterMap";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -64,130 +65,70 @@ function describeError(error: unknown): string {
 }
 
 /**
- * Static geographic fallback.
+ * Non-WebGL fallback map.
  *
- * A plain equirectangular coordinate graticule drawn as SVG: meridians and
- * parallels at real degree intervals with the equator and prime meridian
- * emphasised. It is not a basemap and loads no imagery — it only gives spatial
- * reference, and marks the coordinate the user selected (their own input, not
- * invented data). The SVG is decorative; the selected coordinate is already
- * announced elsewhere in the workspace.
+ * When the GL engine cannot start we swap in a real interactive raster map
+ * (`RasterMap`) instead of a static picture, so pan, zoom, click-to-select and
+ * the selected marker keep working. A compact banner explains why the GL map is
+ * unavailable and offers a retry; the map itself stays the working surface.
  */
-function MapFallbackGrid({ location }: { location: SelectedLocation | null }) {
-  const meridians = [-150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150];
-  const parallels = [-60, -30, 0, 30, 60];
-  return (
-    <svg
-      viewBox="0 0 360 180"
-      preserveAspectRatio="xMidYMid slice"
-      aria-hidden
-      className="h-full w-full opacity-70"
-    >
-      <defs>
-        <radialGradient id="aquanexus-fallback-glow" cx="50%" cy="42%" r="70%">
-          <stop offset="0%" stopColor="#12a3c9" stopOpacity="0.16" />
-          <stop offset="100%" stopColor="#030914" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <rect x="0" y="0" width="360" height="180" fill="#030914" />
-      <rect x="0" y="0" width="360" height="180" fill="url(#aquanexus-fallback-glow)" />
-      <g stroke="#63d8f3" strokeOpacity="0.12" strokeWidth="0.4">
-        {meridians.map((lon) => (
-          <line key={`m${lon}`} x1={lon + 180} y1={0} x2={lon + 180} y2={180} />
-        ))}
-        {parallels.map((lat) => (
-          <line key={`p${lat}`} x1={0} y1={90 - lat} x2={360} y2={90 - lat} />
-        ))}
-      </g>
-      {/* Equator and prime meridian, slightly stronger. */}
-      <line
-        x1={0}
-        y1={90}
-        x2={360}
-        y2={90}
-        stroke="#63d8f3"
-        strokeOpacity="0.28"
-        strokeWidth="0.6"
-      />
-      <line
-        x1={180}
-        y1={0}
-        x2={180}
-        y2={180}
-        stroke="#63d8f3"
-        strokeOpacity="0.28"
-        strokeWidth="0.6"
-      />
-      {location ? (
-        <g>
-          <circle
-            cx={location.longitude + 180}
-            cy={90 - location.latitude}
-            r="3.4"
-            fill="#eafcff"
-            stroke="#12a3c9"
-            strokeWidth="1.4"
-          />
-          <circle
-            cx={location.longitude + 180}
-            cy={90 - location.latitude}
-            r="7"
-            fill="none"
-            stroke="#63d8f3"
-            strokeOpacity="0.7"
-            strokeWidth="0.8"
-          />
-        </g>
-      ) : null}
-    </svg>
-  );
-}
-
-function MapUnavailable({
+function MapFallback({
   message,
   location,
   onRetry,
+  onSelect,
+  scenes,
+  showScenes,
 }: {
   message: string;
   location: SelectedLocation | null;
   onRetry: () => void;
+  onSelect: (latitude: number, longitude: number) => void;
+  scenes: StacItem[];
+  showScenes: boolean;
 }) {
   return (
     <div className="absolute inset-0 z-20 overflow-hidden bg-abyss-950">
-      <MapFallbackGrid location={location} />
-      <div className="absolute inset-0 flex items-center justify-center p-4">
+      <RasterMap
+        location={location}
+        onSelect={onSelect}
+        scenes={scenes}
+        showScenes={showScenes}
+        ariaLabel="Interactive map (lightweight renderer)"
+      />
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3">
         <div
           role="alert"
-          className="w-full max-w-md rounded-xl border border-white/10 bg-abyss-900/95 p-5 text-center shadow-float backdrop-blur animate-fade-in"
+          className="pointer-events-auto w-full max-w-xl rounded-xl border border-white/10 bg-abyss-900/95 p-4 shadow-float backdrop-blur animate-fade-in"
         >
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-signal-alert/30 bg-signal-alert/10 text-signal-alert">
-            <Globe2 className="h-5 w-5" aria-hidden />
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-signal-caution/30 bg-signal-caution/10 text-signal-caution">
+              <AlertTriangle className="h-4 w-4" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold text-ink-100">Interactive map unavailable</h2>
+              <p className="mt-1 text-xs leading-relaxed text-ink-300">
+                This browser session cannot create a WebGL context, so the primary map
+                engine is disabled. A lightweight renderer is active below: pan, zoom and
+                click-to-select still work.
+              </p>
+              <p className="mt-2 flex items-start gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-left text-[0.6875rem] leading-relaxed text-ink-400">
+                <AlertTriangle
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-caution"
+                  aria-hidden
+                />
+                <span>{message}</span>
+              </p>
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-ink-100 transition hover:border-water-400/40 hover:bg-water-400/10"
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                Retry map engine
+              </button>
+            </div>
           </div>
-          <h2 className="mt-3 text-sm font-semibold text-ink-100">Interactive map unavailable</h2>
-          <p className="mt-1 text-xs leading-relaxed text-ink-300">
-            This browser session cannot create a WebGL context, so the live map, zoom controls and
-            map click-to-select are disabled. Everything else — search, layer toggles, location
-            intelligence, rainfall and source panels — keeps working.
-          </p>
-          <p className="mt-2 flex items-start gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-left text-[0.6875rem] leading-relaxed text-ink-400">
-            <AlertTriangle
-              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-caution"
-              aria-hidden
-            />
-            <span>{message}</span>
-          </p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-ink-100 transition hover:border-water-400/40 hover:bg-water-400/10"
-          >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            Retry map
-          </button>
-          <p className="mt-3 text-[0.625rem] leading-relaxed text-ink-500">
-            The reference grid behind this message is a static coordinate guide, not a basemap.
-            Enable hardware acceleration or use a WebGL-capable browser, then retry.
-          </p>
         </div>
       </div>
     </div>
@@ -452,7 +393,21 @@ export function WaterAtlasMap() {
         aria-label={mapUnavailable ? undefined : "Interactive global map"}
       />
       {mapUnavailable ? (
-        <MapUnavailable message={status.message} location={location} onRetry={retry} />
+        <MapFallback
+          message={status.message}
+          location={location}
+          onRetry={retry}
+          onSelect={(latitude, longitude) =>
+            selectLocation({
+              latitude,
+              longitude,
+              label: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+              place: null,
+            })
+          }
+          scenes={scenes.data?.items ?? []}
+          showScenes={layers.satellite}
+        />
       ) : (
         <>
           {showSceneBadge ? (

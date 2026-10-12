@@ -7,9 +7,11 @@ from fastapi import APIRouter, Query
 
 from app.errors import InsufficientDataError, ValidationError
 from app.models.aggregates import (
+    DischargeSeries,
     LocationSummary,
     PrecipitationComparison,
     PrecipitationSeries,
+    WeatherForecast,
 )
 from app.models.common import (
     DataClassification,
@@ -44,6 +46,36 @@ async def forecast_precipitation(
     days: int = Query(7, ge=1, le=16),
 ) -> PrecipitationSeries:
     return await open_meteo.fetch_forecast_precipitation(
+        GeoPoint(latitude=latitude, longitude=longitude), days=days
+    )
+
+
+@router.get(
+    "/weather",
+    response_model=WeatherForecast,
+    summary="Modelled current conditions and daily forecast (FORECAST)",
+)
+async def weather(
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+    days: int = Query(7, ge=1, le=16),
+) -> WeatherForecast:
+    return await open_meteo.fetch_weather_forecast(
+        GeoPoint(latitude=latitude, longitude=longitude), days=days
+    )
+
+
+@router.get(
+    "/discharge",
+    response_model=DischargeSeries,
+    summary="Modelled river discharge series (SIMULATION, GloFAS)",
+)
+async def discharge(
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+    days: int = Query(14, ge=1, le=210),
+) -> DischargeSeries:
+    return await open_meteo.fetch_discharge_series(
         GeoPoint(latitude=latitude, longitude=longitude), days=days
     )
 

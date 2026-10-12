@@ -22,17 +22,19 @@ not cover a location, AquaNexus says so instead of inventing a number.
 | Area | Status | Notes |
 | --- | --- | --- |
 | Global interactive map (MapLibre GL) | **Complete** | Key-free OpenFreeMap style, pan/zoom, click-to-select, marker |
+| Non-WebGL 2D map fallback | **Complete** | Raster slippy map (OSM tiles, no WebGL) with pan/zoom/click-select when GL cannot start |
 | Global place + coordinate search | **Complete** | Open-Meteo Geocoding; coordinate parser works offline |
 | Precipitation time series | **Complete** | 30/60/90-day windows via Open-Meteo Archive (ERA5) |
 | Historical baseline comparison + anomaly | **Complete** | Same-number-of-days baseline from prior year(s) |
 | 7-day precipitation forecast | **Complete** | Open-Meteo Forecast, kept separate from history |
+| Weather conditions + daily forecast | **Complete** | Open-Meteo Forecast; labelled modelled, never observed |
 | Modelled river discharge | **Complete** | Open-Meteo Flood (GloFAS), reported as modelled |
 | NASA POWER cross-check | **Complete** | Independent reanalysis corroboration |
 | Satellite scene catalogue search | **Complete (metadata only)** | Copernicus CDSE STAC, anonymous |
+| Saved study areas (persistence) | **Complete** | JSON-file store behind `/api/v1/study-areas`; CRUD + per-area workspace |
 | Data provenance + classification | **Complete** | Observations, reanalysis, forecasts, derived, simulation |
 | Water-body change detection | **Planned** | No verified processing pipeline yet; not claimed |
 | Flood prediction model | **Not provided** | Explicitly out of scope; not claimed |
-| Saved workspaces / persistence | **Planned** | In-memory only today; no database introduced yet |
 
 Every row above reflects code that runs. Nothing is presented as live that is
 not actually connected.
@@ -47,7 +49,7 @@ backend/   FastAPI · Pydantic · HTTPX · modular providers + analysis services
 ```
 
 ```
-Browser ──▶ Next.js /atlas (UI, React context workspace store)
+Browser ──▶ Next.js app shell (Intelligence Home / Explore / Study Areas / Atlas)
                 │  same-origin rewrite  /api/*  ──▶  FastAPI  /api/v1/*
                                                         │
                                     ┌───────────────────┼───────────────────┐
@@ -55,7 +57,7 @@ Browser ──▶ Next.js /atlas (UI, React context workspace store)
                               Provider adapters   Analysis services   Provenance models
                               (Open-Meteo, NASA   (aggregation,        (source, time,
                                POWER, CDSE STAC,   anomaly,            classification,
-                               geocoding)          indicators,          quality)
+                               geocoding, GloFAS)  indicators,          quality)
                                                    summary)
 ```
 
@@ -69,8 +71,12 @@ Key decisions:
   becomes a typed error, not a silent bad render.
 - **Same-origin API proxy.** The browser only talks to Next.js; the backend
   origin is configured server-side. No credentials reach the client bundle.
-- **No database yet.** Persistence is intentionally deferred until saved
-  workspaces or geographic queries genuinely need PostGIS.
+- **The map never depends on WebGL.** MapLibre GL is the primary renderer, but a
+  real raster slippy map takes over automatically when a WebGL context cannot be
+  created, so pan/zoom/select keep working.
+- **Persistence is a small file-backed store.** Saved study areas live in a
+  JSON file behind `/api/v1/study-areas`; no database is introduced until
+  geographic queries genuinely need PostGIS.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for module-by-module detail,
 [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) for provider facts, and
@@ -100,7 +106,7 @@ API docs: <http://localhost:8000/docs> · health: <http://localhost:8000/api/v1/
 ```bash
 cd frontend
 npm install
-npm run dev          # http://localhost:3000  → redirects to /atlas
+npm run dev          # http://localhost:3000  → landing page; app under /home
 ```
 
 The frontend proxies `/api/*` to `http://localhost:8000` by default. If the
@@ -121,7 +127,7 @@ Backend:
 
 ```bash
 cd backend && . .venv/bin/activate
-pytest -q                 # 45 tests
+pytest -q                 # 111 tests
 ```
 
 Frontend:
@@ -130,7 +136,7 @@ Frontend:
 cd frontend
 npm run typecheck         # tsc --noEmit
 npm run lint              # eslint via next lint
-npm test                  # vitest, 26 tests
+npm test                  # vitest, 56 tests
 npm run build             # next build
 ```
 
@@ -207,4 +213,5 @@ into chat, source files or commits.
 3. Introduce a bounded cache (respecting provider terms) for repeated viewports.
 4. Add a regional gauge provider (starting with a well-documented open network)
    behind the existing hydrological interface.
-5. Persist saved workspaces — the first genuine use for PostGIS.
+5. Move the study-area store from a single JSON file to a transactional database
+   (PostGIS) once multi-user or geographic-query needs arise.

@@ -10,7 +10,14 @@ from datetime import date, datetime, time, timezone
 
 from app.config import get_settings
 from app.errors import ProviderError, ProviderUnavailableError, ValidationError
-from app.models.aggregates import PrecipitationSeries
+from app.models.aggregates import (
+    DischargePoint,
+    DischargeSeries,
+    PrecipitationSeries,
+    WeatherCurrent,
+    WeatherDay,
+    WeatherForecast,
+)
 from app.models.common import DataClassification, GeoPoint, Provenance, TimeSeriesPoint
 from app.providers import catalog
 from app.providers.base import request_json
@@ -18,6 +25,7 @@ from app.providers.base import request_json
 FORECAST = catalog.OPEN_METEO_FORECAST
 ARCHIVE = catalog.OPEN_METEO_ARCHIVE
 CLIMATE = catalog.OPEN_METEO_CLIMATE
+FLOOD = catalog.OPEN_METEO_FLOOD
 
 # Guard rails so a single request cannot pull an unreasonable amount of data.
 MAX_FORECAST_DAYS = 16
@@ -211,14 +219,216 @@ async def fetch_flood_discharge(point: GeoPoint, *, days: int = 14) -> dict:
                 "forecast_days": min(days, 210),
                 "timezone": "GMT",
             },
-            provider_id=catalog.OPEN_METEO_FLOOD.id,
+            provider_id=FLOOD.id,
         )
     except ProviderError as exc:
         raise ProviderUnavailableError(
             f"River discharge unavailable: {exc.message}",
-            details={"provider": catalog.OPEN_METEO_FLOOD.id},
+            details={"provider": FLOOD.id},
         ) from exc
     return payload
+
+
+async def fetch_weather_forecast(point: GeoPoint, *, days: int = 7) -> WeatherForecast:
+    """Modelled current conditions plus a daily forecast timeline.
+
+    Classification: FORECAST. ``current`` is the model's latest analysis step,
+    which is a modelled value, not an instrument reading — the UI must label it
+    accordingly.
+    """
+    days = max(1, min(days, MAX_FORECAST_DAYS))
+    settings = get_settings()
+    payload = await request_json(
+        settings.open_meteo_forecast_url,
+        params={
+            "latitude": point.latitude,
+            "longitude": point.longitude,
+            "current": (
+                "temperature_2m,apparent_temperature,relative_humidity_2m,"
+                "precipitation,wind_speed_10m,weather_code"
+            ),
+            "daily": (
+                "temperature_2m_max,temperature_2m_min,precipitation_sum,"
+                "wind_speed_10m_max,weather_code"
+            ),
+            "timezone": "GMT",
+            "forecast_days": days,
+        },
+        provider_id=FORECAST.id,
+    )
+
+    daily = payload.get("daily") or {}
+    times = daily.get("time") or []
+    tmax = daily.get("temperature_2m_max") or []
+    tmin = daily.get("temperature_2m_min") or []
+    psum = daily.get("precipitation_sum") or []
+    wmax = daily.get("wind_speed_10m_max") or []
+    wcode = daily.get("weather_code") or []
+    daily_rows = [
+        WeatherDay(
+            date=date.fromisoformat(stamp),
+            temperature_max_c=_at(tmax, i),
+            temperature_min_c=_at(tmin, i),
+            precipitation_sum_mm=_at(psum, i),
+            wind_speed_max_kmh=_at(wmax, i),
+            weather_code=_at_int(wcode, i),
+        )
+        for i, stamp in enumerate(times)
+    ]
+
+    current_raw = payload.get("current") or {}
+    current = None
+    if current_raw.get("time"):
+        current = WeatherCurrent(
+            timestamp=_parse_iso_utc(current_raw["time"]),
+            temperature_c=current_raw.get("temperature_2m"),
+            apparent_temperature_c=current_raw.get("apparent_temperature"),
+            relative_humidity_pct=current_raw.get("relative_humidity_2m"),
+            precipitation_mm=current_raw.get("precipitation"),
+            wind_speed_kmh=current_raw.get("wind_speed_10m"),
+            weather_code=current_raw.get("weather_code"),
+        )
+
+    if current is None and not daily_rows:
+        raise ProviderUnavailableError("Open-Meteo forecast returned no weather data.")
+
+    return WeatherForecast(
+        location=point,
+        current=current,
+        daily=daily_rows,
+        provenance=Provenance(
+            source_id=FORECAST.id,
+            source_name=FORECAST.name,
+            classification=DataClassification.FORECAST,
+            observed_at=current.timestamp if current else None,
+            method="Open-Meteo current conditions and daily forecast for the requested grid cell",
+            method_version="1.0",
+            notes=[
+                "'Current' values are model output, not instrument measurements.",
+                "Forecast values predict what may occur; they are not observations.",
+            ],
+        ),
+        provider=FORECAST,
+        notes=[
+            "Weather values are modelled forecast output (Open-Meteo ICON/GFS blend).",
+        ],
+    )
+
+
+async def fetch_discharge_series(point: GeoPoint, *, days: int = 14) -> DischargeSeries:
+    """Modelled GloFAS river discharge as a normalized daily series.
+
+    Classification: SIMULATION. The Open-Meteo Flood API returns the deterministic
+    GloFAS ``river_discharge`` plus same-day ensemble statistics for the forecast
+    window; those statistics are not historical observations.
+    """
+    days = max(1, min(days, 210))
+    settings = get_settings()
+    try:
+        payload = await request_json(
+            settings.open_meteo_flood_url,
+            params={
+                "latitude": point.latitude,
+                "longitude": point.longitude,
+                "daily": "river_discharge,river_discharge_mean,river_discharge_median",
+                "forecast_days": days,
+                "timezone": "GMT",
+            },
+            provider_id=FLOOD.id,
+        )
+    except ProviderError as exc:
+        raise ProviderUnavailableError(
+            f"River discharge unavailable: {exc.message}",
+            details={"provider": FLOOD.id},
+        ) from exc
+
+    daily = payload.get("daily") or {}
+    times = daily.get("time") or []
+    discharge = daily.get("river_discharge") or []
+    mean = daily.get("river_discharge_mean") or []
+    median = daily.get("river_discharge_median") or []
+
+    points: list[DischargePoint] = []
+    missing = 0
+    for i, stamp in enumerate(times):
+        value = _at(discharge, i)
+        if value is None:
+            missing += 1
+        points.append(
+            DischargePoint(
+                timestamp=datetime.combine(
+                    date.fromisoformat(stamp), time(12, 0), tzinfo=timezone.utc
+                ),
+                discharge_m3s=value,
+                ensemble_mean_m3s=_at(mean, i),
+                ensemble_median_m3s=_at(median, i),
+            )
+        )
+
+    if not points:
+        raise ProviderUnavailableError(
+            "The GloFAS river network returned no discharge values for this location."
+        )
+
+    valid_days = sum(1 for p in points if p.discharge_m3s is not None)
+    return DischargeSeries(
+        location=point,
+        start_date=points[0].timestamp.date(),
+        end_date=points[-1].timestamp.date(),
+        points=points,
+        provenance=Provenance(
+            source_id=FLOOD.id,
+            source_name=FLOOD.name,
+            classification=DataClassification.SIMULATION,
+            observed_at=points[-1].timestamp,
+            method="GloFAS v4 modelled daily river_discharge via Open-Meteo Flood API",
+            method_version="1.0",
+            notes=[
+                "Modelled discharge along the GloFAS river network; not a gauge reading.",
+                "GloFAS selects the largest river within ~5 km of the point.",
+            ],
+        ),
+        provider=FLOOD,
+        valid_days=valid_days,
+        missing_days=missing,
+        note=(
+            "Modelled discharge, not an observation. Values are grid-cell averages "
+            "along the modelled river network and are unavailable where no modelled "
+            "river passes near the point."
+        ),
+    )
+
+
+def _at(values: list, index: int) -> float | None:
+    if index >= len(values):
+        return None
+    value = values[index]
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _at_int(values: list, index: int) -> int | None:
+    if index >= len(values):
+        return None
+    value = values[index]
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_iso_utc(value: str) -> datetime:
+    """Parse an Open-Meteo ISO timestamp; anchor date-only values to noon UTC."""
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 # Re-export for readability of import sites.
@@ -227,6 +437,8 @@ __all__ = [
     "fetch_archive_precipitation",
     "fetch_climate_precipitation",
     "fetch_flood_discharge",
+    "fetch_weather_forecast",
+    "fetch_discharge_series",
     "MAX_FORECAST_DAYS",
     "MAX_ARCHIVE_DAYS",
     "MAX_CLIMATE_DAYS",

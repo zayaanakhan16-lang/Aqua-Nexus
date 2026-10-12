@@ -171,7 +171,7 @@ export function ProductPreview() {
               indicators.
             </p>
             <Link
-              href="/atlas"
+              href="/home"
               className="group inline-flex shrink-0 items-center gap-2 rounded-lg border border-water-400/30 bg-water-400/[0.08] px-4 py-2 text-sm font-semibold text-water-100 transition hover:bg-water-400/[0.16]"
             >
               Open the Water Atlas

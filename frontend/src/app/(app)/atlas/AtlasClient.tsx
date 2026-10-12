@@ -6,14 +6,15 @@
  * The map is the working surface. The left rail carries search, layers and
  * sources; the right rail carries location intelligence and rainfall. Layout is
  * responsive: rails collapse below the map on smaller screens.
+ *
+ * This route keeps the original single-location investigation workspace and now
+ * lives inside the shared application shell (see app/(app)/layout.tsx), so it
+ * carries no header of its own.
  */
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
 import { Globe2, X } from "lucide-react";
 
-import { api } from "@/lib/api";
 import { formatCoord } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { WorkspaceProvider, useWorkspace } from "@/lib/workspace";
 import { IntelligencePanel } from "@/components/panels/IntelligencePanel";
 import { LayerControls } from "@/components/panels/LayerControls";
@@ -21,7 +22,6 @@ import { LocationSearch } from "@/components/panels/LocationSearch";
 import { OnboardingCard } from "@/components/panels/OnboardingCard";
 import { RainfallPanel } from "@/components/panels/RainfallPanel";
 import { SourcesPanel } from "@/components/panels/SourcesPanel";
-import { TopBar } from "@/components/panels/TopBar";
 import { Chip } from "@/components/ui/primitives";
 
 // MapLibre must not be server-rendered.
@@ -75,54 +75,33 @@ function LocationChip() {
 
 function Workspace() {
   const { summary, comparison, forecast, refresh, layers } = useWorkspace();
-  const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    const check = () =>
-      api
-        .health()
-        .then(() => active && setApiHealthy(true))
-        .catch(() => active && setApiHealthy(false));
-    void check();
-    const timer = setInterval(check, 60000);
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
-  }, []);
 
   return (
-    <div className="relative z-10 flex h-dvh flex-col overflow-hidden">
-      <TopBar apiHealthy={apiHealthy} />
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-cols-[22rem_minmax(0,1fr)_24rem]">
-        {/* Left rail */}
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto lg:overflow-visible">
-          <div className="panel space-y-3 p-3">
-            <LocationSearch />
-            <LocationChip />
-          </div>
-          {/* Layer controls are shown on every breakpoint so the toggles are
-              reachable on mobile too. */}
-          <div className="min-h-0">
-            <LayerControls />
-          </div>
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-[20rem_minmax(0,1fr)_22rem] xl:grid-cols-[22rem_minmax(0,1fr)_24rem]">
+      {/* Left rail */}
+      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto lg:overflow-visible">
+        <div className="panel space-y-3 p-3">
+          <LocationSearch />
+          <LocationChip />
         </div>
+        <div className="min-h-0">
+          <LayerControls />
+        </div>
+      </div>
 
-        {/* Center map */}
-        <div className="relative min-h-[52vh] overflow-hidden rounded-xl border border-white/[0.06] bg-abyss-900 shadow-panel lg:min-h-0">
-          <WaterAtlasMap />
-        </div>
+      {/* Center map */}
+      <div className="relative min-h-[52vh] overflow-hidden rounded-xl border border-white/[0.06] bg-abyss-900 shadow-panel lg:min-h-0">
+        <WaterAtlasMap />
+      </div>
 
-        {/* Right rail */}
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto lg:pr-1">
-          <OnboardingCard />
-          <IntelligencePanel slice={summary} onRetry={refresh} />
-          {layers.precipitation ? (
-            <RainfallPanel comparison={comparison} forecast={forecast} onRetry={refresh} />
-          ) : null}
-          <SourcesPanel />
-        </div>
+      {/* Right rail */}
+      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto lg:pr-1">
+        <OnboardingCard />
+        <IntelligencePanel slice={summary} onRetry={refresh} />
+        {layers.precipitation ? (
+          <RainfallPanel comparison={comparison} forecast={forecast} onRetry={refresh} />
+        ) : null}
+        <SourcesPanel />
       </div>
     </div>
   );

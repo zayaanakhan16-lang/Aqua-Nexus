@@ -194,6 +194,70 @@ export const stacSearchResultSchema = z.object({
   note: z.string(),
 });
 
+export const weatherCurrentSchema = z.object({
+  timestamp: z.string(),
+  temperature_c: z.number().nullable().optional(),
+  apparent_temperature_c: z.number().nullable().optional(),
+  relative_humidity_pct: z.number().nullable().optional(),
+  precipitation_mm: z.number().nullable().optional(),
+  wind_speed_kmh: z.number().nullable().optional(),
+  weather_code: z.number().nullable().optional(),
+});
+
+export const weatherDaySchema = z.object({
+  date: z.string(),
+  temperature_max_c: z.number().nullable().optional(),
+  temperature_min_c: z.number().nullable().optional(),
+  precipitation_sum_mm: z.number().nullable().optional(),
+  wind_speed_max_kmh: z.number().nullable().optional(),
+  weather_code: z.number().nullable().optional(),
+});
+
+export const weatherForecastSchema = z.object({
+  location: geoPointSchema,
+  current: weatherCurrentSchema.nullable().optional(),
+  daily: z.array(weatherDaySchema).default([]),
+  provenance: provenanceSchema,
+  provider: providerMetadataSchema,
+  notes: z.array(z.string()).default([]),
+});
+
+export const dischargePointSchema = z.object({
+  timestamp: z.string(),
+  discharge_m3s: z.number().nullable().optional(),
+  ensemble_mean_m3s: z.number().nullable().optional(),
+  ensemble_median_m3s: z.number().nullable().optional(),
+});
+
+export const dischargeSeriesSchema = z.object({
+  location: geoPointSchema,
+  start_date: z.string(),
+  end_date: z.string(),
+  granularity: z.string(),
+  unit: z.string(),
+  points: z.array(dischargePointSchema),
+  provenance: provenanceSchema,
+  provider: providerMetadataSchema,
+  valid_days: z.number().default(0),
+  missing_days: z.number().default(0),
+  note: z.string().default(""),
+});
+
+export const studyAreaSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  location: geoPointSchema,
+  label: z.string().nullable().optional(),
+  place: placeResultSchema.nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const studyAreaListResponseSchema = z.object({
+  count: z.number(),
+  study_areas: z.array(studyAreaSchema),
+});
+
 export type DataClassification = z.infer<typeof dataClassificationSchema>;
 export type ProviderStatus = z.infer<typeof providerStatusSchema>;
 export type ProviderReport = z.infer<typeof providerReportSchema>;
@@ -211,3 +275,10 @@ export type Health = z.infer<typeof healthSchema>;
 export type ProviderCatalog = z.infer<typeof providerCatalogSchema>;
 export type StacItem = z.infer<typeof stacItemSchema>;
 export type StacSearchResult = z.infer<typeof stacSearchResultSchema>;
+export type WeatherCurrent = z.infer<typeof weatherCurrentSchema>;
+export type WeatherDay = z.infer<typeof weatherDaySchema>;
+export type WeatherForecast = z.infer<typeof weatherForecastSchema>;
+export type DischargePoint = z.infer<typeof dischargePointSchema>;
+export type DischargeSeries = z.infer<typeof dischargeSeriesSchema>;
+export type StudyArea = z.infer<typeof studyAreaSchema>;
+export type StudyAreaListResponse = z.infer<typeof studyAreaListResponseSchema>;

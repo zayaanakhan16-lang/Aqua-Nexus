@@ -19,13 +19,13 @@ describe("GlobeVisual", () => {
 });
 
 describe("Hero", () => {
-  it("renders the headline and routes the primary CTA to /atlas", () => {
+  it("renders the headline and routes the primary CTA into the app", () => {
     render(<Hero />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       /understand water/i,
     );
     const cta = screen.getByRole("link", { name: /explore water intelligence/i });
-    expect(cta).toHaveAttribute("href", "/atlas");
+    expect(cta).toHaveAttribute("href", "/home");
   });
 
   it("labels the hero visual as illustrative", () => {

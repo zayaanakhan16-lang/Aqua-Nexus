@@ -54,6 +54,49 @@ describe("api client", () => {
     expect(series.points).toHaveLength(1);
   });
 
+  it("creates a study area through the persistence endpoint", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "sa-1",
+          name: "Lagos Lagoon",
+          location: { latitude: 6.45, longitude: 3.39 },
+          label: "Lagos, Nigeria",
+          place: null,
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const area = await api.createStudyArea({
+      name: "Lagos Lagoon",
+      latitude: 6.45,
+      longitude: 3.39,
+      label: "Lagos, Nigeria",
+    });
+    expect(area.id).toBe("sa-1");
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(String(url)).toContain("/api/v1/study-areas");
+    expect(init?.method).toBe("POST");
+  });
+
+  it("lists study areas and validates the response shape", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          count: 0,
+          study_areas: [],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    const data = await api.listStudyAreas();
+    expect(data.count).toBe(0);
+    expect(data.study_areas).toEqual([]);
+  });
+
   it("surfaces a structured backend error", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(

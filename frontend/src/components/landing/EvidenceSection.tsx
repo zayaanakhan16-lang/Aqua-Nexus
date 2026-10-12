@@ -139,7 +139,7 @@ export function EvidenceSection() {
 
         <Reveal className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <Link
-            href="/atlas"
+            href="/home"
             className="group inline-flex items-center gap-2 rounded-lg bg-water-400 px-4 py-2.5 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
           >
             See source status in the workspace

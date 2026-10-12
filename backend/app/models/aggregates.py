@@ -67,6 +67,69 @@ class PrecipitationComparison(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class WeatherCurrent(BaseModel):
+    """Latest modelled near-surface conditions for a point."""
+
+    timestamp: datetime
+    temperature_c: float | None = None
+    apparent_temperature_c: float | None = None
+    relative_humidity_pct: float | None = None
+    precipitation_mm: float | None = None
+    wind_speed_kmh: float | None = None
+    weather_code: int | None = None
+
+
+class WeatherDay(BaseModel):
+    """One forecast day of modelled weather."""
+
+    date: date
+    temperature_max_c: float | None = None
+    temperature_min_c: float | None = None
+    precipitation_sum_mm: float | None = None
+    wind_speed_max_kmh: float | None = None
+    weather_code: int | None = None
+
+
+class WeatherForecast(BaseModel):
+    """Modelled current conditions plus a daily forecast timeline."""
+
+    location: GeoPoint
+    current: WeatherCurrent | None = None
+    daily: list[WeatherDay] = Field(default_factory=list)
+    provenance: Provenance
+    provider: ProviderMetadata
+    notes: list[str] = Field(default_factory=list)
+
+
+class DischargePoint(BaseModel):
+    """One day of modelled river discharge (GloFAS)."""
+
+    timestamp: datetime
+    discharge_m3s: float | None = None
+    ensemble_mean_m3s: float | None = None
+    ensemble_median_m3s: float | None = None
+
+
+class DischargeSeries(BaseModel):
+    """Modelled river discharge over a window, past and/or forecast.
+
+    The GloFAS product is a simulation along a modelled river network, not a
+    gauge measurement; the classification is always ``simulation``.
+    """
+
+    location: GeoPoint
+    start_date: date
+    end_date: date
+    granularity: str = "daily"
+    unit: str = "m3/s"
+    points: list[DischargePoint] = Field(default_factory=list)
+    provenance: Provenance
+    provider: ProviderMetadata
+    valid_days: int = 0
+    missing_days: int = 0
+    note: str = ""
+
+
 class Indicator(BaseModel):
     """A transparent, evidence-based derived indicator."""
 

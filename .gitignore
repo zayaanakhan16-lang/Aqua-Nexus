@@ -34,3 +34,6 @@ coverage/
 # --- Agent scratch ---
 .agent_tmp/
 backend/.venv/
+
+# --- Application state (saved study areas) ---
+backend/data/

@@ -20,11 +20,13 @@ import {
 
 import { ApiError, api } from "@/lib/api";
 import type {
+  DischargeSeries,
   LocationSummary,
   PlaceResult,
   PrecipitationComparison,
   PrecipitationSeries,
   StacSearchResult,
+  WeatherForecast,
 } from "@/lib/schemas";
 
 export type LayerId = "precipitation" | "discharge" | "satellite" | "places";
@@ -61,6 +63,8 @@ interface WorkspaceValue {
   summary: SliceState<LocationSummary>;
   comparison: SliceState<PrecipitationComparison>;
   forecast: SliceState<PrecipitationSeries>;
+  weather: SliceState<WeatherForecast>;
+  discharge: SliceState<DischargeSeries>;
   scenes: SliceState<StacSearchResult>;
   selectLocation: (loc: SelectedLocation) => void;
   clearLocation: () => void;
@@ -86,8 +90,14 @@ function describeError(error: unknown): { message: string; code: string | null }
   return { message: "An unknown error occurred.", code: null };
 }
 
-export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [location, setLocation] = useState<SelectedLocation | null>(null);
+export function WorkspaceProvider({
+  children,
+  initialLocation = null,
+}: {
+  children: ReactNode;
+  initialLocation?: SelectedLocation | null;
+}) {
+  const [location, setLocation] = useState<SelectedLocation | null>(initialLocation);
   const [layers, setLayers] = useState<LayerState>(DEFAULT_Layers);
   const [windowDays, setWindowDaysState] = useState(30);
 
@@ -96,6 +106,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     emptySlice(),
   );
   const [forecast, setForecast] = useState<SliceState<PrecipitationSeries>>(emptySlice());
+  const [weather, setWeather] = useState<SliceState<WeatherForecast>>(emptySlice());
+  const [discharge, setDischarge] = useState<SliceState<DischargeSeries>>(emptySlice());
   const [scenes, setScenes] = useState<SliceState<StacSearchResult>>(emptySlice());
 
   // Monotonic token so a slow response from an old location cannot overwrite a
@@ -110,12 +122,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setSummary({ data: null, loading: true, error: null, errorCode: null });
       setComparison({ data: null, loading: true, error: null, errorCode: null });
       setForecast({ data: null, loading: true, error: null, errorCode: null });
+      setWeather({ data: null, loading: true, error: null, errorCode: null });
+      setDischarge({ data: null, loading: true, error: null, errorCode: null });
       setScenes({ data: null, loading: true, error: null, errorCode: null });
 
-      const [summaryRes, comparisonRes, forecastRes, scenesRes] = await Promise.allSettled([
+      const [
+        summaryRes,
+        comparisonRes,
+        forecastRes,
+        weatherRes,
+        dischargeRes,
+        scenesRes,
+      ] = await Promise.allSettled([
         api.summary(latitude, longitude, { label, windowDays: days }),
         api.comparison(latitude, longitude, days, 1),
         api.forecast(latitude, longitude, 7),
+        api.weather(latitude, longitude, 7),
+        api.discharge(latitude, longitude, 14),
         api.scenes(latitude, longitude, { days: 30, limit: 12 }),
       ]);
 
@@ -136,6 +159,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       apply(summaryRes, setSummary);
       apply(comparisonRes, setComparison);
       apply(forecastRes, setForecast);
+      apply(weatherRes, setWeather);
+      apply(dischargeRes, setDischarge);
       apply(scenesRes, setScenes);
     },
     [],
@@ -156,6 +181,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setSummary(emptySlice());
     setComparison(emptySlice());
     setForecast(emptySlice());
+    setWeather(emptySlice());
+    setDischarge(emptySlice());
     setScenes(emptySlice());
   }, []);
 
@@ -179,6 +206,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       summary,
       comparison,
       forecast,
+      weather,
+      discharge,
       scenes,
       selectLocation,
       clearLocation,
@@ -193,6 +222,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       summary,
       comparison,
       forecast,
+      weather,
+      discharge,
       scenes,
       selectLocation,
       clearLocation,

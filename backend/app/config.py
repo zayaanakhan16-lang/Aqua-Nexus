@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = 300
     cache_max_entries: int = 512
 
+    # --- Persistence ---
+    # Directory for lightweight, file-backed application state (saved study
+    # areas). Relative paths resolve against the backend working directory.
+    # This holds only user-authored labels and coordinates, never credentials.
+    data_dir: str = "data"
+
     # --- Optional provider credentials ---
     # NASA POWER is public; the key is only used if a deployment fronts it.
     nasa_power_api_key: str | None = None
