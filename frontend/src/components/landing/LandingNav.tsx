@@ -57,10 +57,10 @@ export function LandingNav() {
 
         <div className="ml-auto flex items-center gap-2">
           <Link
-            href="/home"
+            href="/explore"
             className="group hidden items-center gap-1.5 rounded-lg bg-water-400 px-3.5 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300 sm:inline-flex"
           >
-            Explore Water Intelligence
+            Create Study Area
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
           </Link>
           <button
@@ -96,11 +96,11 @@ export function LandingNav() {
             ))}
           </ul>
           <Link
-            href="/home"
+            href="/explore"
             onClick={() => setOpen(false)}
             className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-water-400 px-3.5 py-2.5 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
           >
-            Explore Water Intelligence
+            Create Study Area
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
         </nav>

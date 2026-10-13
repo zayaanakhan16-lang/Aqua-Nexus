@@ -88,6 +88,17 @@ class Settings(BaseSettings):
     # Optional geocoding fallback (e.g. a commercial geocoder).
     nominatim_base_url: str = "https://nominatim.openstreetmap.org"
 
+    # --- AI analysis provider (optional) ---
+    # Any OpenAI-compatible chat-completions endpoint. With no key set the AI
+    # Analysis feature reports an explicit ``unconfigured`` state; the rest of
+    # the application keeps working. The key is used server-side only and is
+    # never sent to the browser.
+    ai_api_key: str | None = None
+    ai_base_url: str = "https://api.openai.com/v1"
+    ai_model: str = "gpt-4o-mini"
+    ai_timeout_seconds: float = 45.0
+    ai_max_evidence_chars: int = 12000
+
     # Base URLs (overridable so tests can point at local fixtures).
     open_meteo_forecast_url: str = "https://api.open-meteo.com/v1/forecast"
     open_meteo_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
@@ -115,6 +126,7 @@ class Settings(BaseSettings):
             # obtain short-lived S3 credentials (a bare token is not sufficient
             # for the /s3credentials exchange).
             "nasa_imerg": bool(self.earthdata_username and self.earthdata_password),
+            "ai_analysis": bool(self.ai_api_key),
         }
         return requirements.get(name, True)
 

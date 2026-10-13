@@ -258,6 +258,49 @@ export const studyAreaListResponseSchema = z.object({
   study_areas: z.array(studyAreaSchema),
 });
 
+export const evidenceObservationSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  value: z.number().nullable().optional(),
+  unit: z.string().default(""),
+  status: z.string().default("ok"),
+  classification: dataClassificationSchema.nullable().optional(),
+  period: z.string().nullable().optional(),
+  source: z.string(),
+  method: z.string().nullable().optional(),
+});
+
+export const aiEvidencePackageSchema = z.object({
+  location: geoPointSchema,
+  label: z.string().nullable().optional(),
+  resolved_place: placeResultSchema.nullable().optional(),
+  generated_at: z.string(),
+  observations: z.array(evidenceObservationSchema).default([]),
+  providers: z.array(providerReportSchema).default([]),
+  available: z.array(z.string()).default([]),
+  missing: z.array(z.string()).default([]),
+  notes: z.array(z.string()).default([]),
+});
+
+export const aiNarrativeSchema = z.object({
+  situation_summary: z.string().default(""),
+  observed_conditions: z.array(z.string()).default([]),
+  recent_changes: z.array(z.string()).default([]),
+  potential_concerns: z.array(z.string()).default([]),
+  confidence_and_limitations: z.array(z.string()).default([]),
+  investigate_next: z.array(z.string()).default([]),
+  recommended_next_steps: z.array(z.string()).default([]),
+});
+
+export const aiAnalysisReportSchema = z.object({
+  status: z.enum(["ok", "unconfigured", "unavailable"]),
+  provider: z.string(),
+  model: z.string().nullable().optional(),
+  evidence: aiEvidencePackageSchema,
+  narrative: aiNarrativeSchema.nullable().optional(),
+  message: z.string().nullable().optional(),
+});
+
 export type DataClassification = z.infer<typeof dataClassificationSchema>;
 export type ProviderStatus = z.infer<typeof providerStatusSchema>;
 export type ProviderReport = z.infer<typeof providerReportSchema>;
@@ -282,3 +325,7 @@ export type DischargePoint = z.infer<typeof dischargePointSchema>;
 export type DischargeSeries = z.infer<typeof dischargeSeriesSchema>;
 export type StudyArea = z.infer<typeof studyAreaSchema>;
 export type StudyAreaListResponse = z.infer<typeof studyAreaListResponseSchema>;
+export type EvidenceObservation = z.infer<typeof evidenceObservationSchema>;
+export type AIEvidencePackage = z.infer<typeof aiEvidencePackageSchema>;
+export type AINarrative = z.infer<typeof aiNarrativeSchema>;
+export type AIAnalysisReport = z.infer<typeof aiAnalysisReportSchema>;

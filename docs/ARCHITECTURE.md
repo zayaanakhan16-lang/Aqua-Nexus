@@ -61,6 +61,7 @@ provider-specific logic and no scientific arithmetic.
 | `GET /api/v1/weather` | Modelled current conditions + daily forecast |
 | `GET /api/v1/discharge` | Modelled GloFAS river discharge series |
 | `GET /api/v1/satellite/scenes` | STAC scene metadata search |
+| `GET /api/v1/ai/analysis` | Evidence-grounded narrative over the location summary |
 | `GET /api/v1/study-areas` | List saved study areas |
 | `POST /api/v1/study-areas` | Create a saved study area |
 | `GET /api/v1/study-areas/{id}` | Fetch one saved study area |
@@ -85,6 +86,11 @@ The scientific engine, deliberately independent of HTTP and independent of React
   shared-valid-date pairing for cross-source comparison.
 - `anomaly.py` — baseline compatibility rules and bounded anomaly maths.
 - `indicators.py` — freshness, coverage, classification, cross-check.
+- `ai_analysis.py` — builds an evidence package from the location summary and,
+  when an AI provider is configured, asks it for a narrative. The evidence
+  package is always assembled from real provider values; the narrative is
+  labelled as interpretation, and the endpoint reports `unconfigured` when no
+  key is set rather than substituting text.
 - `summary.py` — graceful orchestration: independent providers are fetched
   concurrently, and a failed provider degrades one slice, never the whole
   response.

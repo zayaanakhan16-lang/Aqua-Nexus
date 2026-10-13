@@ -32,6 +32,7 @@ not cover a location, AquaNexus says so instead of inventing a number.
 | NASA POWER cross-check | **Complete** | Independent reanalysis corroboration |
 | Satellite scene catalogue search | **Complete (metadata only)** | Copernicus CDSE STAC, anonymous |
 | Saved study areas (persistence) | **Complete** | JSON-file store behind `/api/v1/study-areas`; CRUD + per-area workspace |
+| Evidence-grounded AI analysis | **Complete (optional)** | Narrative over the real location summary; key-gated, reports `unconfigured` without a key |
 | Data provenance + classification | **Complete** | Observations, reanalysis, forecasts, derived, simulation |
 | Water-body change detection | **Planned** | No verified processing pipeline yet; not claimed |
 | Flood prediction model | **Not provided** | Explicitly out of scope; not claimed |

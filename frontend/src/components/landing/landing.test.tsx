@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Hero } from "@/components/landing/Hero";
-import { GlobeVisual } from "@/components/landing/GlobeVisual";
+import { EarthGlobe } from "@/components/landing/EarthGlobe";
 import { CapabilitiesSection } from "@/components/landing/CapabilitiesSection";
 import { ProductPreview } from "@/components/landing/ProductPreview";
 import { EvidenceSection } from "@/components/landing/EvidenceSection";
@@ -11,10 +11,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("GlobeVisual", () => {
-  it("is announced as illustrative, not as live data", () => {
-    render(<GlobeVisual />);
-    expect(screen.getByRole("img", { name: /illustrative/i })).toBeInTheDocument();
+describe("EarthGlobe", () => {
+  it("shows a real NASA Earth image poster without requiring WebGL", () => {
+    const { container } = render(<EarthGlobe />);
+    expect(
+      screen.getByRole("img", { name: /earth from nasa's blue marble/i }),
+    ).toBeInTheDocument();
+    // The static poster is a real image asset, not a drawn SVG globe.
+    const poster = container.querySelector("img");
+    expect(poster).not.toBeNull();
+    expect(poster?.getAttribute("src")).toMatch(/earth-blue-marble/);
   });
 });
 
@@ -22,15 +28,15 @@ describe("Hero", () => {
   it("renders the headline and routes the primary CTA into the app", () => {
     render(<Hero />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      /understand water/i,
+      /water risks/i,
     );
-    const cta = screen.getByRole("link", { name: /explore water intelligence/i });
-    expect(cta).toHaveAttribute("href", "/home");
+    const cta = screen.getByRole("link", { name: /create study area/i });
+    expect(cta).toHaveAttribute("href", "/explore");
   });
 
-  it("labels the hero visual as illustrative", () => {
+  it("attributes the hero Earth imagery to NASA Blue Marble", () => {
     render(<Hero />);
-    expect(screen.getByText(/illustrative visual/i)).toBeInTheDocument();
+    expect(screen.getByText(/nasa blue marble/i)).toBeInTheDocument();
   });
 });
 

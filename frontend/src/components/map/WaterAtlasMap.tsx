@@ -3,11 +3,13 @@
 /**
  * Global water atlas map.
  *
- * MapLibre GL JS v4 with a key-free OpenFreeMap style. Clicking the map selects a
- * coordinate; a marker shows the active location; satellite scene footprints
- * render only when the satellite layer is enabled and real scene metadata has
- * loaded. Nothing decorative is drawn: every overlay is tied to state, and no map
- * style or layer invents imagery or water data.
+ * MapLibre GL JS v4 with a key-free OpenFreeMap "Liberty" style: natural-colour
+ * oceans, lakes and rivers, green land and parks, visible roads and place names
+ * at every zoom level. Clicking the map selects a coordinate; a marker shows the
+ * active location; satellite scene footprints render only when the satellite
+ * layer is enabled and real scene metadata has loaded. Nothing decorative is
+ * drawn: every overlay is tied to state, and no map style or layer invents
+ * imagery or water data.
  *
  * 2D by design: this is the last known-good implementation — MapLibre GL JS v4
  * with the default Mercator projection. A later change moved to MapLibre v5 and a
@@ -33,7 +35,7 @@ import { RasterMap } from "@/components/map/RasterMap";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 const SCENES_SOURCE = "aquanexus-scenes";
 const SCENES_FILL = "aquanexus-scenes-fill";
 

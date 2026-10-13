@@ -184,6 +184,28 @@ GPM_IMERG_LATE_DAILY = ProviderMetadata(
     ],
 )
 
+# --- AI analysis (interpretation layer, not a measurement source) ---
+AI_ANALYSIS = ProviderMetadata(
+    id="ai_analysis",
+    name="AI analysis (OpenAI-compatible)",
+    product="Evidence-grounded interpretation via a configurable LLM",
+    version=None,
+    url="https://platform.openai.com/docs/api-reference/chat",
+    attribution="Model output; grounded in the providers listed alongside it",
+    license="Deployment-configured provider terms",
+    classification=DataClassification.DERIVED,
+    spatial_resolution="Point (study-area location)",
+    temporal_resolution="On request",
+    units="n/a",
+    latency_note="Generated on demand; the evidence package is always shown.",
+    coverage_note="Any location with at least one available data source.",
+    limitations=[
+        "Interpretation only — never a measurement or an official warning.",
+        "Grounded in the evidence package; treat recommendations as guidance.",
+        "Requires an AI provider credential; otherwise the feature is unconfigured.",
+    ],
+)
+
 ALL_PROVIDERS = [
     OPEN_METEO_GEOCODING,
     OPEN_METEO_FORECAST,
@@ -193,6 +215,7 @@ ALL_PROVIDERS = [
     CDSE_STAC,
     NASA_POWER,
     GPM_IMERG_LATE_DAILY,
+    AI_ANALYSIS,
 ]
 
 

@@ -67,13 +67,14 @@ def create_app() -> FastAPI:
             },
         )
 
-    from app.api.routes import geography, precipitation, satellite, study_areas, system
+    from app.api.routes import ai, geography, precipitation, satellite, study_areas, system
 
     app.include_router(system.router, prefix="/api/v1")
     app.include_router(geography.router, prefix="/api/v1")
     app.include_router(precipitation.router, prefix="/api/v1")
     app.include_router(satellite.router, prefix="/api/v1")
     app.include_router(study_areas.router, prefix="/api/v1")
+    app.include_router(ai.router, prefix="/api/v1")
 
     return app
 

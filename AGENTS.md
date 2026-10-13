@@ -51,16 +51,37 @@ layer controls working. Keep the WebGL probe (`lib/webgl.ts`) and the accessible
 fallback in `WaterAtlasMap.tsx` — they keep the rest of the workspace usable when
 WebGL is genuinely absent. Do not re-enable a globe projection.
 
+Basemap style is OpenFreeMap `liberty`
+(`https://tiles.openfreemap.org/styles/liberty`) — key-free, natural-colour
+oceans/land/rivers. A cinematic 3D Earth (`landing/EarthGlobe.tsx`, three.js)
+is used only on the landing page and has a static-poster fallback when WebGL is
+absent; it is never required for the working map.
+
 ## Verified state
 
-- Backend: 97 pytest tests pass (includes the IMERG adapter suite). Frontend:
-  46 vitest tests pass; typecheck, lint and `next build` all clean.
+- Backend: 115 pytest tests pass (includes the IMERG adapter suite and the AI
+  analysis suite). Frontend: 59 vitest tests pass; typecheck, lint and
+  `next build` all clean.
 - Live smoke test (real network, not mocked) verified 200 for `/health`,
   `/geocode`, `/precipitation/historical`, `/precipitation/comparison`,
-  `/readiness` and `/location/summary`.
-- `/readiness` reports `nasa_imerg_late_daily` as `unconfigured` unless
-  Earthdata Login credentials are set. Live authenticated retrieval is **not**
-  yet verified in this environment (see below).
+  `/readiness`, `/location/summary` and `/ai/analysis`.
+- `/readiness` reports `nasa_imerg_late_daily` and `ai_analysis` as
+  `unconfigured` unless their credentials are set. Live authenticated retrieval
+  is **not** yet verified in this environment (see below).
+
+## AI analysis (credential-gated, optional)
+
+- Route `api/routes/ai.py` → `services/ai_analysis.py`; provider
+  `providers/ai.py` (OpenAI-compatible chat-completions); models in
+  `models/ai.py`; catalog entry `AI_ANALYSIS` (`ai_analysis`).
+- The **evidence package is always assembled from real provider values** (the
+  same location summary the workspace uses) with source, unit, period and
+  classification. The **narrative** is a model's interpretation of that
+  evidence — never a measurement and never an official warning.
+- With no `AQUANEXUS_AI_API_KEY`, the endpoint returns `status: "unconfigured"`
+  and still returns the evidence; the panel renders an explicit unavailable
+  state rather than inventing text. The key is server-side only.
+
 
 ## NASA GPM IMERG Late Daily V07 (credential-gated)
 

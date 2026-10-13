@@ -67,10 +67,10 @@ export function FinalCta() {
         </p>
         <div className="mt-8 flex justify-center">
           <Link
-            href="/home"
+            href="/explore"
             className="group inline-flex items-center gap-2 rounded-lg bg-water-400 px-6 py-3 text-sm font-semibold text-abyss-950 shadow-float transition hover:bg-water-300"
           >
-            Explore Water Intelligence
+            Create Study Area
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
           </Link>
         </div>

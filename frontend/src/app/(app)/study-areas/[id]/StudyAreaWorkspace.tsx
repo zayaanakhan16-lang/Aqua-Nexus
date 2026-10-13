@@ -21,6 +21,7 @@ import {
   Layers,
   MapPin,
   Satellite,
+  Sparkles,
   Thermometer,
   Waves,
 } from "lucide-react";
@@ -39,6 +40,7 @@ import { WaterStressPanel } from "@/components/panels/WaterStressPanel";
 import { DischargePanel } from "@/components/panels/DischargePanel";
 import { SatellitePanel } from "@/components/panels/SatellitePanel";
 import { SourcesPanel } from "@/components/panels/SourcesPanel";
+import { AIAnalysisPanel } from "@/components/panels/AIAnalysisPanel";
 import { LayerControls } from "@/components/panels/LayerControls";
 
 const WaterAtlasMap = dynamic(
@@ -63,6 +65,7 @@ type TabId =
   | "water-stress"
   | "discharge"
   | "satellite"
+  | "ai"
   | "sources";
 
 const TABS: { id: TabId; label: string; icon: typeof Activity }[] = [
@@ -72,6 +75,7 @@ const TABS: { id: TabId; label: string; icon: typeof Activity }[] = [
   { id: "water-stress", label: "Water Stress", icon: Waves },
   { id: "discharge", label: "River Discharge", icon: Droplets },
   { id: "satellite", label: "Satellite Explorer", icon: Satellite },
+  { id: "ai", label: "AI Analysis", icon: Sparkles },
   { id: "sources", label: "Sources & Evidence", icon: FileCheck2 },
 ];
 
@@ -123,7 +127,8 @@ function LocationHeader({ area }: { area: StudyArea }) {
 }
 
 function WorkspaceBody({ area }: { area: StudyArea }) {
-  const { summary, comparison, forecast, weather, discharge, scenes, refresh } = useWorkspace();
+  const { summary, comparison, forecast, weather, discharge, scenes, ai, refresh, refreshAi } =
+    useWorkspace();
   const [tab, setTab] = useState<TabId>("overview");
 
   return (
@@ -197,6 +202,7 @@ function WorkspaceBody({ area }: { area: StudyArea }) {
             ) : null}
             {tab === "discharge" ? <DischargePanel slice={discharge} onRetry={refresh} /> : null}
             {tab === "satellite" ? <SatellitePanel slice={scenes} onRetry={refresh} /> : null}
+            {tab === "ai" ? <AIAnalysisPanel slice={ai} onGenerate={refreshAi} /> : null}
             {tab === "sources" ? (
               <>
                 <IntelligencePanel slice={summary} onRetry={refresh} />

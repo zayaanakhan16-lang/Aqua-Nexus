@@ -20,6 +20,7 @@ import {
 
 import { ApiError, api } from "@/lib/api";
 import type {
+  AIAnalysisReport,
   DischargeSeries,
   LocationSummary,
   PlaceResult,
@@ -66,11 +67,13 @@ interface WorkspaceValue {
   weather: SliceState<WeatherForecast>;
   discharge: SliceState<DischargeSeries>;
   scenes: SliceState<StacSearchResult>;
+  ai: SliceState<AIAnalysisReport>;
   selectLocation: (loc: SelectedLocation) => void;
   clearLocation: () => void;
   toggleLayer: (id: LayerId) => void;
   setWindowDays: (days: number) => void;
   refresh: () => void;
+  refreshAi: () => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
@@ -109,6 +112,9 @@ export function WorkspaceProvider({
   const [weather, setWeather] = useState<SliceState<WeatherForecast>>(emptySlice());
   const [discharge, setDischarge] = useState<SliceState<DischargeSeries>>(emptySlice());
   const [scenes, setScenes] = useState<SliceState<StacSearchResult>>(emptySlice());
+  // AI analysis is generated on demand (it is comparatively expensive), so it
+  // is not part of the automatic location load.
+  const [ai, setAi] = useState<SliceState<AIAnalysisReport>>(emptySlice());
 
   // Monotonic token so a slow response from an old location cannot overwrite a
   // newer one.
@@ -125,6 +131,8 @@ export function WorkspaceProvider({
       setWeather({ data: null, loading: true, error: null, errorCode: null });
       setDischarge({ data: null, loading: true, error: null, errorCode: null });
       setScenes({ data: null, loading: true, error: null, errorCode: null });
+      // A new location invalidates any previous AI analysis.
+      setAi(emptySlice());
 
       const [
         summaryRes,
@@ -184,6 +192,7 @@ export function WorkspaceProvider({
     setWeather(emptySlice());
     setDischarge(emptySlice());
     setScenes(emptySlice());
+    setAi(emptySlice());
   }, []);
 
   const toggleLayer = useCallback((id: LayerId) => {
@@ -198,6 +207,23 @@ export function WorkspaceProvider({
     if (location) void load(location, windowDays);
   }, [location, windowDays, load]);
 
+  const refreshAi = useCallback(() => {
+    if (!location) return;
+    setAi({ data: null, loading: true, error: null, errorCode: null });
+    api
+      .aiAnalysis(location.latitude, location.longitude, {
+        label: location.label,
+        windowDays,
+      })
+      .then((report) =>
+        setAi({ data: report, loading: false, error: null, errorCode: null }),
+      )
+      .catch((err: unknown) => {
+        const { message, code } = describeError(err);
+        setAi({ data: null, loading: false, error: message, errorCode: code });
+      });
+  }, [location, windowDays]);
+
   const value = useMemo<WorkspaceValue>(
     () => ({
       location,
@@ -209,11 +235,13 @@ export function WorkspaceProvider({
       weather,
       discharge,
       scenes,
+      ai,
       selectLocation,
       clearLocation,
       toggleLayer,
       setWindowDays,
       refresh,
+      refreshAi,
     }),
     [
       location,
@@ -225,11 +253,13 @@ export function WorkspaceProvider({
       weather,
       discharge,
       scenes,
+      ai,
       selectLocation,
       clearLocation,
       toggleLayer,
       setWindowDays,
       refresh,
+      refreshAi,
     ],
   );
 

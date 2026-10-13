@@ -1,14 +1,14 @@
 /**
  * Landing hero.
  *
- * A cinematic composition with an illustrative Earth visual (no WebGL) and the
- * product's core message. The "Illustrative" label is deliberate: the globe is a
- * decorative drawing, not live environmental data.
+ * A cinematic composition built around a real photographic Earth (NASA Blue
+ * Marble) rendered as a slowly rotating globe, plus the product's core message
+ * and the two primary entry points into the application.
  */
 import Link from "next/link";
-import { ArrowRight, Database, Globe2 } from "lucide-react";
+import { ArrowRight, Compass, Globe2 } from "lucide-react";
 
-import { GlobeVisual } from "@/components/landing/GlobeVisual";
+import { EarthGlobe } from "@/components/landing/EarthGlobe";
 
 const PILLARS = [
   "Rainfall history & forecasts",
@@ -33,34 +33,31 @@ export function Hero() {
           </p>
 
           <h1 className="mt-6 text-balance font-display text-4xl font-semibold leading-[1.06] tracking-tight text-ink-50 sm:text-5xl lg:text-6xl">
-            Understand Water.
+            See the water risks
             <br />
-            Detect Risks.
-            <br />
-            <span className="text-gradient-water">Find Solutions.</span>
+            shaping our world.
           </h1>
 
           <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-300 sm:text-lg">
-            Explore rainfall patterns, investigate potential water stress, monitor flood
-            indicators, and understand the evidence behind water-related risks across the
-            world.
+            Explore environmental conditions, understand changing water patterns, and turn
+            location-specific evidence into informed decisions.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              href="/home"
+              href="/explore"
               className="group inline-flex items-center gap-2 rounded-lg bg-water-400 px-5 py-3 text-sm font-semibold text-abyss-950 shadow-float transition hover:bg-water-300"
             >
-              Explore Water Intelligence
+              Create Study Area
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
             </Link>
-            <a
-              href="#sources"
+            <Link
+              href="/atlas"
               className="inline-flex items-center gap-2 rounded-lg border border-white/12 bg-white/[0.02] px-5 py-3 text-sm font-semibold text-ink-100 transition hover:border-water-400/40 hover:bg-water-400/[0.08]"
             >
-              <Database className="h-4 w-4 text-water-300" aria-hidden />
-              Explore Our Data
-            </a>
+              <Compass className="h-4 w-4 text-water-300" aria-hidden />
+              Explore the Atlas
+            </Link>
           </div>
 
           <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-2">
@@ -74,9 +71,9 @@ export function Hero() {
         </div>
 
         <div className="relative mx-auto w-full max-w-xl">
-          <GlobeVisual className="mx-auto w-full max-w-[34rem] animate-float-slow motion-reduce:animate-none drop-shadow-[0_40px_80px_rgba(2,7,15,0.7)]" />
+          <EarthGlobe className="mx-auto w-full max-w-[34rem] animate-float-slow motion-reduce:animate-none" />
           <p className="mt-3 text-center text-[0.625rem] uppercase tracking-[0.18em] text-ink-500">
-            Illustrative visual — not live data
+            Earth imagery — NASA Blue Marble
           </p>
         </div>
       </div>

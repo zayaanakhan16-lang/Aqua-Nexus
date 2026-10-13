@@ -236,6 +236,23 @@ Every API response carries the source name, observation/forecast timestamp,
 retrieval timestamp, unit, resolution, product identifier, method and
 classification.
 
+## I. AI analysis — evidence-grounded interpretation (optional)
+
+`GET /api/v1/ai/analysis` assembles an evidence package from the same location
+summary the workspace uses — coverage, wet-day fraction, rainfall change, 7-day
+forecast total, cross-source difference, modelled discharge ratio and freshness —
+and, when an AI provider is configured, asks it to narrate that evidence.
+
+- The **evidence package is not AI-generated.** Every observation carries the
+  provider source, unit, period and classification shown elsewhere in the app.
+- The **narrative is labelled as interpretation**, not a measurement and not an
+  official warning.
+- With no key configured the endpoint returns `status: "unconfigured"` with an
+  explicit message. The evidence is still returned, so the panel stays useful
+  and nothing is invented.
+- The provider is any OpenAI-compatible chat-completions endpoint. The key is
+  used server-side only and is never sent to the browser.
+
 ## Credential-gated sources (optional)
 
 These are documented and adapter-ready but not required to run AquaNexus:
@@ -248,6 +265,9 @@ These are documented and adapter-ready but not required to run AquaNexus:
 - **Copernicus Data Space authenticated downloads** —
   `AQUANEXUS_CDSE_USERNAME` / `AQUANEXUS_CDSE_PASSWORD`.
 - **Copernicus Climate Data Store** — planned adapter.
+- **AI analysis** — any OpenAI-compatible endpoint via `AQUANEXUS_AI_API_KEY`
+  (plus optional `AQUANEXUS_AI_BASE_URL` / `AQUANEXUS_AI_MODEL`). Optional;
+  absence yields an explicit `unconfigured` state.
 
 When a credential is absent, the provider reports `unconfigured`; it is never
 silently skipped and never replaced with fabricated data.

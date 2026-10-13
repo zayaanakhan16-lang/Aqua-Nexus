@@ -20,6 +20,8 @@ import {
   studyAreaSchema,
   dischargeSeriesSchema,
   weatherForecastSchema,
+  aiAnalysisReportSchema,
+  type AIAnalysisReport,
   type DischargeSeries,
   type Health,
   type LocationSummary,
@@ -279,6 +281,23 @@ export const api = {
     return request(
       `/api/v1/discharge${qs({ latitude: lat, longitude: lon, days })}`,
       dischargeSeriesSchema,
+    );
+  },
+
+  aiAnalysis(
+    lat: number,
+    lon: number,
+    opts: { label?: string; windowDays?: number } = {},
+  ): Promise<AIAnalysisReport> {
+    return request(
+      `/api/v1/ai/analysis${qs({
+        latitude: lat,
+        longitude: lon,
+        label: opts.label,
+        window_days: opts.windowDays ?? 30,
+      })}`,
+      aiAnalysisReportSchema,
+      { timeoutMs: 60000 },
     );
   },
 
