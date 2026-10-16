@@ -53,9 +53,10 @@ WebGL is genuinely absent. Do not re-enable a globe projection.
 
 Basemap style is OpenFreeMap `liberty`
 (`https://tiles.openfreemap.org/styles/liberty`) — key-free, natural-colour
-oceans/land/rivers. A cinematic 3D Earth (`landing/EarthGlobe.tsx`, three.js)
-is used only on the landing page and has a static-poster fallback when WebGL is
-absent; it is never required for the working map.
+oceans/land/rivers. The hero Earth (`landing/EarthGlobe.tsx`) is a pure-CSS
+rotating sphere over the self-hosted NASA Blue Marble image: no WebGL, no
+canvas and no 3D dependency, so it renders everywhere and cannot break the
+build. It is landing-only and never required for the working map.
 
 ## Verified state
 
