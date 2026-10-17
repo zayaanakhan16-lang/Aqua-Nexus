@@ -72,6 +72,15 @@ async function request<T extends z.ZodTypeAny>(
   const { timeoutMs = 45000, ...rest } = init ?? {};
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // A caller-supplied signal (e.g. a superseded search) must be able to cancel
+  // this request too, so forward its abort to our controller instead of letting
+  // `signal` below overwrite it.
+  const callerSignal = rest.signal ?? null;
+  const forwardAbort = () => controller.abort();
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort();
+    else callerSignal.addEventListener("abort", forwardAbort, { once: true });
+  }
 
   let response: Response;
   try {
@@ -83,12 +92,18 @@ async function request<T extends z.ZodTypeAny>(
     });
   } catch (error) {
     clearTimeout(timer);
+    callerSignal?.removeEventListener("abort", forwardAbort);
     if (error instanceof DOMException && error.name === "AbortError") {
+      // Distinguish an explicit caller cancellation from our own timeout.
+      if (callerSignal?.aborted) {
+        throw new ApiError("The request was cancelled.", { code: "aborted" });
+      }
       throw new ApiError("The request timed out.", { code: "timeout" });
     }
     throw new ApiError("Could not reach the AquaNexus API.", { code: "network_error" });
   }
   clearTimeout(timer);
+  callerSignal?.removeEventListener("abort", forwardAbort);
 
   const text = await response.text();
   let payload: unknown = null;

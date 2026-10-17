@@ -146,7 +146,7 @@ export function EvidenceSection() {
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
           </Link>
           <a
-            href="https://github.com/zayaanakhan16-lang/Aqua-Nexus/blob/main/docs/DATA_SOURCES.md"
+            href="https://github.com/zayaanakhan16-lang/Aqua-Nexus/blob/aquanexus-build/docs/DATA_SOURCES.md"
             target="_blank"
             rel="noreferrer noopener"
             className="inline-flex items-center gap-2 text-sm text-ink-300 transition hover:text-ink-50"
@@ -155,7 +155,7 @@ export function EvidenceSection() {
             Data sources documentation
           </a>
           <a
-            href="https://github.com/zayaanakhan16-lang/Aqua-Nexus/blob/main/docs/SCIENCE.md"
+            href="https://github.com/zayaanakhan16-lang/Aqua-Nexus/blob/aquanexus-build/docs/SCIENCE.md"
             target="_blank"
             rel="noreferrer noopener"
             className="inline-flex items-center gap-2 text-sm text-ink-300 transition hover:text-ink-50"

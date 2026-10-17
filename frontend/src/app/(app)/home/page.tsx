@@ -99,7 +99,7 @@ function DataSourcesCard() {
       )}
       <div className="border-t border-white/[0.06] px-4 py-2.5">
         <Link
-          href="/atlas"
+          href="/explore"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-400 transition hover:text-water-300"
         >
           <ShieldCheck className="h-3.5 w-3.5" aria-hidden />

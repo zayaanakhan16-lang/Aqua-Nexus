@@ -27,6 +27,10 @@ export function LocationSearch() {
 
   const listboxId = useId();
   const abortRef = useRef<AbortController | null>(null);
+  // Monotonic token: a response may only apply if it belongs to the most recent
+  // search. Aborting the previous request is not sufficient on its own, because
+  // a response can already be in flight when the abort arrives.
+  const requestTokenRef = useRef(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   // After a place is chosen we write its display name into the input; this ref
   // prevents the debounced effect from immediately re-searching that name and
@@ -93,23 +97,30 @@ export function LocationSearch() {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
+      const token = ++requestTokenRef.current;
       setLoading(true);
       setError(null);
       api
         .geocode(trimmed, 8, controller.signal)
         .then((res) => {
+          // Ignore a response that has been superseded by a newer query.
+          if (token !== requestTokenRef.current) return;
           setResults(res.results);
           setOpen(true);
           setActiveIndex(-1);
         })
         .catch((err: unknown) => {
+          if (token !== requestTokenRef.current) return;
           if (err instanceof DOMException && err.name === "AbortError") return;
+          if (err instanceof ApiError && err.code === "aborted") return;
           setResults([]);
           setError(
             err instanceof ApiError ? err.message : "Search is temporarily unavailable.",
           );
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          if (token === requestTokenRef.current) setLoading(false);
+        });
     }, 320);
 
     return () => clearTimeout(timer);

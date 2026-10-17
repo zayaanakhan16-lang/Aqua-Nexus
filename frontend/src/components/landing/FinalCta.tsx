@@ -16,7 +16,7 @@ const FOOTER_LINKS = [
     links: [
       { href: "#capabilities", label: "Capabilities" },
       { href: "#preview", label: "Product preview" },
-      { href: "/atlas", label: "Open the Water Atlas" },
+      { href: "/explore", label: "Open the workspace" },
     ],
   },
   {
@@ -37,12 +37,12 @@ const FOOTER_LINKS = [
         external: true,
       },
       {
-        href: "https://github.com/zayaanakhan16-lang/Aqua-Nexus/blob/main/docs/DATA_SOURCES.md",
+        href: "https://github.com/zayaanakhan16-lang/Aqua-Nexus/blob/aquanexus-build/docs/DATA_SOURCES.md",
         label: "Data sources",
         external: true,
       },
       {
-        href: "https://github.com/zayaanakhan16-lang/Aqua-Nexus/blob/main/docs/SCIENCE.md",
+        href: "https://github.com/zayaanakhan16-lang/Aqua-Nexus/blob/aquanexus-build/docs/SCIENCE.md",
         label: "Methods & limitations",
         external: true,
       },
@@ -143,7 +143,7 @@ export function LandingFooter() {
               Repository
             </a>
             <a
-              href="https://github.com/zayaanakhan16-lang/Aqua-Nexus/blob/main/docs/ARCHITECTURE.md"
+              href="https://github.com/zayaanakhan16-lang/Aqua-Nexus/blob/aquanexus-build/docs/ARCHITECTURE.md"
               target="_blank"
               rel="noreferrer noopener"
               className="inline-flex items-center gap-1.5 transition hover:text-ink-200"

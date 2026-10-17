@@ -5,7 +5,7 @@
  *
  * A single, coherent navigation frame for the authenticated sections: the brand
  * lockup, the primary sections (Intelligence Home, Explore Map, Study Areas,
- * Water Atlas) and a live backend status indicator. It wraps its children in the
+ * study-area workspace) and a live backend status indicator. It wraps its children in the
  * shared providers so every section sees the same study-area store and toasts.
  *
  * The landing page at `/` does not use this shell — it is the public entry point.
@@ -13,7 +13,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Compass, Github, Home, Layers, Map, Menu, X } from "lucide-react";
+import { Compass, Home, Layers, Menu, X } from "lucide-react";
 
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,6 @@ const NAV = [
   { href: "/home", label: "Intelligence Home", icon: Home },
   { href: "/explore", label: "Explore Map", icon: Compass },
   { href: "/study-areas", label: "Study Areas", icon: Layers },
-  { href: "/atlas", label: "Water Atlas", icon: Map },
 ];
 
 function BackendStatus() {
@@ -109,15 +108,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="hidden sm:inline-flex">
               <BackendStatus />
             </span>
-            <a
-              href="https://github.com/zayaanakhan16-lang/Aqua-Nexus"
-              target="_blank"
-              rel="noreferrer noopener"
-              className="hidden rounded-md border border-white/[0.08] bg-white/[0.02] p-1.5 text-ink-400 transition hover:text-ink-100 sm:inline-flex"
-              aria-label="View source repository"
-            >
-              <Github className="h-4 w-4" aria-hidden />
-            </a>
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}

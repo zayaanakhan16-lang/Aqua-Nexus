@@ -40,9 +40,22 @@ npm run typecheck && npm run lint && npm test && npm run build
 npm run dev            # port 3000
 ```
 
+## Workspace (Explore Map is the single entry point)
+
+There is exactly **one** water-intelligence workspace: `/explore`. The legacy
+`/atlas` route was removed and its functionality consolidated into Explore Map.
+The shared results surface is `components/workspace/IntelligenceTabs.tsx`, which
+renders every supported category (Overview, Weather, Precipitation, Water Stress,
+River Discharge, Satellite Explorer, AI Analysis, Sources & Evidence) for the
+location held by the `lib/workspace.tsx` store. Both `/explore` and the saved
+study-area workspace (`/study-areas/[id]`) use the same `IntelligenceTabs` and
+`MapPanel`, so there is one results experience, not two. Do not add a second
+workspace route. Component names that still contain "Atlas" (`WaterAtlasMap`)
+are shared map internals and are deliberately retained.
+
 ## Map (2D, MapLibre GL JS v4 — do not reintroduce a globe)
 
-The Atlas map is MapLibre GL JS **4.7.1** with the default 2D Mercator view.
+The map is MapLibre GL JS **4.7.1** with the default 2D Mercator view.
 A change that upgraded to v5 and set `map.setProjection({type:'globe'})` made the
 map fail to initialise in sessions without a WebGL2 context (MapLibre reported
 "Failed to initialize WebGL"), so the map panel fell back for everyone. The flat
@@ -61,8 +74,16 @@ build. It is landing-only and never required for the working map.
 ## Verified state
 
 - Backend: 115 pytest tests pass (includes the IMERG adapter suite and the AI
-  analysis suite). Frontend: 59 vitest tests pass; typecheck, lint and
-  `next build` all clean.
+  analysis suite). Frontend: 63 vitest tests pass; typecheck, lint and
+  `next build` all clean. The search/workspace suite
+  (`panels/location-search.test.tsx`, `lib/workspace.test.tsx`) pins the
+  stale-response guarantees: a superseded search is aborted and a late response
+  can never overwrite the current location's results.
+- Landing tests (`components/landing/landing.test.tsx`) enforce honesty copy:
+  the NASA Blue Marble attribution and the "no readings and no live" disclosure
+  on the product-preview schematic. Do not remove those without cause.
+- Landing typography uses the `font-display` class (see `app/globals.css` and
+  `lib/fonts.ts`). Restore it, do not redesign headings, if a regression appears.
 - Live smoke test (real network, not mocked) verified 200 for `/health`,
   `/geocode`, `/precipitation/historical`, `/precipitation/comparison`,
   `/readiness`, `/location/summary` and `/ai/analysis`.
