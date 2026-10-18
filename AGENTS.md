@@ -168,8 +168,8 @@ build. It is landing-only and never required for the working map.
 
 Resume verification pass complete. State is committed, pushed and green.
 
-- Branch `aquanexus-build`, HEAD `90d1835` (on top of `bf4749b`), pushed to
-  `origin/aquanexus-build`. `main` untouched.
+- Branch `aquanexus-build`, HEAD `6da7419` (on top of `bf4749b` via `90d1835`),
+  pushed to `origin/aquanexus-build`. `main` untouched.
 - Suites green at this commit: backend `128 passed`; frontend `77 passed`
   (18 files); `tsc --noEmit` clean; ESLint clean; `next build` succeeds.
 - Report Download verified end-to-end **in a browser** (Playwright) at both
@@ -181,9 +181,30 @@ Resume verification pass complete. State is committed, pushed and green.
   390px. Every page exposes exactly one `<h1>`.
 - Keyboard/a11y: skip link, logical tab order, visible focus ring on every
   focusable element; modal traps Tab/Shift+Tab and closes on Escape.
-- Contrast: palette meets WCAG AA for text. `ink-400` on `abyss-800` is 4.21
-  (just under 4.5) but that pairing is used only for icon-only map chrome, not
-  body text; leave the palette alone unless a real text pairing regresses.
+- Contrast: measured with a pixel-sampling auditor (`/tmp/a11y/audit.py`) that
+  takes the CSS computed colour as foreground and the real composited
+  background pixels from an element screenshot. 1909 text elements across
+  desktop 1440x900 and mobile 390x844, on `/`, `/home`, `/explore` and all
+  `/explore` tabs: **zero below WCAG AA**.
+
+### Contrast correction (this session)
+
+An earlier note in this file claimed the palette met AA for text based on
+CSS inference. That was wrong. Pixel measurement found real failures:
+
+- `text-ink-400` (#6f8399) at 11-12px on panel surfaces composited to
+  3.29-4.40:1, below the 4.5:1 AA threshold for small text.
+- Affected every coordinate line (`formatCoord` output) plus the app-shell
+  backend status chip and the landing breadcrumb.
+- Fixed by raising those sites to `text-ink-300` (#9fb0c4), which measures
+  5.80:1 or better against every background observed, including the sticky
+  header's `backdrop-blur` surface sampled while content scrolled beneath it
+  (that surface shifts to rgb(40,51,63) at some scroll offsets, where ink-400
+  drops to 3.29:1).
+- Lesson: inferring contrast from CSS alone gives false confidence on
+  composited, blurred and translucent surfaces. Sample the rendered pixels.
+  `ink-400` remains fine for icon-only map chrome; do not use it for text
+  under ~14px.
 
 ### Remaining work when resumed
 
@@ -192,12 +213,17 @@ Resume verification pass complete. State is committed, pushed and green.
 
 ### Environment notes for resume
 
-- Backend on `:8000` (`uvicorn app.main:app`), frontend on `:3000`.
+- Backend on `:8000` (`uvicorn app.main:app`), health at `/api/v1/health`
+  (there is no `/health`). Frontend on `:3000`.
+- Backend venv is `backend/.venv`; invoke it explicitly
+  (`backend/.venv/bin/python -m pytest`) — activating a different venv in the
+  same shell silently shadows it.
 - `file` is unavailable; use Python magic-byte checks for image/PDF sniffing.
 - `pypdf` is available in the backend venv for PDF text verification.
 - A stale `next start` build once served pre-change code and looked like a
   client-side crash on `/explore`; rebuild after frontend edits before
-  trusting a `:3000` render.
+  trusting a `:3000` render. Note that `next start` serves a frozen build, so
+  a source edit alone will not change what the browser receives.
 - `reportlab` is a declared runtime dependency (requirements.txt and
   pyproject.toml). It is imported at app startup, so a venv built before this
   fix needs `pip install reportlab` or the backend will not boot.
