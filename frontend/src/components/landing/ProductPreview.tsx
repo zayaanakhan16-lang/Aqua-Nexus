@@ -49,7 +49,7 @@ export function ProductPreview() {
               <span className="h-2.5 w-2.5 rounded-full bg-signal-alert/60" aria-hidden />
               <span className="h-2.5 w-2.5 rounded-full bg-signal-caution/60" aria-hidden />
               <span className="h-2.5 w-2.5 rounded-full bg-signal-good/60" aria-hidden />
-              <span className="ml-3 rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 font-mono text-[0.625rem] text-ink-400">
+              <span className="ml-3 rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 font-mono text-[0.625rem] text-ink-300">
                 aquanexus / explore
               </span>
             </div>

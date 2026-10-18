@@ -224,7 +224,7 @@ export function LocationSearch() {
                 <span className="block truncate text-sm text-ink-100">
                   Go to coordinates
                 </span>
-                <span className="block font-mono text-xs text-ink-400">
+                <span className="block font-mono text-xs text-ink-300">
                   {coordinates.lat.toFixed(4)}, {coordinates.lon.toFixed(4)}
                 </span>
               </span>

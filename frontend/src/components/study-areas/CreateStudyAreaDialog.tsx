@@ -96,7 +96,7 @@ export function CreateStudyAreaDialog({
               {place?.name ?? label ?? "Selected location"}
             </p>
           </div>
-          <p className="mt-1 font-mono text-xs text-ink-400">
+          <p className="mt-1 font-mono text-xs text-ink-300">
             {formatCoord(latitude, "lat")} · {formatCoord(longitude, "lon")}
           </p>
           {place?.display_name && place.display_name !== place.name ? (

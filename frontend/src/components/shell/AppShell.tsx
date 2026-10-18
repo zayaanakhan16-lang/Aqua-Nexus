@@ -44,7 +44,7 @@ function BackendStatus() {
     };
   }, []);
   return (
-    <span className="inline-flex items-center gap-2 text-[0.6875rem] text-ink-400">
+    <span className="inline-flex items-center gap-2 text-[0.6875rem] text-ink-300">
       <StatusDot
         tone={healthy === null ? "muted" : healthy ? "good" : "alert"}
         pulse={healthy === true}

@@ -55,7 +55,7 @@ function SelectionRail() {
               <p className="truncate text-sm font-medium text-ink-100">
                 {location.place?.name ?? location.label}
               </p>
-              <p className="mt-0.5 font-mono text-xs text-ink-400">
+              <p className="mt-0.5 font-mono text-xs text-ink-300">
                 {formatCoord(location.latitude, "lat")} · {formatCoord(location.longitude, "lon")}
               </p>
               {location.place?.display_name &&

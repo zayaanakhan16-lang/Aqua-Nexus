@@ -43,7 +43,7 @@ function LocationHeader({ area }: { area: StudyArea }) {
         </span>
         <div className="min-w-0">
           <h1 className="truncate text-sm font-semibold text-ink-50">{area.name}</h1>
-          <p className="truncate font-mono text-xs text-ink-400">
+          <p className="truncate font-mono text-xs text-ink-300">
             {formatCoord(area.location.latitude, "lat")} ·{" "}
             {formatCoord(area.location.longitude, "lon")}
             {area.place?.display_name ? ` · ${area.place.display_name}` : ""}

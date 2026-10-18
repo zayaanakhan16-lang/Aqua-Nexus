@@ -217,7 +217,7 @@ export default function IntelligenceHomePage() {
                       <span className="block truncate text-sm font-semibold text-ink-100">
                         {area.name}
                       </span>
-                      <span className="mt-0.5 block truncate font-mono text-xs text-ink-400">
+                      <span className="mt-0.5 block truncate font-mono text-xs text-ink-300">
                         {formatCoord(area.location.latitude, "lat")} ·{" "}
                         {formatCoord(area.location.longitude, "lon")}
                       </span>

@@ -161,7 +161,7 @@ function SummaryBody({
             {summary.resolved_place?.name ?? summary.label ?? "Selected location"}
           </p>
         </div>
-        <p className="mt-0.5 font-mono text-xs text-ink-400">
+        <p className="mt-0.5 font-mono text-xs text-ink-300">
           {formatCoord(summary.location.latitude, "lat")} ·{" "}
           {formatCoord(summary.location.longitude, "lon")}
         </p>

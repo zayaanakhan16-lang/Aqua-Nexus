@@ -62,7 +62,7 @@ export function StudyAreaCard({ area }: { area: StudyArea }) {
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold text-ink-100">{area.name}</h3>
-          <p className="mt-0.5 truncate font-mono text-xs text-ink-400">
+          <p className="mt-0.5 truncate font-mono text-xs text-ink-300">
             {formatCoord(area.location.latitude, "lat")} ·{" "}
             {formatCoord(area.location.longitude, "lon")}
           </p>
