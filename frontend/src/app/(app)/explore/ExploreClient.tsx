@@ -105,6 +105,9 @@ function ExploreWorkspace() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:overflow-hidden">
+      {/* Visually hidden page heading: the workspace is a full-bleed map with no
+          visible title, but screen-reader users still need an h1 to orient. */}
+      <h1 className="sr-only">Explore Map</h1>
       <div className="grid min-h-0 shrink-0 grid-cols-1 gap-3 lg:grid-cols-[22rem_minmax(0,1fr)]">
         <SelectionRail />
         <MapPanel />

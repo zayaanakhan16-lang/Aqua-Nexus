@@ -257,7 +257,7 @@ export default function IntelligenceHomePage() {
           ) : null}
         </div>
 
-        <aside className="flex flex-col gap-6">
+        <aside className="flex min-w-0 flex-col gap-6">
           <DataSourcesCard />
           <div className="panel p-4">
             <p className="label-caps">Scientific transparency</p>

@@ -9,6 +9,9 @@ dependencies = [
     "httpx>=0.27",
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
+    # Server-rendered PDF report (app/services/report_pdf.py). Imported by the
+    # app at startup, so it is a runtime dependency, not an optional extra.
+    "reportlab>=4.0",
 ]
 
 [project.optional-dependencies]

@@ -3,14 +3,17 @@
 /**
  * Accessible modal dialog.
  *
- * A minimal, dependency-free dialog: focus is moved in on open, Escape closes,
- * background scroll is locked, and the overlay click dismisses. Used for the
- * study-area creation and rename flows.
+ * A minimal, dependency-free dialog: focus is moved in on open and trapped
+ * inside while open, Escape closes, background scroll is locked, and the
+ * overlay click dismisses. Used for the study-area creation and rename flows.
  */
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function Modal({
   open,
@@ -33,7 +36,33 @@ export function Modal({
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      // Keep Tab inside the dialog: without this, focus escapes to the page
+      // behind the overlay, which is still focusable while aria-modal is set.
+      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (!items.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = items[0]!;
+      const last = items[items.length - 1]!;
+      const active = document.activeElement as HTMLElement | null;
+      const atEdge = active === panel || !panel.contains(active);
+      if (event.shiftKey) {
+        if (atEdge || active === first) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (atEdge || active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
