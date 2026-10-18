@@ -169,6 +169,20 @@ export function AIAnalysisPanel({
               <NarrativeBody narrative={report.narrative} />
             ) : null}
 
+            {report.status === "insufficient_evidence" ? (
+              <div className="flex items-start gap-2 rounded-lg border border-signal-caution/25 bg-signal-caution/[0.06] px-3 py-2.5">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-signal-caution" aria-hidden />
+                <div>
+                  <p className="text-xs font-semibold text-ink-100">Insufficient evidence</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-ink-300">
+                    {report.message ??
+                      "Too few usable observations were retrieved to interpret this location honestly."}{" "}
+                    No narrative was generated, and none is implied.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             {report.status === "unconfigured" ? (
               <div className="flex items-start gap-2 rounded-lg border border-signal-caution/25 bg-signal-caution/[0.06] px-3 py-2.5">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-signal-caution" aria-hidden />

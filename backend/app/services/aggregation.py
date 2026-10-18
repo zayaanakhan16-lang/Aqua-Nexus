@@ -120,3 +120,65 @@ def rolling_sum(points: list[TimeSeriesPoint], window: int) -> list[tuple[str, f
             (points[index].timestamp.date().isoformat(), sum(p.value for p in chunk))  # type: ignore[misc]
         )
     return out
+
+
+@dataclass
+class TemperatureAggregate:
+    """Unit-safe, null-aware summary of a daily temperature window."""
+
+    unit: str
+    mean_c: float | None
+    max_c: float | None
+    min_c: float | None
+    valid_days: int
+    missing_days: int
+    total_days: int
+    coverage_ratio: float
+    values: list[float] = field(default_factory=list)
+
+    @property
+    def has_sufficient_coverage(self) -> bool:
+        return self.coverage_ratio >= 0.8 and self.valid_days > 0
+
+
+def aggregate_temperature(
+    points: list[TimeSeriesPoint],
+    *,
+    expected_days: int | None = None,
+) -> TemperatureAggregate:
+    """Aggregate a daily temperature series with the same coverage discipline.
+
+    ``expected_days`` is the true calendar-window length so omitted days count
+    against coverage rather than inflating it. A ``None`` day is missing, never 0.
+    """
+    if not points:
+        raise ValueError("Cannot aggregate an empty temperature series.")
+
+    unit = points[0].unit
+    valid: list[float] = []
+    missing = 0
+    for point in points:
+        if point.value is None:
+            missing += 1
+            continue
+        if unit != point.unit:
+            raise ValueError(f"Mixed units in temperature series: '{unit}' and '{point.unit}'.")
+        valid.append(float(point.value))
+
+    returned_days = len(points)
+    total_days = max(returned_days, expected_days) if expected_days else returned_days
+    if total_days < returned_days:
+        total_days = returned_days
+    missing += total_days - returned_days
+    valid_days = len(valid)
+    return TemperatureAggregate(
+        unit=unit,
+        mean_c=(sum(valid) / valid_days) if valid_days else None,
+        max_c=max(valid) if valid else None,
+        min_c=min(valid) if valid else None,
+        valid_days=valid_days,
+        missing_days=missing,
+        total_days=total_days,
+        coverage_ratio=(valid_days / total_days) if total_days else 0.0,
+        values=valid,
+    )

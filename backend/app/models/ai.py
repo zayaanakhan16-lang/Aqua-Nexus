@@ -70,17 +70,22 @@ class AIAnalysisReport(BaseModel):
     """Top-level AI analysis response.
 
     ``status`` is one of:
-    * ``ok``           — a narrative was produced from the evidence package;
-    * ``unconfigured`` — no AI provider credential is configured;
-    * ``unavailable``  — the provider failed or returned unusable output.
+    * ``ok``                   — a narrative was produced from the evidence package;
+    * ``insufficient_evidence``— the evidence package was too thin to interpret
+                                 honestly, so no narrative was requested;
+    * ``unconfigured``         — no AI provider credential is configured;
+    * ``unavailable``          — the provider failed or returned unusable output.
 
     The ``evidence`` package is present in every case so the workspace can always
     show the real, traceable data behind the analysis.
     """
 
-    status: Literal["ok", "unconfigured", "unavailable"]
+    status: Literal["ok", "insufficient_evidence", "unconfigured", "unavailable"]
     provider: str
     model: str | None = None
     evidence: AIEvidencePackage
     narrative: AINarrative | None = None
     message: str | None = None
+    # The minimum number of usable observations the deployment requires before it
+    # will ask a model to interpret the package.
+    min_observations: int | None = None

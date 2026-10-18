@@ -31,6 +31,10 @@ const INDICATOR_GROUPS: Record<string, { title: string; keys: string[] }> = {
     title: "Rainfall",
     keys: ["rainfall_anomaly", "wet_day_fraction", "forecast_7d_total"],
   },
+  heat: {
+    title: "Heat & dry conditions",
+    keys: ["temperature_anomaly", "hot_day_count", "dry_day_count"],
+  },
   coverage: {
     title: "Evidence quality",
     keys: ["coverage", "data_freshness", "data_classification", "cross_check_delta"],

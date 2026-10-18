@@ -110,11 +110,14 @@ function ExploreWorkspace() {
         <MapPanel />
       </div>
 
-      {location ? (
-        <IntelligenceTabs className="min-h-0 shrink-0 lg:min-h-[32rem]" />
-      ) : (
-        <OnboardingCard />
-      )}
+      {!location ? <OnboardingCard /> : null}
+      {/* The results surface is always mounted: Global Layers and Sources stay
+          usable before a location is chosen, and every other tab shows an
+          explicit "select a location" state rather than disappearing. */}
+      <IntelligenceTabs
+        initialTab={location ? "overview" : "global-layers"}
+        className="min-h-0 shrink-0 lg:min-h-[32rem]"
+      />
     </div>
   );
 }

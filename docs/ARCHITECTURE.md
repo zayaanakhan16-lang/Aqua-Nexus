@@ -60,7 +60,10 @@ provider-specific logic and no scientific arithmetic.
 | `GET /api/v1/precipitation/comparison` | Baseline comparison + anomaly |
 | `GET /api/v1/weather` | Modelled current conditions + daily forecast |
 | `GET /api/v1/discharge` | Modelled GloFAS river discharge series |
-| `GET /api/v1/satellite/scenes` | STAC scene metadata search |
+| `GET /api/v1/satellite/scenes` | STAC scene metadata search (with rendered previews) |
+| `GET /api/v1/map/layers` | Global raster layer catalog (NASA GIBS) with legends |
+| `GET /api/v1/reports/preview` | Structured preview of the report payload |
+| `POST /api/v1/reports` | Server-rendered branded PDF report |
 | `GET /api/v1/ai/analysis` | Evidence-grounded narrative over the location summary |
 | `GET /api/v1/study-areas` | List saved study areas |
 | `POST /api/v1/study-areas` | Create a saved study area |

@@ -23,9 +23,11 @@ import type {
   AIAnalysisReport,
   DischargeSeries,
   LocationSummary,
+  MapLayerCatalog,
   PlaceResult,
   PrecipitationComparison,
   PrecipitationSeries,
+  ReportPayload,
   StacSearchResult,
   WeatherForecast,
 } from "@/lib/schemas";
@@ -68,12 +70,23 @@ interface WorkspaceValue {
   discharge: SliceState<DischargeSeries>;
   scenes: SliceState<StacSearchResult>;
   ai: SliceState<AIAnalysisReport>;
+  /** Global raster layer catalog (NASA GIBS), loaded once per session. */
+  mapLayers: SliceState<MapLayerCatalog>;
+  /** The raster layer currently drawn over the basemap, or null for none. */
+  activeRasterLayerId: string | null;
+  /** Requested raster date (ISO) or null for "most recent available". */
+  rasterLayerDate: string | null;
+  rasterOpacity: number;
   selectLocation: (loc: SelectedLocation) => void;
   clearLocation: () => void;
   toggleLayer: (id: LayerId) => void;
   setWindowDays: (days: number) => void;
+  setActiveRasterLayer: (id: string | null) => void;
+  setRasterLayerDate: (date: string | null) => void;
+  setRasterOpacity: (opacity: number) => void;
   refresh: () => void;
   refreshAi: () => void;
+  refreshMapLayers: () => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
@@ -115,6 +128,11 @@ export function WorkspaceProvider({
   // AI analysis is generated on demand (it is comparatively expensive), so it
   // is not part of the automatic location load.
   const [ai, setAi] = useState<SliceState<AIAnalysisReport>>(emptySlice());
+  // Global raster layers do not depend on the selected location.
+  const [mapLayers, setMapLayers] = useState<SliceState<MapLayerCatalog>>(emptySlice());
+  const [activeRasterLayerId, setActiveRasterLayerId] = useState<string | null>(null);
+  const [rasterLayerDate, setRasterLayerDateState] = useState<string | null>(null);
+  const [rasterOpacity, setRasterOpacityState] = useState(0.75);
 
   // Monotonic token so a slow response from an old location cannot overwrite a
   // newer one.
@@ -179,6 +197,21 @@ export function WorkspaceProvider({
     if (location) void load(location, windowDays);
   }, [location, windowDays, load]);
 
+  const loadMapLayers = useCallback(async () => {
+    setMapLayers({ data: null, loading: true, error: null, errorCode: null });
+    try {
+      const catalog = await api.mapLayers();
+      setMapLayers({ data: catalog, loading: false, error: null, errorCode: null });
+    } catch (error) {
+      const { message, code } = describeError(error);
+      setMapLayers({ data: null, loading: false, error: message, errorCode: code });
+    }
+  }, []);
+
+  // The global layer catalog is loaded lazily by the panel that shows it, not
+  // on every workspace mount: the workspace should not pay for a catalog the
+  // user has not opened.
+
   const selectLocation = useCallback((loc: SelectedLocation) => {
     setLocation(loc);
   }, []);
@@ -201,6 +234,18 @@ export function WorkspaceProvider({
 
   const setWindowDays = useCallback((days: number) => {
     setWindowDaysState(days);
+  }, []);
+
+  const setActiveRasterLayer = useCallback((id: string | null) => {
+    setActiveRasterLayerId(id);
+  }, []);
+
+  const setRasterLayerDate = useCallback((date: string | null) => {
+    setRasterLayerDateState(date);
+  }, []);
+
+  const setRasterOpacity = useCallback((opacity: number) => {
+    setRasterOpacityState(Math.max(0, Math.min(1, opacity)));
   }, []);
 
   const refresh = useCallback(() => {
@@ -236,12 +281,20 @@ export function WorkspaceProvider({
       discharge,
       scenes,
       ai,
+      mapLayers,
+      activeRasterLayerId,
+      rasterLayerDate,
+      rasterOpacity,
       selectLocation,
       clearLocation,
       toggleLayer,
       setWindowDays,
+      setActiveRasterLayer,
+      setRasterLayerDate,
+      setRasterOpacity,
       refresh,
       refreshAi,
+      refreshMapLayers: loadMapLayers,
     }),
     [
       location,
@@ -254,12 +307,20 @@ export function WorkspaceProvider({
       discharge,
       scenes,
       ai,
+      mapLayers,
+      activeRasterLayerId,
+      rasterLayerDate,
+      rasterOpacity,
       selectLocation,
       clearLocation,
       toggleLayer,
       setWindowDays,
+      setActiveRasterLayer,
+      setRasterLayerDate,
+      setRasterOpacity,
       refresh,
       refreshAi,
+      loadMapLayers,
     ],
   );
 

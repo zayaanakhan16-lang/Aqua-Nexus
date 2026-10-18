@@ -130,6 +130,28 @@ class DischargeSeries(BaseModel):
     note: str = ""
 
 
+class TemperatureSeries(BaseModel):
+    """A normalized daily temperature series with provenance.
+
+    Used for heat and dry-condition context. Values are reanalysis estimates
+    (ERA5) unless the provider states otherwise; the classification always
+    travels with the series so a modelled value is never read as a measurement.
+    """
+
+    location: GeoPoint
+    start_date: date
+    end_date: date
+    granularity: str = "daily"
+    unit: str = "deg C"
+    points: list[TimeSeriesPoint] = Field(default_factory=list)
+    provenance: Provenance
+    provider: ProviderMetadata
+    coverage: str | None = None
+    valid_days: int = 0
+    missing_days: int = 0
+    note: str = ""
+
+
 class Indicator(BaseModel):
     """A transparent, evidence-based derived indicator."""
 

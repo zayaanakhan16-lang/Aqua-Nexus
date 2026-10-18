@@ -11,10 +11,12 @@ import {
   apiErrorSchema,
   healthSchema,
   locationSummarySchema,
+  mapLayerCatalogSchema,
   placeSearchResponseSchema,
   precipitationComparisonSchema,
   precipitationSeriesSchema,
   providerCatalogSchema,
+  reportPayloadSchema,
   stacSearchResultSchema,
   studyAreaListResponseSchema,
   studyAreaSchema,
@@ -25,10 +27,12 @@ import {
   type DischargeSeries,
   type Health,
   type LocationSummary,
+  type MapLayerCatalog,
   type PlaceSearchResponse,
   type PrecipitationComparison,
   type PrecipitationSeries,
   type ProviderCatalog,
+  type ReportPayload,
   type StacSearchResult,
   type StudyArea,
   type StudyAreaListResponse,
@@ -56,11 +60,20 @@ export class ApiError extends Error {
     this.details = opts.details ?? {};
   }
 
-  /** True when the backend reached a provider but it returned nothing usable. */
+  /** True when a provider returned nothing usable, or the API itself is down. */
   get isUnavailable(): boolean {
-    return ["provider_unavailable", "provider_timeout", "insufficient_data"].includes(
-      this.code,
-    );
+    return [
+      "provider_unavailable",
+      "provider_timeout",
+      "insufficient_data",
+      // Emitted by the same-origin proxy when the backend cannot be reached or
+      // does not answer in time. These are honest "unavailable" states, not
+      // application crashes.
+      "backend_unreachable",
+      "backend_timeout",
+      "network_error",
+      "timeout",
+    ].includes(this.code);
   }
 }
 
@@ -193,7 +206,9 @@ async function requestNoContent(
   }
 }
 
-function qs(params: Record<string, string | number | undefined | null>): string {
+function qs(
+  params: Record<string, string | number | boolean | undefined | null>,
+): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== "") {
@@ -350,5 +365,101 @@ export const api = {
     return requestNoContent(`/api/v1/study-areas/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
+  },
+
+  mapLayers(verify = true): Promise<MapLayerCatalog> {
+    return request(`/api/v1/map/layers${qs({ verify })}`, mapLayerCatalogSchema);
+  },
+
+  reportPreview(
+    lat: number,
+    lon: number,
+    opts: { name?: string; windowDays?: number; includeAi?: boolean } = {},
+  ): Promise<ReportPayload> {
+    return request(
+      `/api/v1/reports/preview${qs({
+        latitude: lat,
+        longitude: lon,
+        name: opts.name,
+        window_days: opts.windowDays ?? 30,
+        include_ai: opts.includeAi ?? true,
+      })}`,
+      reportPayloadSchema,
+      { timeoutMs: 90000 },
+    );
+  },
+
+  /**
+   * Generate and download the branded PDF report.
+   *
+   * Returns the raw blob plus the server-assigned report id (from the
+   * `X-Report-Id` header) so the UI can show which report was produced. Errors
+   * are normalized to ApiError like every other call.
+   */
+  async generateReport(input: {
+    latitude: number;
+    longitude: number;
+    name?: string;
+    label?: string;
+    windowDays?: number;
+    includeAi?: boolean;
+  }): Promise<{ blob: Blob; reportId: string | null; completeness: string | null }> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120000);
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}/api/v1/reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/pdf" },
+        body: JSON.stringify({
+          latitude: input.latitude,
+          longitude: input.longitude,
+          name: input.name,
+          label: input.label,
+          window_days: input.windowDays ?? 30,
+          include_ai: input.includeAi ?? true,
+        }),
+        signal: controller.signal,
+        cache: "no-store",
+      });
+    } catch (error) {
+      clearTimeout(timer);
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new ApiError("Report generation timed out.", { code: "timeout" });
+      }
+      throw new ApiError("Could not reach the AquaNexus API.", { code: "network_error" });
+    }
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      const text = await response.text();
+      let payload: unknown = null;
+      if (text) {
+        try {
+          payload = JSON.parse(text);
+        } catch {
+          payload = null;
+        }
+      }
+      const parsedError = apiErrorSchema.safeParse(payload);
+      if (parsedError.success) {
+        throw new ApiError(parsedError.data.error.message, {
+          code: parsedError.data.error.code,
+          status: response.status,
+          details: parsedError.data.error.details,
+        });
+      }
+      throw new ApiError(`Report generation failed with status ${response.status}.`, {
+        code: "http_error",
+        status: response.status,
+      });
+    }
+
+    const blob = await response.blob();
+    return {
+      blob,
+      reportId: response.headers.get("X-Report-Id"),
+      completeness: response.headers.get("X-Report-Completeness"),
+    };
   },
 };

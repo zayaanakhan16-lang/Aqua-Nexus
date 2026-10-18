@@ -31,11 +31,28 @@ export interface RasterMapLocation {
   longitude: number;
 }
 
+/**
+ * An optional global raster overlay drawn above the base tiles.
+ *
+ * `template` is a WMTS/WMS tile URL containing `{z}/{x}/{y}` placeholders (the
+ * backend catalog supplies it). The overlay is limited to `maxZoom` because the
+ * underlying product has a fixed resolution; beyond that the tiles are scaled up
+ * ("overzoomed") rather than requesting tiles the provider does not serve.
+ */
+export interface RasterOverlay {
+  id: string;
+  name: string;
+  template: string;
+  maxZoom: number;
+  opacity: number;
+}
+
 interface RasterMapProps {
   location: RasterMapLocation | null;
   onSelect: (latitude: number, longitude: number) => void;
   scenes?: StacItem[];
   showScenes?: boolean;
+  overlay?: RasterOverlay | null;
   className?: string;
   ariaLabel?: string;
 }
@@ -66,6 +83,7 @@ export function RasterMap({
   onSelect,
   scenes = [],
   showScenes = false,
+  overlay = null,
   className,
   ariaLabel = "Interactive global map",
 }: RasterMapProps) {
@@ -143,6 +161,55 @@ export function RasterMap({
     setFailedTiles(0);
     setTilesLoaded(0);
   }, [zoom, centerKey]);
+
+  // Global raster overlay tiles (e.g. NASA GIBS).
+  //
+  // The overlay product has a fixed resolution, so it is requested at its own
+  // maximum zoom and scaled up on screen when the base map is zoomed further
+  // in. That is honest: the imagery is not pretending to be more detailed than
+  // the source, and no tiles beyond the product's zoom are requested.
+  const overlayZoom = useMemo(
+    () => (overlay ? Math.min(zoom, overlay.maxZoom) : zoom),
+    [overlay, zoom],
+  );
+  const overlayTileScreenSize = TILE_SIZE * 2 ** (zoom - overlayZoom);
+
+  const overlayTiles = useMemo(() => {
+    if (!overlay || !size.width || !size.height) return [];
+    const scaleFactor = 2 ** overlayZoom;
+    const centerX = lonToWorldX(center.longitude, scaleFactor);
+    const centerY = latToWorldY(center.latitude, scaleFactor);
+    const minX = Math.floor((centerX - size.width / 2) / TILE_SIZE);
+    const maxX = Math.floor((centerX + size.width / 2) / TILE_SIZE);
+    const minY = Math.max(0, Math.floor((centerY - size.height / 2) / TILE_SIZE));
+    const maxY = Math.min(
+      scaleFactor - 1,
+      Math.floor((centerY + size.height / 2) / TILE_SIZE),
+    );
+    const out: { key: string; url: string; left: number; top: number }[] = [];
+    for (let x = minX; x <= maxX; x += 1) {
+      const wrappedX = ((x % scaleFactor) + scaleFactor) % scaleFactor;
+      for (let y = minY; y <= maxY; y += 1) {
+        out.push({
+          key: `${overlay.id}/${overlayZoom}/${wrappedX}/${y}`,
+          url: overlay.template
+            .replace("{z}", String(overlayZoom))
+            .replace("{x}", String(wrappedX))
+            .replace("{y}", String(y)),
+          left: x * TILE_SIZE - centerX + size.width / 2,
+          top: y * TILE_SIZE - centerY + size.height / 2,
+        });
+      }
+    }
+    return out;
+  }, [
+    overlay,
+    overlayZoom,
+    center.latitude,
+    center.longitude,
+    size.width,
+    size.height,
+  ]);
 
   const clampZoom = useCallback((next: number) => {
     setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, next)));
@@ -348,6 +415,29 @@ export function RasterMap({
           }}
         />
       ))}
+
+      {/* Global raster overlay (e.g. NASA GIBS precipitation/heat/water). */}
+      {overlay
+        ? overlayTiles.map((tile) => (
+            <img
+              key={tile.key}
+              src={tile.url}
+              alt=""
+              draggable={false}
+              loading="eager"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              className="pointer-events-none absolute"
+              style={{
+                left: tile.left,
+                top: tile.top,
+                width: overlayTileScreenSize,
+                height: overlayTileScreenSize,
+                opacity: overlay.opacity,
+              }}
+            />
+          ))
+        : null}
 
       {/* Satellite scene footprints from real STAC bounding boxes. */}
       {sceneBoxes.map((box) => (

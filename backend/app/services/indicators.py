@@ -176,6 +176,146 @@ def precipitation_deficit_indicator(
     )
 
 
+def temperature_anomaly_indicator(
+    observed_mean_c: float | None,
+    baseline_mean_c: float | None,
+    *,
+    observed_days: int,
+    baseline_days: int,
+    baseline_description: str,
+    observed_max_c: float | None = None,
+) -> Indicator:
+    """Mean-temperature anomaly against the same calendar window of a prior year.
+
+    This is deliberately *not* a heatwave classification. A heatwave requires a
+    documented percentile/threshold definition and a minimum duration, neither of
+    which a single window mean provides. The indicator reports the difference in
+    degrees Celsius and states that limitation explicitly.
+    """
+    key = "temperature_anomaly"
+    label = "Temperature anomaly (mean)"
+    method = (
+        "anomaly_c = observed_mean_temperature - baseline_mean_temperature, "
+        "both over the same number of calendar days, from the same reanalysis product"
+    )
+    limitations = [
+        "A single warm window is not a heatwave; duration and a documented "
+        "threshold are required for that classification.",
+        "Reanalysis mean air temperature, not a station measurement.",
+        "Year-over-year comparison, not a multi-decade climate normal.",
+    ]
+    if observed_mean_c is None or baseline_mean_c is None or observed_days == 0 or baseline_days == 0:
+        return Indicator(
+            key=key,
+            label=label,
+            value=None,
+            unit="deg C",
+            status="insufficient_data",
+            method=method,
+            method_version=METHOD_VERSION,
+            limitations=["Insufficient temperature evidence to compute an anomaly."],
+        )
+    return Indicator(
+        key=key,
+        label=label,
+        value=round(observed_mean_c - baseline_mean_c, 1),
+        unit="deg C",
+        status="ok",
+        method=f"{method}; baseline: {baseline_description}",
+        method_version=METHOD_VERSION,
+        inputs=[
+            f"observed mean {observed_mean_c:.1f} deg C over {observed_days} days",
+            f"baseline mean {baseline_mean_c:.1f} deg C over {baseline_days} days",
+        ],
+        classification=DataClassification.DERIVED,
+        limitations=limitations,
+    )
+
+
+def heat_day_indicator(
+    hot_days: int | None,
+    *,
+    valid_days: int,
+    threshold_c: float = 35.0,
+) -> Indicator:
+    """Count of days at or above an explicit absolute temperature threshold.
+
+    The threshold is stated in the method so it is never an implicit, arbitrary
+    choice. This is a raw count, not a heatwave verdict.
+    """
+    if hot_days is None or valid_days == 0:
+        return Indicator(
+            key="hot_day_count",
+            label=f"Days at or above {threshold_c:.0f} deg C",
+            value=None,
+            unit="days",
+            status="insufficient_data",
+            method=f"count(daily_mean_temperature >= {threshold_c:.0f} deg C)",
+            method_version=METHOD_VERSION,
+            limitations=["No valid temperature days in the requested window."],
+        )
+    return Indicator(
+        key="hot_day_count",
+        label=f"Days at or above {threshold_c:.0f} deg C",
+        value=float(hot_days),
+        unit="days",
+        status="ok",
+        method=(
+            f"count(daily mean 2 m air temperature >= {threshold_c:.0f} deg C) over "
+            f"{valid_days} valid days; the threshold is explicit, not a heatwave definition"
+        ),
+        method_version=METHOD_VERSION,
+        inputs=[f"{valid_days} valid days", f"threshold {threshold_c:.0f} deg C"],
+        classification=DataClassification.DERIVED,
+        limitations=[
+            "An absolute threshold is not a heatwave definition.",
+            "Uses daily mean temperature, so hot nights and peaks are smoothed.",
+        ],
+    )
+
+
+def dry_condition_indicator(
+    dry_days: int | None,
+    *,
+    valid_days: int,
+    threshold_mm: float = 1.0,
+) -> Indicator:
+    """Count of days below the wet-day threshold — a dry-spell signal.
+
+    Reported alongside the wet-day fraction. It is a rainfall statistic, not a
+    drought index, and it says nothing about soil moisture, groundwater or demand.
+    """
+    if dry_days is None or valid_days == 0:
+        return Indicator(
+            key="dry_day_count",
+            label="Dry days (below wet-day threshold)",
+            value=None,
+            unit="days",
+            status="insufficient_data",
+            method=f"count(daily precipitation < {threshold_mm:.1f} mm)",
+            method_version=METHOD_VERSION,
+            limitations=["No valid precipitation days in the requested window."],
+        )
+    return Indicator(
+        key="dry_day_count",
+        label="Dry days (below wet-day threshold)",
+        value=float(dry_days),
+        unit="days",
+        status="ok",
+        method=(
+            f"count(daily precipitation_sum < {threshold_mm:.1f} mm) over {valid_days} "
+            "valid days; a rainfall statistic, not a drought index"
+        ),
+        method_version=METHOD_VERSION,
+        inputs=[f"{valid_days} valid days", f"threshold {threshold_mm:.1f} mm/day"],
+        classification=DataClassification.DERIVED,
+        limitations=[
+            "A dry-day count is threshold-dependent and not a drought index.",
+            "Rainfall alone does not establish water scarcity or soil-moisture deficit.",
+        ],
+    )
+
+
 def data_classification_indicator(classification: DataClassification | None) -> Indicator:
     """Surface what kind of data is backing the current view."""
     if classification is None:

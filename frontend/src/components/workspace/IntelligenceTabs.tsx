@@ -17,21 +17,27 @@ import {
   CloudRain,
   Droplets,
   FileCheck2,
+  FileText,
+  Layers,
+  MapPin,
   RefreshCw,
   Satellite,
   Sparkles,
   Thermometer,
   Waves,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/lib/workspace";
 import { Chip } from "@/components/ui/primitives";
+import { EmptyState } from "@/components/ui/states";
 import { AIAnalysisPanel } from "@/components/panels/AIAnalysisPanel";
 import { DischargePanel } from "@/components/panels/DischargePanel";
+import { GlobalLayersPanel } from "@/components/panels/GlobalLayersPanel";
 import { IntelligencePanel } from "@/components/panels/IntelligencePanel";
 import { RainfallPanel } from "@/components/panels/RainfallPanel";
+import { ReportPanel } from "@/components/panels/ReportPanel";
 import { SatellitePanel } from "@/components/panels/SatellitePanel";
 import { SourcesPanel } from "@/components/panels/SourcesPanel";
 import { WaterStressPanel } from "@/components/panels/WaterStressPanel";
@@ -44,28 +50,39 @@ export type WorkspaceTabId =
   | "water-stress"
   | "discharge"
   | "satellite"
+  | "global-layers"
   | "ai"
+  | "report"
   | "sources";
 
-const TABS: { id: WorkspaceTabId; label: string; icon: typeof Activity }[] = [
-  { id: "overview", label: "Overview", icon: Activity },
-  { id: "weather", label: "Weather", icon: Thermometer },
-  { id: "precipitation", label: "Precipitation", icon: CloudRain },
-  { id: "water-stress", label: "Water Stress", icon: Waves },
-  { id: "discharge", label: "River Discharge", icon: Droplets },
-  { id: "satellite", label: "Satellite Explorer", icon: Satellite },
-  { id: "ai", label: "AI Analysis", icon: Sparkles },
+const TABS: {
+  id: WorkspaceTabId;
+  label: string;
+  icon: typeof Activity;
+  /** Tabs that do not need a selected location stay usable before one is set. */
+  needsLocation?: boolean;
+}[] = [
+  { id: "overview", label: "Overview", icon: Activity, needsLocation: true },
+  { id: "weather", label: "Weather", icon: Thermometer, needsLocation: true },
+  { id: "precipitation", label: "Precipitation", icon: CloudRain, needsLocation: true },
+  { id: "water-stress", label: "Water Stress", icon: Waves, needsLocation: true },
+  { id: "discharge", label: "River Discharge", icon: Droplets, needsLocation: true },
+  { id: "satellite", label: "Satellite Explorer", icon: Satellite, needsLocation: true },
+  { id: "global-layers", label: "Global Layers", icon: Layers },
+  { id: "ai", label: "AI Analysis", icon: Sparkles, needsLocation: true },
+  { id: "report", label: "Report", icon: FileText, needsLocation: true },
   { id: "sources", label: "Sources & Evidence", icon: FileCheck2 },
 ];
 
 export function IntelligenceTabs({
-  initialTab = "overview",
+  initialTab,
   className,
 }: {
   initialTab?: WorkspaceTabId;
   className?: string;
 }) {
   const {
+    location,
     summary,
     comparison,
     forecast,
@@ -76,7 +93,18 @@ export function IntelligenceTabs({
     refresh,
     refreshAi,
   } = useWorkspace();
-  const [tab, setTab] = useState<WorkspaceTabId>(initialTab);
+  const [tab, setTab] = useState<WorkspaceTabId>(() => initialTab ?? (location ? "overview" : "global-layers"));
+
+  // Selecting a location is the moment the analysis becomes meaningful, so move
+  // the user to the Overview tab the first time a location is chosen. Later
+  // location changes do not steal the tab the user is already reading.
+  const hadLocation = useRef(Boolean(location));
+  useEffect(() => {
+    if (location && !hadLocation.current) {
+      setTab("overview");
+    }
+    hadLocation.current = Boolean(location);
+  }, [location]);
 
   const ok = summary.data?.providers.filter((p) => p.status === "ok").length ?? 0;
   const total = summary.data?.providers.length ?? 0;
@@ -119,6 +147,7 @@ export function IntelligenceTabs({
         {TABS.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
+          const blocked = Boolean(t.needsLocation) && !location;
           return (
             <button
               key={t.id}
@@ -127,6 +156,7 @@ export function IntelligenceTabs({
               aria-selected={active}
               aria-controls={`panel-${t.id}`}
               tabIndex={active ? 0 : -1}
+              title={blocked ? "Select a location to populate this section" : undefined}
               onClick={() => setTab(t.id)}
               onKeyDown={(event) => {
                 const idx = TABS.findIndex((x) => x.id === t.id);
@@ -160,16 +190,42 @@ export function IntelligenceTabs({
           aria-labelledby={`tab-${tab}`}
           className="mx-auto w-full max-w-6xl p-3"
         >
-          {tab === "overview" ? <IntelligencePanel slice={summary} onRetry={refresh} /> : null}
-          {tab === "weather" ? <WeatherPanel slice={weather} onRetry={refresh} /> : null}
-          {tab === "precipitation" ? (
-            <RainfallPanel comparison={comparison} forecast={forecast} onRetry={refresh} />
-          ) : null}
-          {tab === "water-stress" ? <WaterStressPanel slice={summary} onRetry={refresh} /> : null}
-          {tab === "discharge" ? <DischargePanel slice={discharge} onRetry={refresh} /> : null}
-          {tab === "satellite" ? <SatellitePanel slice={scenes} onRetry={refresh} /> : null}
-          {tab === "ai" ? <AIAnalysisPanel slice={ai} onGenerate={refreshAi} /> : null}
-          {tab === "sources" ? <SourcesPanel /> : null}
+          {(() => {
+            const activeTab = TABS.find((t) => t.id === tab);
+            if (activeTab?.needsLocation && !location) {
+              return (
+                <EmptyState
+                  icon={<MapPin className="h-5 w-5" aria-hidden />}
+                  title="Select a location first"
+                  description="Search for a place or click anywhere on the map. This section reports only real evidence for the location you choose."
+                />
+              );
+            }
+            return (
+              <>
+                {tab === "overview" ? (
+                  <IntelligencePanel slice={summary} onRetry={refresh} />
+                ) : null}
+                {tab === "weather" ? <WeatherPanel slice={weather} onRetry={refresh} /> : null}
+                {tab === "precipitation" ? (
+                  <RainfallPanel comparison={comparison} forecast={forecast} onRetry={refresh} />
+                ) : null}
+                {tab === "water-stress" ? (
+                  <WaterStressPanel slice={summary} onRetry={refresh} />
+                ) : null}
+                {tab === "discharge" ? (
+                  <DischargePanel slice={discharge} onRetry={refresh} />
+                ) : null}
+                {tab === "satellite" ? (
+                  <SatellitePanel slice={scenes} onRetry={refresh} />
+                ) : null}
+                {tab === "global-layers" ? <GlobalLayersPanel /> : null}
+                {tab === "ai" ? <AIAnalysisPanel slice={ai} onGenerate={refreshAi} /> : null}
+                {tab === "report" ? <ReportPanel /> : null}
+                {tab === "sources" ? <SourcesPanel /> : null}
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>

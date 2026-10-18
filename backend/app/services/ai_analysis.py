@@ -315,6 +315,20 @@ def _parse_narrative(raw: dict) -> AINarrative:
     )
 
 
+# Below this many usable (non-null, "ok") observations the evidence is too thin
+# to interpret honestly, so no model call is made and an explicit
+# ``insufficient_evidence`` result is returned instead of a speculative narrative.
+MIN_EVIDENCE_OBSERVATIONS = 3
+
+
+def _usable_observation_count(package: AIEvidencePackage) -> int:
+    return sum(
+        1
+        for o in package.observations
+        if o.value is not None and o.status in {"ok", "partial"}
+    )
+
+
 async def analyze_location(
     point: GeoPoint,
     *,
@@ -328,6 +342,23 @@ async def analyze_location(
     )
     settings = get_settings()
 
+    usable = _usable_observation_count(package)
+    if usable < MIN_EVIDENCE_OBSERVATIONS:
+        # Refuse to interpret a thin package: a model asked to summarise almost
+        # nothing will invent plausible-sounding context.
+        return AIAnalysisReport(
+            status="insufficient_evidence",
+            provider=ai_provider.PROVIDER_NAME,
+            model=None,
+            evidence=package,
+            message=(
+                f"Only {usable} usable observation(s) were retrieved for this location and "
+                f"period (minimum {MIN_EVIDENCE_OBSERVATIONS} required). No AI interpretation "
+                "was generated; the evidence below is shown without a narrative."
+            ),
+            min_observations=MIN_EVIDENCE_OBSERVATIONS,
+        )
+
     if not ai_provider.is_configured():
         return AIAnalysisReport(
             status="unconfigured",
@@ -339,6 +370,7 @@ async def analyze_location(
                 "provider credential to enable interpretation; the evidence above "
                 "is available without it."
             ),
+            min_observations=MIN_EVIDENCE_OBSERVATIONS,
         )
 
     try:
@@ -354,6 +386,7 @@ async def analyze_location(
             model=settings.ai_model,
             evidence=package,
             message=exc.message,
+            min_observations=MIN_EVIDENCE_OBSERVATIONS,
         )
 
     return AIAnalysisReport(
@@ -362,4 +395,5 @@ async def analyze_location(
         model=settings.ai_model,
         evidence=package,
         narrative=_parse_narrative(raw),
+        min_observations=MIN_EVIDENCE_OBSERVATIONS,
     )

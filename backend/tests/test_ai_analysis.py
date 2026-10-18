@@ -198,3 +198,35 @@ async def test_ai_analysis_narrative_drops_malformed_fields(client, monkeypatch)
     assert body["narrative"]["situation_summary"] == ""
     assert body["narrative"]["observed_conditions"] == ["ok"]
     assert body["narrative"]["recent_changes"] == []
+
+
+@respx.mock
+async def test_ai_analysis_insufficient_evidence_refuses_to_interpret(client, monkeypatch):
+    # Every upstream provider fails, so the evidence package is empty. Even with a
+    # credential configured, the endpoint must refuse to interpret and say so — it
+    # must never call the model and invent a narrative.
+    monkeypatch.setenv("AQUANEXUS_AI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    respx.get(ARCHIVE_URL).mock(return_value=httpx.Response(500))
+    respx.get(FORECAST_URL).mock(return_value=httpx.Response(500))
+    respx.get(FLOOD_URL).mock(return_value=httpx.Response(500))
+    respx.get(POWER_URL).mock(return_value=httpx.Response(500))
+    respx.post(STAC_URL).mock(return_value=httpx.Response(500))
+
+    called = False
+
+    async def _should_not_be_called(**_kwargs):
+        nonlocal called
+        called = True
+        return {"situation_summary": "invented"}
+
+    monkeypatch.setattr("app.providers.ai.complete_json", _should_not_be_called)
+
+    r = await client.get("/api/v1/ai/analysis", params={"latitude": 10, "longitude": 20})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "insufficient_evidence"
+    assert body["narrative"] is None
+    assert body["message"]
+    assert body["min_observations"] >= 1
+    assert called is False

@@ -31,13 +31,17 @@ import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from "maplibr
 import { useWorkspace, type SelectedLocation } from "@/lib/workspace";
 import type { StacItem } from "@/lib/schemas";
 import { detectWebGLSupport } from "@/lib/webgl";
-import { RasterMap } from "@/components/map/RasterMap";
+import { RasterMap, type RasterOverlay } from "@/components/map/RasterMap";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 const SCENES_SOURCE = "aquanexus-scenes";
 const SCENES_FILL = "aquanexus-scenes-fill";
+// Global raster overlay (NASA GIBS). Kept as a single source/layer pair so a
+// layer switch is a clean remove-then-add rather than an accumulating stack.
+const RASTER_SOURCE = "aquanexus-raster";
+const RASTER_LAYER = "aquanexus-raster-layer";
 
 // Camera bounds. Zoom-out never restricts navigation: the whole world stays
 // reachable and the camera never locks to a region.
@@ -81,6 +85,7 @@ function MapFallback({
   onSelect,
   scenes,
   showScenes,
+  overlay,
 }: {
   message: string;
   location: SelectedLocation | null;
@@ -88,6 +93,7 @@ function MapFallback({
   onSelect: (latitude: number, longitude: number) => void;
   scenes: StacItem[];
   showScenes: boolean;
+  overlay?: RasterOverlay | null;
 }) {
   return (
     <div className="absolute inset-0 z-20 overflow-hidden bg-abyss-950">
@@ -96,6 +102,7 @@ function MapFallback({
         onSelect={onSelect}
         scenes={scenes}
         showScenes={showScenes}
+        overlay={overlay}
         ariaLabel="Interactive map (lightweight renderer)"
       />
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3">
@@ -138,7 +145,17 @@ function MapFallback({
 }
 
 export function WaterAtlasMap() {
-  const { location, layers, scenes, selectLocation } = useWorkspace();
+  const {
+    location,
+    layers,
+    scenes,
+    selectLocation,
+    mapLayers,
+    activeRasterLayerId,
+    rasterLayerDate,
+    rasterOpacity,
+    refreshMapLayers,
+  } = useWorkspace();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
@@ -148,6 +165,15 @@ export function WaterAtlasMap() {
   const [status, setStatus] = useState<MapStatus>({ kind: "pending" });
   // Bumping this re-runs initialisation for the explicit retry action only.
   const [attempt, setAttempt] = useState(0);
+
+  // The global layer catalog is needed to build the raster overlay, and the map
+  // is the surface the overlay is drawn on, so the map loads it if the layer
+  // panel has not already done so.
+  useEffect(() => {
+    if (!mapLayers.data && !mapLayers.loading && !mapLayers.error) {
+      refreshMapLayers();
+    }
+  }, [mapLayers.data, mapLayers.loading, mapLayers.error, refreshMapLayers]);
 
   const retry = useCallback(() => {
     failedRef.current = false;
@@ -366,6 +392,73 @@ export function WaterAtlasMap() {
     else map.once("load", apply);
   }, [scenes.data, layers.satellite, status.kind]);
 
+  // Draw the active global raster layer (NASA GIBS) over the basemap.
+  //
+  // The tile template comes straight from the backend catalog, so the layer,
+  // its date and its availability are the ones the backend verified. The tile
+  // date segment is rewritten from the current date selection: `default` means
+  // "most recent available". When the layer is unavailable or none is selected,
+  // any existing overlay is removed rather than left showing stale imagery.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      const activeLayer = mapLayers.data?.layers.find(
+        (l) => l.id === activeRasterLayerId,
+      );
+      const template = activeLayer?.available ? activeLayer.tile_template : null;
+
+      // Always clear a previous overlay first so a switch never leaves two
+      // rasters stacked or an outdated one visible.
+      for (const id of [RASTER_LAYER, RASTER_SOURCE]) {
+        if (id === RASTER_LAYER && map.getLayer(id)) map.removeLayer(id);
+        if (id === RASTER_SOURCE && map.getSource(id)) map.removeSource(id);
+      }
+
+      if (!template || !activeLayer) return;
+
+      const timeSegment = rasterLayerDate ?? "default";
+      const url = template.replace("/default/", `/${timeSegment}/`);
+
+      map.addSource(RASTER_SOURCE, {
+        type: "raster",
+        tiles: [url],
+        tileSize: 256,
+        maxzoom: activeLayer.max_zoom,
+        attribution: activeLayer.attribution,
+      });
+      map.addLayer({
+        id: RASTER_LAYER,
+        type: "raster",
+        source: RASTER_SOURCE,
+        paint: { "raster-opacity": rasterOpacity, "raster-fade-duration": 200 },
+      });
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once("load", apply);
+  }, [mapLayers.data, activeRasterLayerId, rasterLayerDate, rasterOpacity, status.kind]);
+
+  const activeRasterLayer = mapLayers.data?.layers.find(
+    (l) => l.id === activeRasterLayerId,
+  );
+  const rasterOverlay: RasterOverlay | null =
+    activeRasterLayer?.available && activeRasterLayer.tile_template
+      ? {
+          id: activeRasterLayer.id,
+          name: activeRasterLayer.name,
+          // The catalog template carries a `/default/` date segment which is
+          // rewritten to the requested date for the fallback renderer too.
+          template: activeRasterLayer.tile_template.replace(
+            "/default/",
+            `/${rasterLayerDate ?? "default"}/`,
+          ),
+          maxZoom: activeRasterLayer.max_zoom,
+          opacity: rasterOpacity,
+        }
+      : null;
+
   const sceneCount = scenes.data?.items.length ?? 0;
   const mapUnavailable = status.kind === "unsupported";
   const showSceneBadge = !mapUnavailable && layers.satellite && sceneCount > 0;
@@ -409,6 +502,7 @@ export function WaterAtlasMap() {
           }
           scenes={scenes.data?.items ?? []}
           showScenes={layers.satellite}
+          overlay={rasterOverlay}
         />
       ) : (
         <>

@@ -137,8 +137,49 @@ zero-flow reading.
   change detection are **not implemented**.
 
 AquaNexus queries the catalogue by geographic extent and acquisition time and
-renders footprints from real scene metadata. It does not claim to analyse the
-imagery.
+renders footprints from real scene metadata. The Satellite Explorer additionally
+shows the catalogue's own **rendered preview thumbnail** for each scene, so the
+user sees actual imagery rather than only a scene identifier. It does **not**
+download or process Level-2A bands, so it makes no water-body classification or
+change-detection claim.
+
+---
+
+## F2. Global raster map layers — NASA GIBS
+
+**NASA EOSDIS Global Imagery Browse Services (GIBS)** — `nasa_gibs`
+<https://gibs.earthdata.nasa.gov/> · WMTS `epsg3857/best`
+
+- Classification: **satellite_estimate**
+- Auth: **none** (public WMTS; no Earthdata token required for `best` layers)
+- Access: XYZ-compatible WMTS tiles `/{layer}/default/{date}/{TileMatrixSet}/{z}/{y}/{x}.{ext}`
+- Coverage: global, daily to multi-day composites
+
+AquaNexus exposes a curated catalog of real, key-free GIBS layers and probes each
+one live before offering it:
+
+| Layer id | Measures | Units | Resolution | Temporal |
+| --- | --- | --- | --- | --- |
+| `imerg_precipitation_rate` | GPM IMERG precipitation rate | mm/hour | 0.1° (~10 km) | daily composite |
+| `modis_flood_2day` | MODIS NRT surface-water / flood | classified water | 250 m | 2-day composite |
+| `modis_land_surface_temp_day` | MODIS land-surface temperature (day) | °C | 1 km | daily |
+| `modis_ndvi_8day` | MODIS NDVI (greenness) | index | 250 m | 8-day composite |
+| `modis_true_color` | MODIS true colour (imagery) | RGB | 250 m | daily |
+
+Each catalog entry carries its legend stops, `legend_note`, units, spatial and
+temporal resolution, source, attribution, `docs_url`, `max_zoom` and explicit
+`limitations`. The frontend draws the legend from the same catalog the tiles
+come from.
+
+Honesty rules encoded in the catalog:
+
+- A layer is only selectable when the live probe confirms GIBS serves it for the
+  requested date; otherwise it is shown greyed with an `unavailable_reason`.
+- Land-surface temperature is **not** air temperature and is **not** a heatwave
+  classification.
+- NDVI is a greenness signal, **not** a drought index.
+- `modis_flood_2day` is a satellite **observation** of surface water, **not** a
+  flood forecast or a validated flood hazard map.
 
 ---
 
@@ -250,8 +291,29 @@ and, when an AI provider is configured, asks it to narrate that evidence.
 - With no key configured the endpoint returns `status: "unconfigured"` with an
   explicit message. The evidence is still returned, so the panel stays useful
   and nothing is invented.
+- When the evidence package is too thin to interpret (fewer than the minimum
+  usable observations), the endpoint returns `status: "insufficient_evidence"`
+  and does **not** call the model at all, rather than producing speculative
+  narrative from almost nothing.
 - The provider is any OpenAI-compatible chat-completions endpoint. The key is
   used server-side only and is never sent to the browser.
+
+## J. Report generation
+
+`GET /api/v1/reports/preview` returns the exact structured payload the PDF is
+built from; `POST /api/v1/reports` renders it to a branded PDF server-side
+(`app/services/report_pdf.py`). The report reflects the **selected** study area,
+date range and analysis results — it is not a static template.
+
+- `completeness` is computed from real provider availability, not hardcoded:
+  `complete` when every queried source returned usable data, `partial` when some
+  did not, `minimal` when very little was available. The `completeness_note`
+  states the tier in words and always adds the standing caveat.
+- The AI interpretation section is included only when an AI narrative was
+  actually generated from the evidence; otherwise the report states plainly that
+  no AI interpretation was produced and keeps the verified numeric findings.
+- Each source appears with its classification and link, and the report carries
+  explicit limitations and recommended follow-up actions.
 
 ## Credential-gated sources (optional)
 

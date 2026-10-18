@@ -35,7 +35,7 @@ from app.models.common import (
 from app.providers import catalog
 from app.providers import nasa_power, open_meteo
 from app.services import indicators as ind
-from app.services.aggregation import aggregate_precipitation
+from app.services.aggregation import aggregate_precipitation, aggregate_temperature
 from app.services.baseline import expected_window_days, pair_on_valid_dates, prior_year_window
 
 logger = get_logger(__name__)
@@ -84,6 +84,8 @@ async def build_location_summary(
         (forecast, forecast_exc),
         (flood_payload, flood_exc),
         (power, power_exc),
+        (temperature, temperature_exc),
+        (temperature_baseline, temperature_baseline_exc),
     ) = await asyncio.gather(
         _gather_optional(
             open_meteo.fetch_archive_precipitation(
@@ -99,6 +101,16 @@ async def build_location_summary(
         _gather_optional(open_meteo.fetch_flood_discharge(point, days=14)),
         _gather_optional(
             nasa_power.fetch_precipitation(point, start=observed_start, end=observed_end)
+        ),
+        _gather_optional(
+            open_meteo.fetch_archive_temperature(
+                point, start=observed_start, end=observed_end
+            )
+        ),
+        _gather_optional(
+            open_meteo.fetch_archive_temperature(
+                point, start=baseline_start, end=baseline_end
+            )
         ),
     )
 
@@ -129,6 +141,12 @@ async def build_location_summary(
         )
         indicators.append(ind.coverage_indicator(primary_agg))
         indicators.append(ind.wet_day_fraction(primary_agg))
+        indicators.append(
+            ind.dry_condition_indicator(
+                primary_agg.valid_days - primary_agg.wet_days,
+                valid_days=primary_agg.valid_days,
+            )
+        )
         indicators.append(
             ind.assess_freshness(
                 observed.provenance.observed_at,
@@ -382,6 +400,76 @@ async def build_location_summary(
                 message=str(power_exc),
             )
         )
+
+    # --- Heat and dry-condition indicators --------------------------------
+    # Temperature is reanalysis (ERA5) for both the observed and the baseline
+    # window, so the anomaly compares like-for-like. A mean difference is
+    # reported; it is explicitly not a heatwave classification.
+    if temperature is not None:
+        temp_agg = aggregate_temperature(
+            temperature.points, expected_days=observed_window_len
+        )
+        reports.append(
+            ProviderReport(
+                provider_id=catalog.OPEN_METEO_ARCHIVE.id,
+                provider_name="Temperature (ERA5 reanalysis)",
+                status=(
+                    ProviderStatus.OK
+                    if temp_agg.has_sufficient_coverage
+                    else ProviderStatus.PARTIAL
+                ),
+                message=(
+                    None
+                    if temp_agg.has_sufficient_coverage
+                    else f"Only {temp_agg.coverage_ratio:.0%} of days have temperature values."
+                ),
+                classification=temperature.provenance.classification,
+            )
+        )
+        baseline_agg = None
+        if temperature_baseline is not None:
+            baseline_agg = aggregate_temperature(
+                temperature_baseline.points, expected_days=baseline_window_len
+            )
+        indicators.append(
+            ind.temperature_anomaly_indicator(
+                temp_agg.mean_c,
+                baseline_agg.mean_c if baseline_agg else None,
+                observed_days=temp_agg.valid_days,
+                baseline_days=baseline_agg.valid_days if baseline_agg else 0,
+                baseline_description=(
+                    f"same period in {baseline_start.year} "
+                    f"({baseline_start.isoformat()} to {baseline_end.isoformat()}, "
+                    "year-over-year, same ERA5 product)"
+                ),
+            )
+        )
+        indicators.append(
+            ind.heat_day_indicator(
+                sum(1 for v in temp_agg.values if v >= 35.0),
+                valid_days=temp_agg.valid_days,
+            )
+        )
+    else:
+        logger.info("Temperature series unavailable: %s", temperature_exc)
+        reports.append(
+            ProviderReport(
+                provider_id=catalog.OPEN_METEO_ARCHIVE.id,
+                provider_name="Temperature (ERA5 reanalysis)",
+                status=ProviderStatus.UNAVAILABLE,
+                message=str(temperature_exc),
+            )
+        )
+        indicators.append(
+            ind.temperature_anomaly_indicator(
+                None,
+                None,
+                observed_days=0,
+                baseline_days=0,
+                baseline_description="unavailable",
+            )
+        )
+        indicators.append(ind.heat_day_indicator(None, valid_days=0))
 
     return LocationSummary(
         location=point,

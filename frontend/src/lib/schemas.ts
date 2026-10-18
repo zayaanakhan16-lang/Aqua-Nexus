@@ -293,12 +293,141 @@ export const aiNarrativeSchema = z.object({
 });
 
 export const aiAnalysisReportSchema = z.object({
-  status: z.enum(["ok", "unconfigured", "unavailable"]),
+  status: z.enum(["ok", "insufficient_evidence", "unconfigured", "unavailable"]),
   provider: z.string(),
   model: z.string().nullable().optional(),
   evidence: aiEvidencePackageSchema,
   narrative: aiNarrativeSchema.nullable().optional(),
   message: z.string().nullable().optional(),
+  min_observations: z.number().nullable().optional(),
+});
+
+// --- Global raster map layers (NASA GIBS) ---------------------------------
+export const legendStopSchema = z.object({
+  value: z.number().nullable().optional(),
+  color: z.string(),
+  label: z.string(),
+});
+
+export const mapLayerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.enum([
+    "precipitation",
+    "flood",
+    "surface_water",
+    "heat",
+    "dry",
+    "imagery",
+    "availability",
+  ]),
+  description: z.string(),
+  classification: dataClassificationSchema,
+  units: z.string(),
+  spatial_resolution: z.string(),
+  temporal_resolution: z.string(),
+  source_id: z.string(),
+  source_name: z.string(),
+  attribution: z.string(),
+  product: z.string().nullable().optional(),
+  docs_url: z.string().nullable().optional(),
+  color_scale: z.array(z.string()).default([]),
+  legend: z.array(legendStopSchema).default([]),
+  legend_note: z.string(),
+  available: z.boolean(),
+  unavailable_reason: z.string().nullable().optional(),
+  default_date: z.string().nullable().optional(),
+  tile_template: z.string().nullable().optional(),
+  tile_format: z.string().default("png"),
+  max_zoom: z.number().default(6),
+  default_opacity: z.number().default(0.75),
+  limitations: z.array(z.string()).default([]),
+  disclaimer: z.string().nullable().optional(),
+});
+
+export const mapLayerCatalogSchema = z.object({
+  generated_at: z.string(),
+  default_date: z.string(),
+  available_count: z.number(),
+  layers: z.array(mapLayerSchema),
+  notes: z.array(z.string()).default([]),
+});
+
+// --- Report payload -------------------------------------------------------
+export const reportMetricSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  value: z.number().nullable().optional(),
+  unit: z.string().default(""),
+  status: z.string().default("ok"),
+  classification: dataClassificationSchema.nullable().optional(),
+  method: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
+});
+
+export const reportSourceSchema = z.object({
+  provider_id: z.string(),
+  provider_name: z.string(),
+  status: z.string(),
+  classification: dataClassificationSchema.nullable().optional(),
+  product: z.string().nullable().optional(),
+  url: z.string().nullable().optional(),
+  attribution: z.string().nullable().optional(),
+  spatial_resolution: z.string().nullable().optional(),
+  temporal_resolution: z.string().nullable().optional(),
+  units: z.string().nullable().optional(),
+  limitations: z.array(z.string()).default([]),
+  message: z.string().nullable().optional(),
+});
+
+export const reportSectionSchema = z.object({
+  title: z.string(),
+  available: z.boolean(),
+  body: z.string().nullable().optional(),
+  items: z.array(z.string()).default([]),
+  unavailable_reason: z.string().nullable().optional(),
+});
+
+export const reportChartPointSchema = z.object({
+  label: z.string(),
+  value: z.number().nullable().optional(),
+});
+
+export const reportChartSchema = z.object({
+  title: z.string(),
+  unit: z.string(),
+  points: z.array(reportChartPointSchema).default([]),
+  available: z.boolean().default(true),
+  note: z.string().nullable().optional(),
+});
+
+export const reportPayloadSchema = z.object({
+  report_id: z.string(),
+  generated_at: z.string(),
+  study_area_name: z.string(),
+  location: geoPointSchema,
+  resolved_place: placeResultSchema.nullable().optional(),
+  analysis_start: z.string(),
+  analysis_end: z.string(),
+  window_days: z.number(),
+  completeness: z.string(),
+  completeness_note: z.string(),
+  executive_summary: reportSectionSchema,
+  observed_conditions: reportSectionSchema,
+  rainfall_findings: reportSectionSchema,
+  heat_findings: reportSectionSchema,
+  flood_findings: reportSectionSchema,
+  surface_water_findings: reportSectionSchema,
+  dry_condition_findings: reportSectionSchema,
+  data_quality: reportSectionSchema,
+  follow_up: reportSectionSchema,
+  ai_interpretation: reportSectionSchema,
+  ai_generated: z.boolean(),
+  metrics: z.array(reportMetricSchema).default([]),
+  charts: z.array(reportChartSchema).default([]),
+  sources: z.array(reportSourceSchema).default([]),
+  limitations: z.array(z.string()).default([]),
+  citations: z.array(z.string()).default([]),
 });
 
 export type DataClassification = z.infer<typeof dataClassificationSchema>;
@@ -329,3 +458,12 @@ export type EvidenceObservation = z.infer<typeof evidenceObservationSchema>;
 export type AIEvidencePackage = z.infer<typeof aiEvidencePackageSchema>;
 export type AINarrative = z.infer<typeof aiNarrativeSchema>;
 export type AIAnalysisReport = z.infer<typeof aiAnalysisReportSchema>;
+export type LegendStop = z.infer<typeof legendStopSchema>;
+export type MapLayer = z.infer<typeof mapLayerSchema>;
+export type MapLayerCatalog = z.infer<typeof mapLayerCatalogSchema>;
+export type ReportMetric = z.infer<typeof reportMetricSchema>;
+export type ReportSource = z.infer<typeof reportSourceSchema>;
+export type ReportSection = z.infer<typeof reportSectionSchema>;
+export type ReportChartPoint = z.infer<typeof reportChartPointSchema>;
+export type ReportChart = z.infer<typeof reportChartSchema>;
+export type ReportPayload = z.infer<typeof reportPayloadSchema>;

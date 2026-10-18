@@ -14,6 +14,7 @@ from app.models.aggregates import (
     DischargePoint,
     DischargeSeries,
     PrecipitationSeries,
+    TemperatureSeries,
     WeatherCurrent,
     WeatherDay,
     WeatherForecast,
@@ -431,6 +432,81 @@ def _parse_iso_utc(value: str) -> datetime:
     return parsed
 
 
+async def fetch_archive_temperature(
+    point: GeoPoint, *, start: date, end: date
+) -> TemperatureSeries:
+    """Historical reanalysis daily mean temperature (ERA5).
+
+    Classification: REANALYSIS. Used for heat and dry-condition context. It is a
+    model reconstruction, not a station measurement, and it is not by itself a
+    heatwave classification.
+    """
+    if end < start:
+        raise ValidationError("end_date must be on or after start_date.")
+    if (end - start).days > MAX_ARCHIVE_DAYS:
+        raise ValidationError(
+            f"Historical range too large (max {MAX_ARCHIVE_DAYS} days per request)."
+        )
+    settings = get_settings()
+    payload = await request_json(
+        settings.open_meteo_archive_url,
+        params={
+            "latitude": point.latitude,
+            "longitude": point.longitude,
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+            "daily": "temperature_2m_mean,temperature_2m_max",
+            "timezone": "GMT",
+        },
+        provider_id=ARCHIVE.id,
+    )
+    daily = payload.get("daily") or {}
+    times = daily.get("time") or []
+    means = daily.get("temperature_2m_mean") or []
+    points: list[TimeSeriesPoint] = []
+    for i, stamp in enumerate(times):
+        points.append(
+            TimeSeriesPoint(
+                timestamp=datetime.combine(
+                    date.fromisoformat(stamp), time(12, 0), tzinfo=timezone.utc
+                ),
+                value=_at(means, i),
+                unit="deg C",
+            )
+        )
+    if not points:
+        raise ProviderUnavailableError("Open-Meteo archive returned no temperature data.")
+    valid_days = sum(1 for p in points if p.value is not None)
+    return TemperatureSeries(
+        location=point,
+        start_date=points[0].timestamp.date(),
+        end_date=points[-1].timestamp.date(),
+        points=points,
+        provenance=Provenance(
+            source_id=ARCHIVE.id,
+            source_name=ARCHIVE.name,
+            classification=DataClassification.REANALYSIS,
+            observed_at=points[-1].timestamp,
+            method="ERA5 daily mean 2 m air temperature via Open-Meteo",
+            method_version="1.0",
+            notes=[
+                "Reanalysis air temperature, not a station measurement.",
+                "A single warm day is not a heatwave; duration and a documented "
+                "baseline are required.",
+            ],
+        ),
+        provider=ARCHIVE,
+        coverage="Global, 1940 to ~5 days behind real time",
+        valid_days=valid_days,
+        missing_days=len(points) - valid_days,
+        note=(
+            "Daily mean 2 m air temperature from reanalysis. Heat anomalies are "
+            "computed against the same calendar window of a prior year, not a "
+            "multi-decade normal."
+        ),
+    )
+
+
 # Re-export for readability of import sites.
 __all__ = [
     "fetch_forecast_precipitation",
@@ -439,6 +515,7 @@ __all__ = [
     "fetch_flood_discharge",
     "fetch_weather_forecast",
     "fetch_discharge_series",
+    "fetch_archive_temperature",
     "MAX_FORECAST_DAYS",
     "MAX_ARCHIVE_DAYS",
     "MAX_CLIMATE_DAYS",

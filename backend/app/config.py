@@ -107,6 +107,8 @@ class Settings(BaseSettings):
     open_meteo_geocoding_url: str = "https://geocoding-api.open-meteo.com/v1/search"
     nasa_power_url: str = "https://power.larc.nasa.gov/api/temporal/daily/point"
     cdse_stac_url: str = "https://stac.dataspace.copernicus.eu/v1/search"
+    # NASA GIBS WMTS endpoint for real global raster map layers (key-free).
+    gibs_wmts_url: str = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
 
     @field_validator("log_level")
     @classmethod
