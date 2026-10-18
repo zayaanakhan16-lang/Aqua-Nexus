@@ -150,11 +150,51 @@ build. It is landing-only and never required for the working map.
   statistic, not a historical mean.
 - Anomaly baselines must be classification-compatible (see
   `services/anomaly.py`); never difference a forecast against climatology.
-- Frontend fetches are proxied same-origin: Next rewrites `/api/*` to
-  `AQUANEXUS_BACKEND_ORIGIN` (default `http://localhost:8000`). No secrets in
+- Frontend fetches are proxied same-origin by the catch-all route handler at
+  `frontend/src/app/api/v1/[...path]/route.ts`, which forwards `/api/v1/*` to
+  `AQUANEXUS_BACKEND_ORIGIN` (default `http://localhost:8000`). It is a route
+  handler, not a `rewrites()` entry, so an unreachable backend returns a
+  structured `{"error":{...}}` envelope (503 `backend_unreachable`, 504
+  `backend_timeout`) instead of a bare `500 Internal Server Error` text body,
+  and binary bodies (the PDF report) stream through as bytes. No secrets in
   the client bundle; only `NEXT_PUBLIC_API_BASE_URL` is public.
 - Heavy libs: MapLibre loads with `ssr:false`; ECharts is dynamically imported.
 - Data provider endpoints and terms change — re-verify against the linked docs
   before relying on a source.
 - Tooling quirk: `file_editor` create fails when the target directory does not
   exist; `mkdir -p` first via the terminal.
+
+## Resume checkpoint (session pause)
+
+Paused mid-session at the user's request (electricity). State is committed and
+recoverable; nothing is half-applied.
+
+- Branch `aquanexus-build`, commit `43b8744` on top of baseline `d00d7d6`.
+  Committed locally; **not pushed** (origin `zayaanakhan16-lang/Aqua-Nexus`).
+- Suites green at this commit: backend `128 passed`; frontend `72 passed`
+  (16 files); `tsc --noEmit` clean; ESLint clean; `next build` succeeds.
+- Working tree is clean apart from the AGENTS.md edit made during this pause.
+- Last verified live: STAC Sentinel-2 scenes return real preview thumbnails
+  (HTTP 200 JPEG after a redirect); `POST /api/v1/reports` returns a real
+  4-page PDF carrying the selected area name, report id and the `-26.3%`
+  rainfall anomaly; `/explore` opens on Global Layers with no location and
+  switches to Overview once one is chosen.
+
+### Remaining work when resumed
+
+1. Commit the AGENTS.md pause edit.
+2. Push `aquanexus-build` and open the PR (explicitly not done yet; the user
+   had not authorised a push or PR at pause time).
+3. Optional polish only: responsive/accessibility sweep on the panels, and
+   an end-to-end report-download click-through in the browser (the report was
+   verified via the API and via PDF text extraction, not by clicking Download).
+
+### Environment notes for resume
+
+- Backend on `:8000` (`uvicorn app.main:app`), frontend on `:3000`.
+- `file` is unavailable; use Python magic-byte checks for image/PDF sniffing.
+- `pypdf` is available in the backend venv for PDF text verification.
+- A stale `next start` build once served pre-change code and looked like a
+  client-side crash on `/explore`; rebuild after frontend edits before
+  trusting a `:3000` render.
+
