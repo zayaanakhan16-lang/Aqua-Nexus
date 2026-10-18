@@ -73,8 +73,8 @@ build. It is landing-only and never required for the working map.
 
 ## Verified state
 
-- Backend: 115 pytest tests pass (includes the IMERG adapter suite and the AI
-  analysis suite). Frontend: 63 vitest tests pass; typecheck, lint and
+- Backend: 128 pytest tests pass (includes the IMERG adapter suite and the AI
+  analysis suite). Frontend: 77 vitest tests pass; typecheck, lint and
   `next build` all clean. The search/workspace suite
   (`panels/location-search.test.tsx`, `lib/workspace.test.tsx`) pins the
   stale-response guarantees: a superseded search is aborted and a late response
@@ -166,28 +166,29 @@ build. It is landing-only and never required for the working map.
 
 ## Resume checkpoint (session pause)
 
-Paused mid-session at the user's request (electricity). State is committed and
-recoverable; nothing is half-applied.
+Resume verification pass complete. State is committed, pushed and green.
 
-- Branch `aquanexus-build`, commit `43b8744` on top of baseline `d00d7d6`.
-  Committed locally; **not pushed** (origin `zayaanakhan16-lang/Aqua-Nexus`).
-- Suites green at this commit: backend `128 passed`; frontend `72 passed`
-  (16 files); `tsc --noEmit` clean; ESLint clean; `next build` succeeds.
-- Working tree is clean apart from the AGENTS.md edit made during this pause.
-- Last verified live: STAC Sentinel-2 scenes return real preview thumbnails
-  (HTTP 200 JPEG after a redirect); `POST /api/v1/reports` returns a real
-  4-page PDF carrying the selected area name, report id and the `-26.3%`
-  rainfall anomaly; `/explore` opens on Global Layers with no location and
-  switches to Overview once one is chosen.
+- Branch `aquanexus-build`, HEAD `90d1835` (on top of `bf4749b`), pushed to
+  `origin/aquanexus-build`. `main` untouched.
+- Suites green at this commit: backend `128 passed`; frontend `77 passed`
+  (18 files); `tsc --noEmit` clean; ESLint clean; `next build` succeeds.
+- Report Download verified end-to-end **in a browser** (Playwright) at both
+  1440px and 390px: selecting Lagos and clicking Download produced a real
+  4-page PDF (`%PDF-` magic, correct coords, `-26.3%` rainfall anomaly,
+  sources, findings and limitations).
+- Responsive sweep: no horizontal overflow at 1440/1024/768/390/360 on `/`,
+  `/home`, `/explore`, `/study-areas`, nor on any of the 10 `/explore` tabs at
+  390px. Every page exposes exactly one `<h1>`.
+- Keyboard/a11y: skip link, logical tab order, visible focus ring on every
+  focusable element; modal traps Tab/Shift+Tab and closes on Escape.
+- Contrast: palette meets WCAG AA for text. `ink-400` on `abyss-800` is 4.21
+  (just under 4.5) but that pairing is used only for icon-only map chrome, not
+  body text; leave the palette alone unless a real text pairing regresses.
 
 ### Remaining work when resumed
 
-1. Commit the AGENTS.md pause edit.
-2. Push `aquanexus-build` and open the PR (explicitly not done yet; the user
-   had not authorised a push or PR at pause time).
-3. Optional polish only: responsive/accessibility sweep on the panels, and
-   an end-to-end report-download click-through in the browser (the report was
-   verified via the API and via PDF text extraction, not by clicking Download).
+1. Nothing blocking. Optional: a deeper manual screen-reader pass (VoiceOver/
+   NVDA), and `axe`-style automated rule coverage beyond the checks above.
 
 ### Environment notes for resume
 
@@ -197,4 +198,7 @@ recoverable; nothing is half-applied.
 - A stale `next start` build once served pre-change code and looked like a
   client-side crash on `/explore`; rebuild after frontend edits before
   trusting a `:3000` render.
+- `reportlab` is a declared runtime dependency (requirements.txt and
+  pyproject.toml). It is imported at app startup, so a venv built before this
+  fix needs `pip install reportlab` or the backend will not boot.
 
