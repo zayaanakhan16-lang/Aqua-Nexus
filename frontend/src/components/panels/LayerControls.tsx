@@ -1,7 +1,7 @@
 "use client";
 
 /** Map layer controls. Every toggle is wired to real state. */
-import { CloudRain, Droplets, Layers, Satellite, MapPin } from "lucide-react";
+import { CloudRain, Droplets, Layers, Satellite, MapPin, Waves } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useWorkspace, type LayerId } from "@/lib/workspace";
@@ -31,6 +31,12 @@ const LAYERS: {
     icon: Satellite,
   },
   {
+    id: "water",
+    label: "Water features",
+    description: "Mapped water outlines (OpenStreetMap)",
+    icon: Waves,
+  },
+  {
     id: "places",
     label: "Place markers",
     description: "Highlight the searched place",
@@ -39,7 +45,16 @@ const LAYERS: {
 ];
 
 export function LayerControls() {
-  const { layers, toggleLayer } = useWorkspace();
+  const { layers, toggleLayer, location, waterBodies } = useWorkspace();
+
+  const waterNote =
+    layers.water && location && !waterBodies.loading
+      ? waterBodies.error
+        ? waterBodies.error
+        : waterBodies.data && waterBodies.data.count === 0
+          ? waterBodies.data.note
+          : null
+      : null;
 
   return (
     <div className="panel p-3">
@@ -104,6 +119,11 @@ export function LayerControls() {
           );
         })}
       </ul>
+      {waterNote ? (
+        <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-[0.6875rem] leading-relaxed text-ink-400">
+          {waterNote}
+        </p>
+      ) : null}
     </div>
   );
 }

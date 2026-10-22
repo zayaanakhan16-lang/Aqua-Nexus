@@ -77,6 +77,10 @@ class ProviderReport(BaseModel):
     status: ProviderStatus
     message: str | None = None
     classification: DataClassification | None = None
+    # True when the provider itself marked the returned values as preliminary /
+    # near-real-time (subject to revision). Surfaced so the UI never presents a
+    # provisional value with the same confidence as a consolidated one.
+    preliminary: bool = False
 
 
 class TimeSeriesPoint(BaseModel):

@@ -125,6 +125,8 @@ class Settings(BaseSettings):
     cdse_stac_url: str = "https://stac.dataspace.copernicus.eu/v1/search"
     # NASA GIBS WMTS endpoint for real global raster map layers (key-free).
     gibs_wmts_url: str = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
+    # OpenStreetMap Overpass API for mapped water-feature geometry (key-free).
+    osm_overpass_url: str = "https://overpass-api.de/api/interpreter"
 
     @field_validator("log_level")
     @classmethod

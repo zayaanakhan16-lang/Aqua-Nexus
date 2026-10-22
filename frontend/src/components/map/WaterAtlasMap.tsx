@@ -25,10 +25,11 @@
  * an explicit, accessible fallback so the rest of the workspace stays usable.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, MapPin, RefreshCw, SquareDashed } from "lucide-react";
 import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from "maplibre-gl";
 
-import { useWorkspace, type SelectedLocation } from "@/lib/workspace";
+import { cn } from "@/lib/utils";
+import { useWorkspace, type SelectedLocation, type SelectionMode } from "@/lib/workspace";
 import type { StacItem } from "@/lib/schemas";
 import { detectWebGLSupport } from "@/lib/webgl";
 import { RasterMap, type RasterOverlay } from "@/components/map/RasterMap";
@@ -42,6 +43,25 @@ const SCENES_FILL = "aquanexus-scenes-fill";
 // layer switch is a clean remove-then-add rather than an accumulating stack.
 const RASTER_SOURCE = "aquanexus-raster";
 const RASTER_LAYER = "aquanexus-raster-layer";
+// Mapped water-feature polygons (OpenStreetMap).
+const WATER_SOURCE = "aquanexus-water";
+const WATER_FILL = "aquanexus-water-fill";
+const WATER_LINE = "aquanexus-water-line";
+// The committed selection area. Deliberately distinct from the satellite
+// footprint styling so a drawn area can never be mistaken for scene metadata.
+const SELECTION_SOURCE = "aquanexus-selection";
+const SELECTION_FILL = "aquanexus-selection-fill";
+const SELECTION_LINE = "aquanexus-selection-line";
+// The live rectangle shown while the user is dragging out an area.
+const DRAFT_SOURCE = "aquanexus-draft";
+const DRAFT_FILL = "aquanexus-draft-fill";
+const DRAFT_LINE = "aquanexus-draft-line";
+
+// Satellite footprints are a dashed, muted grey so they read as reference
+// metadata rather than an active selection (which is solid cyan).
+const SCENE_LINE_COLOR = "#9fb0c4";
+// The selection uses the water accent: unmistakably "this is your area".
+const SELECTION_COLOR = "#63d8f3";
 
 // Camera bounds. Zoom-out never restricts navigation: the whole world stays
 // reachable and the camera never locks to a region.
@@ -62,6 +82,45 @@ const GENERIC_UNAVAILABLE =
 /** True for errors that indicate the graphics context, not a tile/style hiccup. */
 function isWebGLFailure(message: string): boolean {
   return /webgl|graphics|gpu|context/i.test(message);
+}
+
+/**
+ * Build a closed rectangle ring (as [lon, lat] pairs) from two opposite corners.
+ *
+ * A rectangle is the clearest possible "area" gesture for a mouse, and it maps
+ * to a simple, predictable polygon. Coordinates are clamped to valid ranges so
+ * a drag that runs past the antimeridian or a pole cannot produce an invalid
+ * ring; the backend validates the result regardless.
+ */
+function rectRing(
+  lng1: number,
+  lat1: number,
+  lng2: number,
+  lat2: number,
+): number[][] {
+  const clampLng = (v: number) => Math.max(-180, Math.min(180, v));
+  const clampLat = (v: number) => Math.max(-90, Math.min(90, v));
+  const west = clampLng(Math.min(lng1, lng2));
+  const east = clampLng(Math.max(lng1, lng2));
+  const south = clampLat(Math.min(lat1, lat2));
+  const north = clampLat(Math.max(lat1, lat2));
+  return [
+    [west, south],
+    [east, south],
+    [east, north],
+    [west, north],
+    [west, south],
+  ];
+}
+
+/** True when a ring encloses a non-trivial area (not a click or a hair-line drag). */
+function ringHasArea(ring: number[][]): boolean {
+  const lons = ring.map((c) => c[0] ?? 0);
+  const lats = ring.map((c) => c[1] ?? 0);
+  const spanLon = Math.max(...lons) - Math.min(...lons);
+  const spanLat = Math.max(...lats) - Math.min(...lats);
+  // ~0.005 deg is about 500 m; below that the "drag" was effectively a click.
+  return spanLon >= 0.005 && spanLat >= 0.005;
 }
 
 function describeError(error: unknown): string {
@@ -149,12 +208,16 @@ export function WaterAtlasMap() {
     location,
     layers,
     scenes,
+    waterBodies,
     selectLocation,
     mapLayers,
     activeRasterLayerId,
     rasterLayerDate,
     rasterOpacity,
     refreshMapLayers,
+    selectionMode,
+    setSelectionMode,
+    selectDrawnArea,
   } = useWorkspace();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -165,6 +228,22 @@ export function WaterAtlasMap() {
   const [status, setStatus] = useState<MapStatus>({ kind: "pending" });
   // Bumping this re-runs initialisation for the explicit retry action only.
   const [attempt, setAttempt] = useState(0);
+  // Drag-to-draw state. Kept in refs because the map's mouse handlers run
+  // outside React's render cycle; only the final ring is pushed into state.
+  const drawStartRef = useRef<{ lng: number; lat: number } | null>(null);
+  const [drawStart, setDrawStart] = useState(false);
+  // The ring currently being dragged, in [lon, lat] pairs, for live feedback.
+  const [draftRing, setDraftRing] = useState<number[][] | null>(null);
+  // Set when a drawn area is rejected so the reason can be shown on the map.
+  const [drawError, setDrawError] = useState<string | null>(null);
+  // Mirrors the active tool into a ref so the map's event handlers (bound once)
+  // always see the current mode without being re-registered.
+  const modeRef = useRef<SelectionMode>(selectionMode);
+  useEffect(() => {
+    modeRef.current = selectionMode;
+  }, [selectionMode]);
+  // Bridges the map's mouse handlers back into React state.
+  const commitDrawRef = useRef<(ring: number[][]) => void>(() => {});
 
   // The global layer catalog is needed to build the raster overlay, and the map
   // is the surface the overlay is drawn on, so the map loads it if the layer
@@ -219,6 +298,9 @@ export function WaterAtlasMap() {
     let resizeObserver: ResizeObserver | null = null;
     let onLoad: (() => void) | null = null;
     let onClick: ((event: { lngLat: { lat: number; lng: number } }) => void) | null = null;
+    let onMouseDown: ((event: { lngLat: { lat: number; lng: number } }) => void) | null = null;
+    let onMouseMove: ((event: { lngLat: { lat: number; lng: number } }) => void) | null = null;
+    let onMouseUp: ((event: { lngLat: { lat: number; lng: number } }) => void) | null = null;
 
     // Fully tear down the instance exactly once, tolerating a half-initialised
     // map (partial DOM / context) without throwing.
@@ -228,6 +310,10 @@ export function WaterAtlasMap() {
       resizeObserver?.disconnect();
       if (onLoad) map.off("load", onLoad);
       if (onClick) map.off("click", onClick);
+      if (onMouseDown) map.off("mousedown", onMouseDown);
+      if (onMouseMove) map.off("mousemove", onMouseMove);
+      if (onMouseUp) map.off("mouseup", onMouseUp);
+      drawStartRef.current = null;
       try {
         markerRef.current?.remove();
       } catch {
@@ -269,15 +355,54 @@ export function WaterAtlasMap() {
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
     onClick = (event) => {
+      // In draw mode a click starts a drag rectangle, handled by the mouse
+      // handlers below; it must not also drop a point marker.
+      if (modeRef.current === "draw") return;
       const { lat, lng } = event.lngLat;
       selectLocation({
         latitude: Number(lat.toFixed(5)),
         longitude: Number(lng.toFixed(5)),
         label: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
         place: null,
+        mode: "point",
       });
     };
     map.on("click", onClick);
+
+    // --- Draw-an-area interactions -------------------------------------------
+    // Dragging out a rectangle is the least error-prone way to select an area
+    // with a mouse, and it produces an unambiguous ring. The rectangle is only
+    // committed on mouse-up and only when it encloses a real area; a plain
+    // click in draw mode therefore does nothing rather than selecting a
+    // degenerate zero-area shape.
+    onMouseDown = (event) => {
+      if (modeRef.current !== "draw") return;
+      drawStartRef.current = { lng: event.lngLat.lng, lat: event.lngLat.lat };
+      setDrawStart(true);
+      map.dragPan.disable();
+    };
+
+    onMouseMove = (event) => {
+      const start = drawStartRef.current;
+      if (!start) return;
+      const ring = rectRing(start.lng, start.lat, event.lngLat.lng, event.lngLat.lat);
+      setDraftRing(ring);
+    };
+
+    onMouseUp = (event) => {
+      const start = drawStartRef.current;
+      drawStartRef.current = null;
+      setDrawStart(false);
+      map.dragPan.enable();
+      if (!start) return;
+      setDraftRing(null);
+      const ring = rectRing(start.lng, start.lat, event.lngLat.lng, event.lngLat.lat);
+      commitDrawRef.current(ring);
+    };
+
+    map.on("mousedown", onMouseDown);
+    map.on("mousemove", onMouseMove);
+    map.on("mouseup", onMouseUp);
 
     onLoad = () => {
       if (!map.getSource(SCENES_SOURCE)) {
@@ -287,12 +412,81 @@ export function WaterAtlasMap() {
         });
       }
       if (!map.getLayer(SCENES_FILL)) {
+        // Satellite footprints: dashed, muted grey. They are reference metadata
+        // about scene coverage, NOT a selection, so they must not use the
+        // selection accent colour.
         map.addLayer({
           id: SCENES_FILL,
           type: "line",
           source: SCENES_SOURCE,
-          paint: { "line-color": "#39d3b4", "line-width": 1.4, "line-opacity": 0.85 },
+          paint: {
+            "line-color": SCENE_LINE_COLOR,
+            "line-width": 1.2,
+            "line-opacity": 0.7,
+            "line-dasharray": [2, 2],
+          },
           layout: { visibility: "none" },
+        });
+      }
+      if (!map.getSource(WATER_SOURCE)) {
+        map.addSource(WATER_SOURCE, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+        map.addLayer({
+          id: WATER_FILL,
+          type: "fill",
+          source: WATER_SOURCE,
+          paint: { "fill-color": "#2cc0e4", "fill-opacity": 0.16 },
+          layout: { visibility: "none" },
+        });
+        map.addLayer({
+          id: WATER_LINE,
+          type: "line",
+          source: WATER_SOURCE,
+          paint: { "line-color": "#63d8f3", "line-width": 1.3, "line-opacity": 0.9 },
+          layout: { visibility: "none" },
+        });
+      }
+      if (!map.getSource(SELECTION_SOURCE)) {
+        map.addSource(SELECTION_SOURCE, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+        map.addLayer({
+          id: SELECTION_FILL,
+          type: "fill",
+          source: SELECTION_SOURCE,
+          paint: { "fill-color": SELECTION_COLOR, "fill-opacity": 0.12 },
+        });
+        map.addLayer({
+          id: SELECTION_LINE,
+          type: "line",
+          source: SELECTION_SOURCE,
+          paint: { "line-color": SELECTION_COLOR, "line-width": 2, "line-opacity": 0.95 },
+        });
+      }
+      if (!map.getSource(DRAFT_SOURCE)) {
+        map.addSource(DRAFT_SOURCE, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+        map.addLayer({
+          id: DRAFT_FILL,
+          type: "fill",
+          source: DRAFT_SOURCE,
+          paint: { "fill-color": SELECTION_COLOR, "fill-opacity": 0.1 },
+        });
+        map.addLayer({
+          id: DRAFT_LINE,
+          type: "line",
+          source: DRAFT_SOURCE,
+          paint: {
+            "line-color": SELECTION_COLOR,
+            "line-width": 1.6,
+            "line-opacity": 0.9,
+            "line-dasharray": [3, 2],
+          },
         });
       }
       if (!failedRef.current) setStatus({ kind: "ready" });
@@ -339,6 +533,123 @@ export function WaterAtlasMap() {
       duration: 700,
     });
   }, [location, status.kind]);
+
+  // Commit a finished drag: reject degenerate rectangles locally, otherwise hand
+  // the ring to the workspace, which validates it server-side.
+  useEffect(() => {
+    commitDrawRef.current = (ring: number[][]) => {
+      if (!ringHasArea(ring)) {
+        setDrawError(
+          "Drag to draw a rectangle — a click alone is not an area. Drag across the map to select.",
+        );
+        return;
+      }
+      setDrawError(null);
+      void selectDrawnArea(ring).then((area) => {
+        if (area) {
+          // Return to point mode after a successful draw so the map is
+          // immediately navigable again.
+          setSelectionMode("point");
+        } else {
+          setDrawError("That area could not be analysed. Adjust the rectangle and try again.");
+        }
+      });
+    };
+  }, [selectDrawnArea, setSelectionMode]);
+
+  // Draw the committed selection ring (a drawn area or a place bounding box).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      const source = map.getSource(SELECTION_SOURCE) as GeoJSONSource | undefined;
+      if (!source) return;
+      const ring = location?.ring;
+      const features =
+        ring && ring.length >= 4
+          ? [
+              {
+                type: "Feature" as const,
+                properties: {},
+                geometry: { type: "Polygon" as const, coordinates: [ring] },
+              },
+            ]
+          : [];
+      source.setData({ type: "FeatureCollection", features });
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once("load", apply);
+  }, [location, status.kind]);
+
+  // Draw the live draft rectangle while the user is dragging.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      const source = map.getSource(DRAFT_SOURCE) as GeoJSONSource | undefined;
+      if (!source) return;
+      const features =
+        draftRing && draftRing.length >= 4
+          ? [
+              {
+                type: "Feature" as const,
+                properties: {},
+                geometry: { type: "Polygon" as const, coordinates: [draftRing] },
+              },
+            ]
+          : [];
+      source.setData({ type: "FeatureCollection", features });
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once("load", apply);
+  }, [draftRing, status.kind]);
+
+  // Render mapped water-feature outlines (OpenStreetMap) when the layer is on.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      const source = map.getSource(WATER_SOURCE) as GeoJSONSource | undefined;
+      if (!source) return;
+      const bodies = layers.water ? waterBodies.data?.bodies ?? [] : [];
+      const features = bodies
+        .filter((b) => b.coordinates.length >= 4)
+        .map((b) => ({
+          type: "Feature" as const,
+          properties: {
+            id: b.id,
+            name: b.name ?? "",
+            kind: b.kind,
+            area_km2: b.area_km2 ?? null,
+          },
+          geometry: { type: "Polygon" as const, coordinates: [b.coordinates] },
+        }));
+      source.setData({ type: "FeatureCollection", features });
+      const visibility = features.length ? "visible" : "none";
+      for (const id of [WATER_FILL, WATER_LINE]) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visibility);
+      }
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once("load", apply);
+  }, [waterBodies.data, layers.water, status.kind]);
+
+  // Crosshair cursor while the draw tool is armed, so the mode is unmistakable.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const canvas = map.getCanvas();
+    canvas.style.cursor = selectionMode === "draw" ? "crosshair" : "";
+    return () => {
+      canvas.style.cursor = "";
+    };
+  }, [selectionMode, status.kind]);
 
   // Render satellite scene footprints from real STAC metadata.
   useEffect(() => {
@@ -506,6 +817,86 @@ export function WaterAtlasMap() {
         />
       ) : (
         <>
+          {/* Selection tools. Two explicit, labelled modes so it is always clear
+              whether a click drops a point or starts drawing an area. */}
+          <div className="absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-xl border border-white/10 bg-abyss-900/90 p-1.5 shadow-float backdrop-blur">
+            <p className="px-1.5 pb-0.5 pt-1 text-[0.625rem] font-semibold uppercase tracking-wide text-ink-400">
+              Select area
+            </p>
+            <button
+              type="button"
+              aria-pressed={selectionMode === "point"}
+              onClick={() => {
+                setDrawError(null);
+                setSelectionMode("point");
+              }}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium transition",
+                selectionMode === "point"
+                  ? "bg-water-400/15 text-water-100 ring-1 ring-water-400/40"
+                  : "text-ink-200 hover:bg-white/[0.06]",
+              )}
+            >
+              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Point
+            </button>
+            <button
+              type="button"
+              aria-pressed={selectionMode === "draw"}
+              onClick={() => {
+                setDrawError(null);
+                setSelectionMode(selectionMode === "draw" ? "point" : "draw");
+              }}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium transition",
+                selectionMode === "draw"
+                  ? "bg-water-400/15 text-water-100 ring-1 ring-water-400/40"
+                  : "text-ink-200 hover:bg-white/[0.06]",
+              )}
+            >
+              <SquareDashed className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Draw an area
+            </button>
+          </div>
+
+          {selectionMode === "draw" ? (
+            <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center px-4">
+              <div className="max-w-md rounded-lg border border-water-400/40 bg-abyss-900/95 px-3 py-2 text-center shadow-float backdrop-blur">
+                <p className="text-xs font-medium text-water-100">
+                  {drawStart ? "Release to select this area" : "Drag on the map to draw a rectangle"}
+                </p>
+                <p className="mt-0.5 text-[0.6875rem] text-ink-300">
+                  The analysis runs at the centre of the area you draw.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {drawError ? (
+            <div
+              role="status"
+              className="absolute inset-x-0 top-20 z-10 flex justify-center px-4"
+            >
+              <p className="max-w-md rounded-lg border border-signal-caution/40 bg-abyss-900/95 px-3 py-2 text-center text-xs text-signal-caution shadow-float backdrop-blur">
+                {drawError}
+              </p>
+            </div>
+          ) : null}
+
+          {location?.area ? (
+            <div className="pointer-events-none absolute bottom-3 right-3 z-10 max-w-xs rounded-lg border border-water-400/30 bg-abyss-900/90 px-3 py-2 backdrop-blur">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-water-200">
+                Selected area
+              </p>
+              <p className="mt-0.5 text-xs text-ink-300">
+                {location.area.area_km2
+                  ? `${Math.round(location.area.area_km2).toLocaleString()} km² — `
+                  : ""}
+                analysed at its centre
+              </p>
+            </div>
+          ) : null}
+
           {showSceneBadge ? (
             <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-white/10 bg-abyss-900/85 px-3 py-2 backdrop-blur">
               <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-ink-300">

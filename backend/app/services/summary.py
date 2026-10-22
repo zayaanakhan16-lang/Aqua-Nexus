@@ -318,6 +318,13 @@ async def build_location_summary(
                 provider_name=power.provider.name,
                 status=ProviderStatus.OK if observed is not None else ProviderStatus.PARTIAL,
                 classification=power.provenance.classification,
+                preliminary=power.preliminary,
+                message=(
+                    "Includes NASA POWER's preliminary near-real-time segment "
+                    "(subject to revision)."
+                    if power.preliminary
+                    else None
+                ),
             )
         )
         if observed is not None and observed.points:
@@ -333,7 +340,44 @@ async def build_location_summary(
                 power_agg = aggregate_precipitation(
                     paired_power, expected_days=observed_window_len
                 )
-                if not (
+                if power.preliminary:
+                    # A provisional near-real-time segment is not comparable with
+                    # a consolidated reanalysis: NASA POWER itself marks these
+                    # values as subject to revision, and in practice they diverge
+                    # by an order of magnitude. Reporting a percentage here would
+                    # manufacture a "disagreement" that reflects the product's
+                    # provisional status rather than the location. We therefore
+                    # state the limitation instead of inventing a number.
+                    indicators.append(
+                        Indicator(
+                            key="cross_check_delta",
+                            label="Cross-source difference (ERA5 vs. MERRA-2)",
+                            value=None,
+                            unit="%",
+                            status="insufficient_data",
+                            baseline=0.0,
+                            method=(
+                                "(ERA5 total - MERRA-2 total) / MERRA-2 total * 100, "
+                                "restricted to dates where both products are consolidated"
+                            ),
+                            method_version="1.2",
+                            inputs=[
+                                "Open-Meteo ERA5",
+                                "NASA POWER MERRA-2",
+                                "NASA POWER reported sources: "
+                                + (", ".join(power.sources) or "unknown"),
+                            ],
+                            classification=DataClassification.DERIVED,
+                            limitations=[
+                                "NASA POWER served this window from its preliminary "
+                                "near-real-time segment, which is explicitly subject to "
+                                "revision. A like-for-like comparison is not available.",
+                                "The value is withheld rather than reported as a difference "
+                                "that would reflect the product's provisional status.",
+                            ],
+                        )
+                    )
+                elif not (
                     era5_agg.has_sufficient_coverage and power_agg.has_sufficient_coverage
                 ):
                     indicators.append(

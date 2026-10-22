@@ -51,6 +51,14 @@ class PrecipitationSeries(BaseModel):
     coverage: str | None = None
     missing_days: int = 0
     total: float | None = None
+    # Upstream products that contributed to this series, as reported by the
+    # provider itself (e.g. NASA POWER's ``header.sources``).
+    sources: list[str] = Field(default_factory=list)
+    # True when the provider flags some or all values as preliminary /
+    # near-real-time and therefore subject to revision.
+    preliminary: bool = False
+    # First date (inclusive) served by a preliminary segment, when known.
+    preliminary_from: date | None = None
 
 
 class PrecipitationComparison(BaseModel):

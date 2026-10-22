@@ -86,9 +86,9 @@ describe("RasterMap (non-WebGL fallback)", () => {
     const { container, rerender } = render(
       <RasterMap location={null} onSelect={vi.fn()} scenes={scenes} showScenes={false} />,
     );
-    expect(container.querySelectorAll(".border-teal-400\\/70").length).toBe(0);
+    expect(container.querySelectorAll(".aquanexus-scene-footprint").length).toBe(0);
 
     rerender(<RasterMap location={null} onSelect={vi.fn()} scenes={scenes} showScenes />);
-    expect(container.querySelectorAll(".border-teal-400\\/70").length).toBe(1);
+    expect(container.querySelectorAll(".aquanexus-scene-footprint").length).toBe(1);
   });
 });

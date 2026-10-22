@@ -21,9 +21,12 @@ import {
   studyAreaListResponseSchema,
   studyAreaSchema,
   dischargeSeriesSchema,
+  waterBodyResultSchema,
+  areaSelectionSchema,
   weatherForecastSchema,
   aiAnalysisReportSchema,
   type AIAnalysisReport,
+  type AreaSelection,
   type DischargeSeries,
   type Health,
   type LocationSummary,
@@ -36,6 +39,7 @@ import {
   type StacSearchResult,
   type StudyArea,
   type StudyAreaListResponse,
+  type WaterBodyResult,
   type WeatherForecast,
 } from "./schemas";
 
@@ -305,6 +309,36 @@ export const api = {
       `/api/v1/weather${qs({ latitude: lat, longitude: lon, days })}`,
       weatherForecastSchema,
     );
+  },
+
+  waterBodies(
+    lat: number,
+    lon: number,
+    opts: { radiusM?: number; limit?: number } = {},
+  ): Promise<WaterBodyResult> {
+    return request(
+      `/api/v1/water/bodies${qs({
+        latitude: lat,
+        longitude: lon,
+        radius_m: opts.radiusM ?? 15000,
+        limit: opts.limit ?? 25,
+      })}`,
+      waterBodyResultSchema,
+      { timeoutMs: 30000 },
+    );
+  },
+
+  selectArea(input: {
+    coordinates?: number[][] | null;
+    latitude?: number;
+    longitude?: number;
+    label?: string;
+  }): Promise<AreaSelection> {
+    return request("/api/v1/water/area", areaSelectionSchema, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
   },
 
   discharge(lat: number, lon: number, days = 14): Promise<DischargeSeries> {

@@ -76,6 +76,7 @@ def create_app() -> FastAPI:
         satellite,
         study_areas,
         system,
+        water,
     )
 
     app.include_router(system.router, prefix="/api/v1")
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(study_areas.router, prefix="/api/v1")
     app.include_router(reports.router, prefix="/api/v1")
     app.include_router(ai.router, prefix="/api/v1")
+    app.include_router(water.router, prefix="/api/v1")
 
     return app
 

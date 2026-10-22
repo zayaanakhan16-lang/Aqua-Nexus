@@ -21,6 +21,7 @@ import {
 import { ApiError, api } from "@/lib/api";
 import type {
   AIAnalysisReport,
+  AreaSelection,
   DischargeSeries,
   LocationSummary,
   MapLayerCatalog,
@@ -29,23 +30,43 @@ import type {
   PrecipitationSeries,
   ReportPayload,
   StacSearchResult,
+  WaterBodyResult,
   WeatherForecast,
 } from "@/lib/schemas";
 
-export type LayerId = "precipitation" | "discharge" | "satellite" | "places";
+export type LayerId = "precipitation" | "discharge" | "satellite" | "places" | "water";
 
 export interface LayerState {
   precipitation: boolean;
   discharge: boolean;
   satellite: boolean;
   places: boolean;
+  water: boolean;
 }
+
+/**
+ * How the user chose the current selection.
+ *
+ * - `point`   — a single coordinate (map click, search result, or coordinate entry).
+ * - `draw`    — a ring the user drew on the map ("Draw an area" mode).
+ * - `bounds`  — a bounding box derived from a resolved place.
+ *
+ * The mode is stored so the UI can show which control is active and so the map
+ * knows whether to render a drawn outline.
+ */
+export type SelectionMode = "point" | "draw" | "bounds";
 
 export interface SelectedLocation {
   latitude: number;
   longitude: number;
   label: string;
   place?: PlaceResult | null;
+  /** How this selection was made. Defaults to a single-point selection. */
+  mode?: SelectionMode;
+  /** The drawn ring, when the selection came from "Draw an area". */
+  ring?: number[][] | null;
+  /** Server-validated area metadata for a drawn selection. */
+  area?: AreaSelection | null;
 }
 
 export interface SliceState<T> {
@@ -70,6 +91,8 @@ interface WorkspaceValue {
   discharge: SliceState<DischargeSeries>;
   scenes: SliceState<StacSearchResult>;
   ai: SliceState<AIAnalysisReport>;
+  /** Mapped water features near the selected location (OpenStreetMap). */
+  waterBodies: SliceState<WaterBodyResult>;
   /** Global raster layer catalog (NASA GIBS), loaded once per session. */
   mapLayers: SliceState<MapLayerCatalog>;
   /** The raster layer currently drawn over the basemap, or null for none. */
@@ -77,8 +100,13 @@ interface WorkspaceValue {
   /** Requested raster date (ISO) or null for "most recent available". */
   rasterLayerDate: string | null;
   rasterOpacity: number;
+  /** Active selection tool. "draw" arms the map for drawing a ring. */
+  selectionMode: SelectionMode;
   selectLocation: (loc: SelectedLocation) => void;
   clearLocation: () => void;
+  setSelectionMode: (mode: SelectionMode) => void;
+  /** Validate a drawn ring server-side and make it the active selection. */
+  selectDrawnArea: (ring: number[][], label?: string) => Promise<AreaSelection | null>;
   toggleLayer: (id: LayerId) => void;
   setWindowDays: (days: number) => void;
   setActiveRasterLayer: (id: string | null) => void;
@@ -96,6 +124,7 @@ const DEFAULT_Layers: LayerState = {
   discharge: true,
   satellite: false,
   places: true,
+  water: false,
 };
 
 function describeError(error: unknown): { message: string; code: string | null } {
@@ -125,6 +154,9 @@ export function WorkspaceProvider({
   const [weather, setWeather] = useState<SliceState<WeatherForecast>>(emptySlice());
   const [discharge, setDischarge] = useState<SliceState<DischargeSeries>>(emptySlice());
   const [scenes, setScenes] = useState<SliceState<StacSearchResult>>(emptySlice());
+  // Mapped water features (OpenStreetMap). Loaded with the location so the
+  // "Water features" layer can render immediately when toggled on.
+  const [waterBodies, setWaterBodies] = useState<SliceState<WaterBodyResult>>(emptySlice());
   // AI analysis is generated on demand (it is comparatively expensive), so it
   // is not part of the automatic location load.
   const [ai, setAi] = useState<SliceState<AIAnalysisReport>>(emptySlice());
@@ -133,6 +165,7 @@ export function WorkspaceProvider({
   const [activeRasterLayerId, setActiveRasterLayerId] = useState<string | null>(null);
   const [rasterLayerDate, setRasterLayerDateState] = useState<string | null>(null);
   const [rasterOpacity, setRasterOpacityState] = useState(0.75);
+  const [selectionMode, setSelectionModeState] = useState<SelectionMode>("point");
 
   // Monotonic token so a slow response from an old location cannot overwrite a
   // newer one.
@@ -149,6 +182,7 @@ export function WorkspaceProvider({
       setWeather({ data: null, loading: true, error: null, errorCode: null });
       setDischarge({ data: null, loading: true, error: null, errorCode: null });
       setScenes({ data: null, loading: true, error: null, errorCode: null });
+      setWaterBodies({ data: null, loading: true, error: null, errorCode: null });
       // A new location invalidates any previous AI analysis.
       setAi(emptySlice());
 
@@ -159,6 +193,7 @@ export function WorkspaceProvider({
         weatherRes,
         dischargeRes,
         scenesRes,
+        waterRes,
       ] = await Promise.allSettled([
         api.summary(latitude, longitude, { label, windowDays: days }),
         api.comparison(latitude, longitude, days, 1),
@@ -166,6 +201,7 @@ export function WorkspaceProvider({
         api.weather(latitude, longitude, 7),
         api.discharge(latitude, longitude, 14),
         api.scenes(latitude, longitude, { days: 30, limit: 12 }),
+        api.waterBodies(latitude, longitude, { radiusM: 15000, limit: 25 }),
       ]);
 
       if (token !== requestToken.current) return; // superseded
@@ -188,6 +224,7 @@ export function WorkspaceProvider({
       apply(weatherRes, setWeather);
       apply(dischargeRes, setDischarge);
       apply(scenesRes, setScenes);
+      apply(waterRes, setWaterBodies);
     },
     [],
   );
@@ -213,6 +250,9 @@ export function WorkspaceProvider({
   // user has not opened.
 
   const selectLocation = useCallback((loc: SelectedLocation) => {
+    // Any explicit location selection returns the tool to the default point
+    // mode, so a stale "draw" state cannot silently swallow the next map click.
+    setSelectionModeState((mode) => (loc.mode === "draw" ? mode : "point"));
     setLocation(loc);
   }, []);
 
@@ -225,8 +265,46 @@ export function WorkspaceProvider({
     setWeather(emptySlice());
     setDischarge(emptySlice());
     setScenes(emptySlice());
+    setWaterBodies(emptySlice());
     setAi(emptySlice());
   }, []);
+
+  const setSelectionMode = useCallback((mode: SelectionMode) => {
+    setSelectionModeState(mode);
+  }, []);
+
+  /**
+   * Validate a user-drawn ring against the backend and adopt it as the active
+   * selection. The backend returns the analysis point (the ring centroid) and a
+   * plain statement of how much of the drawn area the analysis actually covers,
+   * which is stored on the location so panels can show it.
+   */
+  const selectDrawnArea = useCallback(
+    async (ring: number[][], label?: string): Promise<AreaSelection | null> => {
+      try {
+        const area = await api.selectArea({ coordinates: ring, label });
+        setLocation({
+          latitude: area.analysis_point.latitude,
+          longitude: area.analysis_point.longitude,
+          label:
+            label ??
+            `Drawn area (${area.area_km2 ? `${Math.round(area.area_km2).toLocaleString()} km²` : "custom"})`,
+          place: null,
+          mode: "draw",
+          ring: area.coordinates,
+          area,
+        });
+        return area;
+      } catch (error) {
+        // Surface the validation message on the water slice so the panel can
+        // show why the drawn area was rejected, rather than failing silently.
+        const { message, code } = describeError(error);
+        setWaterBodies((prev) => ({ ...prev, error: message, errorCode: code }));
+        return null;
+      }
+    },
+    [],
+  );
 
   const toggleLayer = useCallback((id: LayerId) => {
     setLayers((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -281,12 +359,16 @@ export function WorkspaceProvider({
       discharge,
       scenes,
       ai,
+      waterBodies,
       mapLayers,
       activeRasterLayerId,
       rasterLayerDate,
       rasterOpacity,
+      selectionMode,
       selectLocation,
       clearLocation,
+      setSelectionMode,
+      selectDrawnArea,
       toggleLayer,
       setWindowDays,
       setActiveRasterLayer,
@@ -307,12 +389,16 @@ export function WorkspaceProvider({
       discharge,
       scenes,
       ai,
+      waterBodies,
       mapLayers,
       activeRasterLayerId,
       rasterLayerDate,
       rasterOpacity,
+      selectionMode,
       selectLocation,
       clearLocation,
+      setSelectionMode,
+      selectDrawnArea,
       toggleLayer,
       setWindowDays,
       setActiveRasterLayer,

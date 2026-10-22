@@ -131,9 +131,37 @@ CDSE_STAC = ProviderMetadata(
     latency_note="New acquisitions appear within hours to days.",
     coverage_note="Global land and coastal waters (Sentinel-2 coverage).",
     limitations=[
-        "Catalogue search returns scene metadata, not analysis-ready imagery.",
+        "Catalogue search returns scene metadata; the imagery shown is the "
+        "provider's rendered preview, not a full-resolution analytical product.",
         "Optical imagery is cloud-affected during overcast periods.",
-        "Water-body classification and change detection are not yet implemented.",
+        "AquaNexus displays imagery but does not run its own water-body "
+        "classification or change detection on the pixels.",
+    ],
+)
+
+# --- Mapped water features (OpenStreetMap / Overpass) ---
+OSM_OVERPASS = ProviderMetadata(
+    id="osm_overpass",
+    name="OpenStreetMap water features",
+    product="OpenStreetMap via the Overpass API",
+    version="Overpass API v0.7.62",
+    url="https://overpass-api.de/",
+    attribution="© OpenStreetMap contributors (ODbL)",
+    license="Open Database License (ODbL) — attribution and share-alike",
+    classification=DataClassification.OBSERVATION,
+    spatial_resolution="Contributor-mapped vector geometry",
+    temporal_resolution="Continuous; varies by feature and region",
+    units="vector polygon geometry",
+    latency_note="Reflects the current state of the OpenStreetMap database.",
+    coverage_note=(
+        "Global, but density and completeness follow contributor activity, so "
+        "some regions are sparsely mapped."
+    ),
+    limitations=[
+        "This is mapping data, not a hydrological survey or a water measurement.",
+        "A feature being absent from OSM does not mean water is absent there.",
+        "Boundaries are as drawn by contributors and may be approximate.",
+        "Drainage, canals and ephemeral water are inconsistently tagged.",
     ],
 )
 

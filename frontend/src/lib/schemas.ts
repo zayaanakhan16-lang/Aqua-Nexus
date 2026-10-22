@@ -30,6 +30,7 @@ export const providerReportSchema = z.object({
   status: providerStatusSchema,
   message: z.string().nullable().optional(),
   classification: dataClassificationSchema.nullable().optional(),
+  preliminary: z.boolean().default(false),
 });
 
 export const providerMetadataSchema = z.object({
@@ -108,6 +109,9 @@ export const precipitationSeriesSchema = z.object({
   coverage: z.string().nullable().optional(),
   missing_days: z.number().default(0),
   total: z.number().nullable().optional(),
+  sources: z.array(z.string()).default([]),
+  preliminary: z.boolean().default(false),
+  preliminary_from: z.string().nullable().optional(),
 });
 
 export const precipitationComparisonSchema = z.object({
@@ -168,6 +172,13 @@ export const apiErrorSchema = z.object({
   }),
 });
 
+export const boundingBoxSchema = z.object({
+  west: z.number(),
+  south: z.number(),
+  east: z.number(),
+  north: z.number(),
+});
+
 export const stacItemSchema = z.object({
   id: z.string(),
   collection: z.string(),
@@ -192,6 +203,36 @@ export const stacSearchResultSchema = z.object({
   items: z.array(stacItemSchema),
   provider: providerReportSchema,
   note: z.string(),
+});
+
+export const waterBodySchema = z.object({
+  id: z.string(),
+  name: z.string().nullable().optional(),
+  kind: z.string(),
+  coordinates: z.array(z.array(z.number())),
+  bbox: boundingBoxSchema,
+  area_km2: z.number().nullable().optional(),
+  tags: z.record(z.string()).default({}),
+  source_id: z.string(),
+});
+
+export const waterBodyResultSchema = z.object({
+  location: geoPointSchema,
+  radius_m: z.number(),
+  count: z.number(),
+  bodies: z.array(waterBodySchema).default([]),
+  provider: providerReportSchema,
+  note: z.string(),
+});
+
+export const areaSelectionSchema = z.object({
+  bbox: boundingBoxSchema,
+  coordinates: z.array(z.array(z.number())).default([]),
+  area_km2: z.number().nullable().optional(),
+  analysis_point: geoPointSchema,
+  coverage: z.enum(["full_area", "bounding_box", "point_only"]),
+  coverage_note: z.string(),
+  label: z.string().nullable().optional(),
 });
 
 export const weatherCurrentSchema = z.object({
@@ -459,6 +500,10 @@ export type AIEvidencePackage = z.infer<typeof aiEvidencePackageSchema>;
 export type AINarrative = z.infer<typeof aiNarrativeSchema>;
 export type AIAnalysisReport = z.infer<typeof aiAnalysisReportSchema>;
 export type LegendStop = z.infer<typeof legendStopSchema>;
+export type BoundingBox = z.infer<typeof boundingBoxSchema>;
+export type WaterBody = z.infer<typeof waterBodySchema>;
+export type WaterBodyResult = z.infer<typeof waterBodyResultSchema>;
+export type AreaSelection = z.infer<typeof areaSelectionSchema>;
 export type MapLayer = z.infer<typeof mapLayerSchema>;
 export type MapLayerCatalog = z.infer<typeof mapLayerCatalogSchema>;
 export type ReportMetric = z.infer<typeof reportMetricSchema>;

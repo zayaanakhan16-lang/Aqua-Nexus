@@ -439,12 +439,13 @@ export function RasterMap({
           ))
         : null}
 
-      {/* Satellite scene footprints from real STAC bounding boxes. */}
+      {/* Satellite scene footprints from real STAC bounding boxes. Muted and
+          dashed so they read as reference metadata, not an active selection. */}
       {sceneBoxes.map((box) => (
         <div
           key={box.id}
           aria-hidden
-          className="pointer-events-none absolute border border-teal-400/70 bg-teal-400/[0.06]"
+          className="aquanexus-scene-footprint pointer-events-none absolute border border-dashed border-ink-300/70 bg-ink-300/[0.05]"
           style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
         />
       ))}

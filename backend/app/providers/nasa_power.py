@@ -18,6 +18,13 @@ PROVIDER = catalog.NASA_POWER
 FILL_VALUE = -999.0
 MAX_DAYS = 366 * 5
 
+# NASA POWER reports its contributing upstream products in ``header.sources``.
+# "GEOSIT" marks the preliminary, near-real-time segment, which is explicitly
+# subject to revision and is known to disagree strongly with the consolidated
+# MERRA-2 product. Series that include it are flagged so downstream comparisons
+# never treat provisional values as final.
+PRELIMINARY_SOURCES = {"GEOSIT"}
+
 
 async def fetch_precipitation(point: GeoPoint, *, start: date, end: date) -> PrecipitationSeries:
     """Daily corrected precipitation (PRECTOTCORR) from MERRA-2."""
@@ -52,6 +59,10 @@ async def fetch_precipitation(point: GeoPoint, *, start: date, end: date) -> Pre
     if not series:
         raise ProviderUnavailableError("NASA POWER returned no precipitation values.")
 
+    header = payload.get("header") or {}
+    sources = [str(s) for s in (header.get("sources") or [])]
+    preliminary = bool(PRELIMINARY_SOURCES & set(sources))
+
     points: list[TimeSeriesPoint] = []
     missing = 0
     for stamp, value in sorted(series.items()):
@@ -72,6 +83,15 @@ async def fetch_precipitation(point: GeoPoint, *, start: date, end: date) -> Pre
     if not points:
         raise ProviderUnavailableError("NASA POWER returned no parseable dates.")
 
+    notes = ["Independent reanalysis cross-check; not a gauge record."]
+    if preliminary:
+        notes.append(
+            "This window includes NASA POWER's preliminary near-real-time "
+            f"segment ({', '.join(sorted(PRELIMINARY_SOURCES & set(sources)))}), "
+            "which is subject to revision and can differ substantially from the "
+            "consolidated MERRA-2 product."
+        )
+
     return PrecipitationSeries(
         location=point,
         start_date=points[0].timestamp.date(),
@@ -86,10 +106,12 @@ async def fetch_precipitation(point: GeoPoint, *, start: date, end: date) -> Pre
             observed_at=points[-1].timestamp,
             method="NASA POWER PRECTOTCORR (MERRA-2) daily precipitation",
             method_version="1.0",
-            notes=["Independent reanalysis cross-check; not a gauge record."],
+            notes=notes,
         ),
         provider=PROVIDER,
         coverage="Global, 1981 to near-present",
         missing_days=missing,
         total=sum(p.value for p in points if p.value is not None),
+        sources=sources,
+        preliminary=preliminary,
     )
