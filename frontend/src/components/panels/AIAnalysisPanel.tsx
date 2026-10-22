@@ -262,6 +262,7 @@ export function AIAnalysisPanel({
 
             <p className="text-[0.6875rem] text-ink-500">
               Generated {formatDateTime(report.evidence.generated_at)}
+              {report.status === "ok" ? ` · ${report.provider}` : ""}
               {report.model ? ` · model ${report.model}` : ""}
             </p>
           </>

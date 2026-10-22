@@ -348,7 +348,7 @@ async def analyze_location(
         # nothing will invent plausible-sounding context.
         return AIAnalysisReport(
             status="insufficient_evidence",
-            provider=ai_provider.PROVIDER_NAME,
+            provider=ai_provider.provider_name(),
             model=None,
             evidence=package,
             message=(
@@ -362,7 +362,7 @@ async def analyze_location(
     if not ai_provider.is_configured():
         return AIAnalysisReport(
             status="unconfigured",
-            provider=ai_provider.PROVIDER_NAME,
+            provider=ai_provider.provider_name(),
             model=None,
             evidence=package,
             message=(
@@ -382,8 +382,8 @@ async def analyze_location(
     except AquaNexusError as exc:
         return AIAnalysisReport(
             status="unavailable",
-            provider=ai_provider.PROVIDER_NAME,
-            model=settings.ai_model,
+            provider=ai_provider.provider_name(),
+            model=settings.resolved_ai_model(),
             evidence=package,
             message=exc.message,
             min_observations=MIN_EVIDENCE_OBSERVATIONS,
@@ -391,8 +391,8 @@ async def analyze_location(
 
     return AIAnalysisReport(
         status="ok",
-        provider=ai_provider.PROVIDER_NAME,
-        model=settings.ai_model,
+        provider=ai_provider.provider_name(),
+        model=settings.resolved_ai_model(),
         evidence=package,
         narrative=_parse_narrative(raw),
         min_observations=MIN_EVIDENCE_OBSERVATIONS,

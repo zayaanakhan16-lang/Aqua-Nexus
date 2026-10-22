@@ -9,7 +9,7 @@ from __future__ import annotations
 import functools
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -89,10 +89,26 @@ class Settings(BaseSettings):
     nominatim_base_url: str = "https://nominatim.openstreetmap.org"
 
     # --- AI analysis provider (optional) ---
-    # Any OpenAI-compatible chat-completions endpoint. With no key set the AI
-    # Analysis feature reports an explicit ``unconfigured`` state; the rest of
-    # the application keeps working. The key is used server-side only and is
-    # never sent to the browser.
+    # Groq is the preferred provider. Its credential is read from the
+    # conventional, unprefixed ``GROQ_API_KEY`` / ``GROQ_MODEL`` so a standard
+    # Groq setup needs no AquaNexus-specific variable. With no key set the AI
+    # Analysis feature reports an explicit ``unconfigured`` state and the rest
+    # of the application keeps working. Keys are used server-side only and are
+    # never sent to the browser or logged.
+    # ``validation_alias`` also accepts the prefixed AQUANEXUS_GROQ_* spelling,
+    # so either convention works and the unprefixed one is tried first.
+    groq_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("GROQ_API_KEY", "AQUANEXUS_GROQ_API_KEY")
+    )
+    groq_model: str = Field(
+        default="llama-3.3-70b-versatile",
+        validation_alias=AliasChoices("GROQ_MODEL", "AQUANEXUS_GROQ_MODEL"),
+    )
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+
+    # Generic OpenAI-compatible endpoint. Used only when no Groq credential is
+    # configured, so a deployment that sets GROQ_API_KEY never silently falls
+    # back to a different provider.
     ai_api_key: str | None = None
     ai_base_url: str = "https://api.openai.com/v1"
     ai_model: str = "gpt-4o-mini"
@@ -128,9 +144,34 @@ class Settings(BaseSettings):
             # obtain short-lived S3 credentials (a bare token is not sufficient
             # for the /s3credentials exchange).
             "nasa_imerg": bool(self.earthdata_username and self.earthdata_password),
-            "ai_analysis": bool(self.ai_api_key),
+            "ai_analysis": bool(self.groq_api_key or self.ai_api_key),
         }
         return requirements.get(name, True)
+
+    def resolved_ai_provider(self) -> tuple[str, str, str] | None:
+        """Resolve the active AI provider as ``(name, base_url, model)``.
+
+        Groq wins when its credential is present; the generic OpenAI-compatible
+        endpoint is used only as an explicit alternative. Returns ``None`` when
+        neither is configured, so callers can report an honest unconfigured
+        state instead of guessing an endpoint.
+        """
+        if self.groq_api_key:
+            return ("groq", self.groq_base_url, self.groq_model)
+        if self.ai_api_key:
+            return ("openai_compatible", self.ai_base_url, self.ai_model)
+        return None
+
+    def ai_credential(self) -> str | None:
+        """The credential for the resolved AI provider, or ``None``."""
+        if self.groq_api_key:
+            return self.groq_api_key
+        return self.ai_api_key
+
+    def resolved_ai_model(self) -> str | None:
+        """Model id for the resolved AI provider, or ``None`` if unconfigured."""
+        resolved = self.resolved_ai_provider()
+        return resolved[2] if resolved else None
 
 
 @functools.lru_cache(maxsize=1)

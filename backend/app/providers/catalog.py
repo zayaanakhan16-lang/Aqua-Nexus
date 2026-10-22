@@ -187,12 +187,12 @@ GPM_IMERG_LATE_DAILY = ProviderMetadata(
 # --- AI analysis (interpretation layer, not a measurement source) ---
 AI_ANALYSIS = ProviderMetadata(
     id="ai_analysis",
-    name="AI analysis (OpenAI-compatible)",
-    product="Evidence-grounded interpretation via a configurable LLM",
+    name="AI analysis (Groq)",
+    product="Evidence-grounded interpretation via Groq (OpenAI-compatible endpoint)",
     version=None,
-    url="https://platform.openai.com/docs/api-reference/chat",
-    attribution="Model output; grounded in the providers listed alongside it",
-    license="Deployment-configured provider terms",
+    url="https://console.groq.com/docs/api-reference",
+    attribution="Model output from Groq; grounded in the providers listed alongside it",
+    license="Groq terms of service",
     classification=DataClassification.DERIVED,
     spatial_resolution="Point (study-area location)",
     temporal_resolution="On request",
@@ -202,7 +202,8 @@ AI_ANALYSIS = ProviderMetadata(
     limitations=[
         "Interpretation only — never a measurement or an official warning.",
         "Grounded in the evidence package; treat recommendations as guidance.",
-        "Requires an AI provider credential; otherwise the feature is unconfigured.",
+        "Requires a GROQ_API_KEY; otherwise the feature reports unconfigured and "
+        "a factual, non-AI summary is used instead.",
     ],
 )
 

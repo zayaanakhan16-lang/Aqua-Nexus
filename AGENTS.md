@@ -94,15 +94,25 @@ build. It is landing-only and never required for the working map.
 ## AI analysis (credential-gated, optional)
 
 - Route `api/routes/ai.py` → `services/ai_analysis.py`; provider
-  `providers/ai.py` (OpenAI-compatible chat-completions); models in
-  `models/ai.py`; catalog entry `AI_ANALYSIS` (`ai_analysis`).
+  `providers/ai.py`; models in `models/ai.py`; catalog entry `AI_ANALYSIS`
+  (`ai_analysis`).
+- **Groq is the preferred provider.** `GROQ_API_KEY` is read with its
+  conventional, unprefixed name (via `validation_alias` in `config.py`, which
+  also accepts `AQUANEXUS_GROQ_API_KEY`), with `GROQ_MODEL` defaulting to
+  `llama-3.3-70b-versatile`. Groq is reached through its OpenAI-compatible
+  endpoint `https://api.groq.com/openai/v1`. `Settings.resolved_ai_provider()`
+  is the single place that decides which endpoint/model is active.
+- A generic OpenAI-compatible endpoint (`AQUANEXUS_AI_API_KEY` / `_BASE_URL` /
+  `_MODEL`) is used **only** when `GROQ_API_KEY` is unset — setting a Groq key
+  never silently falls back to another provider. Do not add a second AI path.
 - The **evidence package is always assembled from real provider values** (the
   same location summary the workspace uses) with source, unit, period and
   classification. The **narrative** is a model's interpretation of that
   evidence — never a measurement and never an official warning.
-- With no `AQUANEXUS_AI_API_KEY`, the endpoint returns `status: "unconfigured"`
-  and still returns the evidence; the panel renders an explicit unavailable
-  state rather than inventing text. The key is server-side only.
+- With no AI credential, the endpoint returns `status: "unconfigured"` and
+  still returns the evidence; the panel renders an explicit unavailable state
+  rather than inventing text. The PDF report stays fully functional, using a
+  factual non-AI summary. The key is server-side only and is never logged.
 
 
 ## NASA GPM IMERG Late Daily V07 (credential-gated)
@@ -172,6 +182,43 @@ Resume verification pass complete. State is committed, pushed and green.
   pushed to `origin/aquanexus-build`. `main` untouched.
 - Suites green at this commit: backend `128 passed`; frontend `77 passed`
   (18 files); `tsc --noEmit` clean; ESLint clean; `next build` succeeds.
+- Report Download verified end-to-end **in a browser** (Playwright) at both
+  1440px and 390px: selecting Lagos and clicking Download produced a real
+  4-page PDF (`%PDF-` magic, correct coords, `-26.3%` rainfall anomaly,
+  sources, findings and limitations).
+- Responsive sweep: no horizontal overflow at 1440/1024/768/390/360 on `/`,
+  `/home`, `/explore`, `/study-areas`, nor on any of the 10 `/explore` tabs at
+  390px. Every page exposes exactly one `<h1>`.
+- Keyboard/a11y: skip link, logical tab order, visible focus ring on every
+  focusable element; modal traps Tab/Shift+Tab and closes on Escape.
+- Contrast: measured with a pixel-sampling auditor (`/tmp/a11y/audit.py`) that
+  takes the CSS computed colour as foreground and the real composited
+  background pixels from an element screenshot. 1909 text elements across
+  desktop 1440x900 and mobile 390x844, on `/`, `/home`, `/explore` and all
+  `/explore` tabs: **zero below WCAG AA**.
+
+### Groq support (this session)
+
+First-class Groq support was added as the preferred AI provider:
+
+- `GROQ_API_KEY` (unprefixed) and `GROQ_MODEL` are read via `validation_alias`
+  in `config.py`; `AQUANEXUS_GROQ_*` also works. Groq uses its
+  OpenAI-compatible endpoint `https://api.groq.com/openai/v1`.
+- `Settings.resolved_ai_provider()` is the single decision point. Groq wins when
+  its key is present; the generic `AQUANEXUS_AI_*` endpoint is used only when no
+  Groq key is set, so a Groq deployment never silently falls back.
+- Suites green after the change: backend `142 passed` (14 new in
+  `tests/test_ai_groq.py`); frontend `77 passed`; `tsc` clean; ESLint clean;
+  `next build` succeeds.
+- Verified live in the preview browser: `/explore` selected Nairobi and loaded
+  real indicators; the AI panel reported `unconfigured` with 19 grounded
+  evidence items; the report preview and downloaded 4-page PDF both state AI is
+  not included; toggling the IMERG precipitation layer changed 16.4% of map
+  pixels. A throwaway local mock endpoint confirmed the live HTTP path
+  (Bearer auth, evidence package, `/openai/v1/chat/completions`) and reported
+  `AI analysis (Groq) -> ok` in readiness.
+- `GROQ_API_KEY` is **not** set in this environment, so AI analysis stays in its
+  documented fallback state. Set it to enable the narrative.
 - Report Download verified end-to-end **in a browser** (Playwright) at both
   1440px and 390px: selecting Lagos and clicking Download produced a real
   4-page PDF (`%PDF-` magic, correct coords, `-26.3%` rainfall anomaly,

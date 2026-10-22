@@ -37,7 +37,7 @@ not cover a location, AquaNexus says so instead of inventing a number.
 | NASA POWER cross-check | **Complete** | Independent reanalysis corroboration, reported as a shared-valid-date delta |
 | Satellite scene search + imagery | **Complete** | Copernicus CDSE STAC (anonymous); scene metadata **and** the catalogue's rendered preview thumbnail |
 | Saved study areas (persistence) | **Complete** | JSON-file store behind `/api/v1/study-areas`; CRUD + per-area workspace |
-| Evidence-grounded AI analysis | **Complete (optional)** | Narrative over the real location summary; key-gated, reports `unconfigured` without a key and `insufficient_evidence` when the package is too thin to interpret |
+| Evidence-grounded AI analysis | **Complete (optional)** | Groq-powered narrative over the real location summary; reports `unconfigured` without `GROQ_API_KEY` and `insufficient_evidence` when the package is too thin to interpret |
 | Professional PDF report | **Complete** | Server-rendered branded PDF from the *actual* selected area, period and analysis; preview endpoint shows exactly what the PDF contains |
 | Data provenance + classification | **Complete** | Observations, reanalysis, forecasts, derived, simulation |
 | Water-body change detection | **Planned** | No verified processing pipeline yet; not claimed |
@@ -129,6 +129,13 @@ Copy `.env.example` to `backend/.env` (and/or `frontend/.env.local`). All
 variables are optional for the default experience — every credential-gated
 provider simply reports `unconfigured`. Never commit a filled `.env`.
 
+To enable AI analysis, set `GROQ_API_KEY` (and optionally `GROQ_MODEL`, default
+`llama-3.3-70b-versatile`) in `backend/.env`. AquaNexus uses Groq's
+OpenAI-compatible chat-completions endpoint; a non-Groq OpenAI-compatible
+endpoint can be configured with `AQUANEXUS_AI_*`, but it is used only when
+`GROQ_API_KEY` is unset. With no AI credential the application and the PDF
+report stay fully functional, using a factual non-AI summary instead.
+
 ---
 
 ## Judge walkthrough (2 minutes)
@@ -145,9 +152,9 @@ provider simply reports `unconfigured`. Never commit a filled `.env`.
    workspace loads that location's real analysis: overview indicators, weather,
    precipitation with a year-over-year anomaly, Water Stress, modelled
    discharge, and the Sentinel-2 scene list **with rendered previews**.
-5. Open the **AI Analysis** tab. Without a key it reports `unconfigured` and
-   still shows the grounded evidence package; with a key it produces a
-   structured, evidence-cited narrative.
+5. Open the **AI Analysis** tab. Without `GROQ_API_KEY` it reports
+   `unconfigured` and still shows the grounded evidence package; with a Groq key
+   it produces a structured, evidence-cited narrative.
 6. Open the **Report** tab. The preview shows exactly what the PDF will contain
    for this area and period. Click **Download PDF report** for the branded
    AquaNexus PDF.
