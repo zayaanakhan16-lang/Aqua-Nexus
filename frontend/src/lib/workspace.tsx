@@ -23,6 +23,7 @@ import type {
   AIAnalysisReport,
   AreaSelection,
   DischargeSeries,
+  HLSSearchResult,
   LocationSummary,
   MapLayerCatalog,
   PlaceResult,
@@ -90,6 +91,9 @@ interface WorkspaceValue {
   weather: SliceState<WeatherForecast>;
   discharge: SliceState<DischargeSeries>;
   scenes: SliceState<StacSearchResult>;
+  /** NASA HLS (Harmonized Landsat Sentinel-2) granule metadata, kept separate
+   * from the Copernicus Sentinel-2 scene list so the two are never conflated. */
+  hls: SliceState<HLSSearchResult>;
   ai: SliceState<AIAnalysisReport>;
   /** Mapped water features near the selected location (OpenStreetMap). */
   waterBodies: SliceState<WaterBodyResult>;
@@ -154,6 +158,9 @@ export function WorkspaceProvider({
   const [weather, setWeather] = useState<SliceState<WeatherForecast>>(emptySlice());
   const [discharge, setDischarge] = useState<SliceState<DischargeSeries>>(emptySlice());
   const [scenes, setScenes] = useState<SliceState<StacSearchResult>>(emptySlice());
+  // NASA HLS granule metadata (CMR STAC). Loaded alongside the Copernicus scene
+  // list but held in its own slice so the two sources stay visually distinct.
+  const [hls, setHls] = useState<SliceState<HLSSearchResult>>(emptySlice());
   // Mapped water features (OpenStreetMap). Loaded with the location so the
   // "Water features" layer can render immediately when toggled on.
   const [waterBodies, setWaterBodies] = useState<SliceState<WaterBodyResult>>(emptySlice());
@@ -182,6 +189,7 @@ export function WorkspaceProvider({
       setWeather({ data: null, loading: true, error: null, errorCode: null });
       setDischarge({ data: null, loading: true, error: null, errorCode: null });
       setScenes({ data: null, loading: true, error: null, errorCode: null });
+      setHls({ data: null, loading: true, error: null, errorCode: null });
       setWaterBodies({ data: null, loading: true, error: null, errorCode: null });
       // A new location invalidates any previous AI analysis.
       setAi(emptySlice());
@@ -193,6 +201,7 @@ export function WorkspaceProvider({
         weatherRes,
         dischargeRes,
         scenesRes,
+        hlsRes,
         waterRes,
       ] = await Promise.allSettled([
         api.summary(latitude, longitude, { label, windowDays: days }),
@@ -201,6 +210,7 @@ export function WorkspaceProvider({
         api.weather(latitude, longitude, 7),
         api.discharge(latitude, longitude, 14),
         api.scenes(latitude, longitude, { days: 30, limit: 12 }),
+        api.hlsScenes(latitude, longitude, { days: 120, limit: 8 }),
         api.waterBodies(latitude, longitude, { radiusM: 15000, limit: 25 }),
       ]);
 
@@ -224,6 +234,7 @@ export function WorkspaceProvider({
       apply(weatherRes, setWeather);
       apply(dischargeRes, setDischarge);
       apply(scenesRes, setScenes);
+      apply(hlsRes, setHls);
       apply(waterRes, setWaterBodies);
     },
     [],
@@ -358,6 +369,7 @@ export function WorkspaceProvider({
       weather,
       discharge,
       scenes,
+      hls,
       ai,
       waterBodies,
       mapLayers,
@@ -388,6 +400,7 @@ export function WorkspaceProvider({
       weather,
       discharge,
       scenes,
+      hls,
       ai,
       waterBodies,
       mapLayers,

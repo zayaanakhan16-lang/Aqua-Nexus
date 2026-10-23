@@ -205,6 +205,33 @@ export const stacSearchResultSchema = z.object({
   note: z.string(),
 });
 
+export const hlsItemSchema = z.object({
+  id: z.string(),
+  collection: z.string(),
+  data_source: z.string(),
+  acquired_at: z.string().nullable().optional(),
+  cloud_cover: z.number().nullable().optional(),
+  bbox: z.array(z.number()).nullable().optional(),
+  record_url: z.string().nullable().optional(),
+});
+
+export const hlsSearchResultSchema = z.object({
+  bbox: z.object({
+    west: z.number(),
+    south: z.number(),
+    east: z.number(),
+    north: z.number(),
+  }),
+  start: z.string(),
+  end: z.string(),
+  collection: z.string(),
+  data_source: z.string(),
+  count: z.number(),
+  items: z.array(hlsItemSchema),
+  provider: providerReportSchema,
+  note: z.string(),
+});
+
 export const waterBodySchema = z.object({
   id: z.string(),
   name: z.string().nullable().optional(),
@@ -488,6 +515,8 @@ export type Health = z.infer<typeof healthSchema>;
 export type ProviderCatalog = z.infer<typeof providerCatalogSchema>;
 export type StacItem = z.infer<typeof stacItemSchema>;
 export type StacSearchResult = z.infer<typeof stacSearchResultSchema>;
+export type HLSItem = z.infer<typeof hlsItemSchema>;
+export type HLSSearchResult = z.infer<typeof hlsSearchResultSchema>;
 export type WeatherCurrent = z.infer<typeof weatherCurrentSchema>;
 export type WeatherDay = z.infer<typeof weatherDaySchema>;
 export type WeatherForecast = z.infer<typeof weatherForecastSchema>;

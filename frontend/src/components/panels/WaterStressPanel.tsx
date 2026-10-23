@@ -13,7 +13,7 @@ import { AlertTriangle, Droplets, Info, Waves } from "lucide-react";
 
 import { ClassificationBadge, Chip, Panel, PanelHeader, Skeleton, StatusDot } from "@/components/ui/primitives";
 import { ErrorState } from "@/components/ui/states";
-import { formatNumber, indicatorStatusLabel } from "@/lib/format";
+import { formatIndicatorValue, indicatorStatusLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { SliceState } from "@/lib/workspace";
 import type { Indicator, LocationSummary } from "@/lib/schemas";
@@ -23,6 +23,7 @@ const KEYS = ["rainfall_anomaly", "wet_day_fraction", "coverage", "cross_check_d
 function IndicatorLine({ indicator }: { indicator: Indicator }) {
   const status = indicatorStatusLabel(indicator.status);
   const hasValue = indicator.value !== null && indicator.status === "ok";
+  const display = formatIndicatorValue(indicator);
   return (
     <div className="flex items-start gap-3 rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 py-3">
       <StatusDot
@@ -35,8 +36,8 @@ function IndicatorLine({ indicator }: { indicator: Indicator }) {
           <p className="shrink-0 font-mono text-sm text-ink-100">
             {hasValue ? (
               <>
-                {formatNumber(indicator.value, indicator.unit === "ratio" ? 3 : 1)}
-                <span className="ml-1 text-xs text-ink-400">{indicator.unit}</span>
+                {display.value}
+                <span className="ml-1 text-xs text-ink-400">{display.unit}</span>
               </>
             ) : (
               <span className={cn("font-sans text-xs", status.className)}>{status.label}</span>

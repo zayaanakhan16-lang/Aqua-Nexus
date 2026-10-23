@@ -18,6 +18,7 @@ import {
   providerCatalogSchema,
   reportPayloadSchema,
   stacSearchResultSchema,
+  hlsSearchResultSchema,
   studyAreaListResponseSchema,
   studyAreaSchema,
   dischargeSeriesSchema,
@@ -29,6 +30,7 @@ import {
   type AreaSelection,
   type DischargeSeries,
   type Health,
+  type HLSSearchResult,
   type LocationSummary,
   type MapLayerCatalog,
   type PlaceSearchResponse,
@@ -301,6 +303,23 @@ export const api = {
         limit: opts.limit ?? 12,
       })}`,
       stacSearchResultSchema,
+    );
+  },
+
+  hlsScenes(
+    lat: number,
+    lon: number,
+    opts: { days?: number; collection?: string; limit?: number } = {},
+  ): Promise<HLSSearchResult> {
+    return request(
+      `/api/v1/satellite/hls${qs({
+        latitude: lat,
+        longitude: lon,
+        days: opts.days ?? 30,
+        collection: opts.collection ?? "HLSS30_2.0",
+        limit: opts.limit ?? 8,
+      })}`,
+      hlsSearchResultSchema,
     );
   },
 

@@ -40,9 +40,17 @@ _DRY_KEYS = {"dry_day_count", "coverage"}
 _FLOOD_KEYS = {"river_discharge_ratio"}
 
 
-def _fmt(value: float | None, unit: str) -> str:
+# Indicator keys whose value is a 0–1 fraction but is clearer as a percentage.
+# Deliberately an allow-list, not "any ratio": ``river_discharge_ratio`` is a
+# multiplier (1.0 = normal flow) and must not be shown as 100%.
+_FRACTION_KEYS = {"wet_day_fraction"}
+
+
+def _fmt(value: float | None, unit: str, key: str | None = None) -> str:
     if value is None:
         return "unavailable"
+    if key in _FRACTION_KEYS:
+        return f"{value * 100:.1f}%"
     if unit == "%":
         return f"{value:.1f}%"
     if unit == "ratio":
@@ -82,7 +90,7 @@ def _section_from_indicators(
     usable = [i for i in chosen if i.status == "ok" and i.value is not None]
     if not chosen:
         return ReportSection(title=title, available=False, unavailable_reason=unavailable_reason)
-    items = [f"{i.label}: {_fmt(i.value, i.unit)}" for i in usable]
+    items = [f"{i.label}: {_fmt(i.value, i.unit, i.key)}" for i in usable]
     if not items:
         # The indicators exist but none could be computed — state it honestly.
         reason = next(

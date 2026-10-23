@@ -143,6 +143,28 @@ user sees actual imagery rather than only a scene identifier. It does **not**
 download or process Level-2A bands, so it makes no water-body classification or
 change-detection claim.
 
+**NASA HLS (Harmonized Landsat Sentinel-2)** — `nasa_hls_lpcloud`
+<https://hls.gsfc.nasa.gov/data-access-and-tools/> · <https://cmr.earthdata.nasa.gov/stac/LPCLOUD>
+
+- Classification: **satellite_estimate**
+- Product: HLSS30.020 (Sentinel-2 source) and HLSL30.020 (Landsat source), HLS v2.0
+- Resolution: **30 m harmonized** — not native 10 m Sentinel-2 or 30 m Landsat
+- Temporal: 2–3 day combined revisit (S30 + L30)
+- Coverage: global land (some high-latitude gaps)
+- Auth: **anonymous** — granule metadata is discovered through the CMR STAC API,
+  and the HLS/OPERA browse layers are public NASA GIBS tiles. No Earthdata
+  credential is required or sent.
+- Attribution: "NASA Harmonized Landsat Sentinel-2 (HLS) — LP DAAC"
+- Limitations: harmonized 30 m grid, so **not** a like-for-like replacement for
+  native Sentinel-2; optical imagery is cloud-affected; AquaNexus lists
+  catalogue metadata only and does **not** download or classify HLS pixels.
+
+The Satellite Explorer shows HLS granules in a section separate from the
+Copernicus Sentinel-2 list, labelled by source (`S30` = Sentinel-2, `L30` =
+Landsat), with a link to each real CMR record. Three public GIBS layers are also
+available: HLS S30 reflectance, HLS L30 reflectance, and OPERA Dynamic Surface
+Water Extent (DSWx-HLS).
+
 ---
 
 ## F2. Global raster map layers — NASA GIBS
@@ -165,6 +187,9 @@ one live before offering it:
 | `modis_land_surface_temp_day` | MODIS land-surface temperature (day) | °C | 1 km | daily |
 | `modis_ndvi_8day` | MODIS NDVI (greenness) | index | 250 m | 8-day composite |
 | `modis_true_color` | MODIS true colour (imagery) | RGB | 250 m | daily |
+| `hls_s30_reflectance` | HLS reflectance (Sentinel-2 source) | RGB | 30 m harmonized | daily (S2 overpass) |
+| `hls_l30_reflectance` | HLS reflectance (Landsat source) | RGB | 30 m harmonized | daily (Landsat overpass) |
+| `opera_dswx_hls` | OPERA dynamic surface water extent (HLS) | water class | 30 m | per HLS overpass |
 
 Each catalog entry carries its legend stops, `legend_note`, units, spatial and
 temporal resolution, source, attribution, `docs_url`, `max_zoom` and explicit

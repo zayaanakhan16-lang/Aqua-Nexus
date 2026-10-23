@@ -47,7 +47,7 @@ def test_unprefixed_groq_api_key_is_read(monkeypatch):
     assert settings.resolved_ai_provider() == (
         "groq",
         "https://api.groq.com/openai/v1",
-        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-120b",
     )
     assert settings.provider_configured("ai_analysis") is True
 
@@ -74,7 +74,7 @@ def test_groq_takes_precedence_over_generic_endpoint(monkeypatch):
     get_settings.cache_clear()
     resolved = get_settings().resolved_ai_provider()
     assert resolved[0] == "groq"
-    assert resolved[2] == "llama-3.3-70b-versatile"
+    assert resolved[2] == "openai/gpt-oss-120b"
     assert get_settings().ai_credential() == "gsk-test"
     assert ai_provider.provider_name() == "Groq"
 
@@ -172,6 +172,85 @@ async def test_groq_timeout_is_provider_error(monkeypatch):
     respx.post(GROQ_URL).mock(side_effect=httpx.ConnectTimeout("timed out"))
     with pytest.raises(ProviderError):
         await ai_provider.complete_json(system_prompt="s", user_payload={}, schema_hint={})
+
+
+@respx.mock
+async def test_reasoning_think_block_is_stripped_before_parsing(monkeypatch):
+    # A reasoning model (e.g. Qwen 3) may prefix the answer with a  thinking
+    # block. The JSON inside must still be extracted rather than failing.
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
+    get_settings.cache_clear()
+    content = (
+        " thinking\nWeighing the rainfall anomaly before answering.\n</think>\n"
+        '{"situation_summary": "Below-baseline rainfall."}'
+    )
+    respx.post(GROQ_URL).mock(
+        return_value=httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+    )
+    result = await ai_provider.complete_json(
+        system_prompt="s", user_payload={}, schema_hint={}
+    )
+    assert result == {"situation_summary": "Below-baseline rainfall."}
+
+
+@respx.mock
+async def test_json_fenced_answer_is_parsed(monkeypatch):
+    # A model that wraps its answer in a Markdown code fence must still work.
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
+    get_settings.cache_clear()
+    content = '```json\n{"situation_summary": "ok", "observed_conditions": []}\n```'
+    respx.post(GROQ_URL).mock(
+        return_value=httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+    )
+    result = await ai_provider.complete_json(
+        system_prompt="s", user_payload={}, schema_hint={}
+    )
+    assert result["situation_summary"] == "ok"
+
+
+@respx.mock
+async def test_json_object_mode_rejected_falls_back(monkeypatch):
+    # If the model rejects response_format=json_object, the provider retries
+    # once without it and still returns the parsed object.
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
+    get_settings.cache_clear()
+    route = respx.post(GROQ_URL).mock(
+        side_effect=[
+            httpx.Response(400, json={"error": {"message": "response_format is not supported"}}),
+            httpx.Response(
+                200, json={"choices": [{"message": {"content": '{"situation_summary": "ok"}'}}]}
+            ),
+        ]
+    )
+    result = await ai_provider.complete_json(
+        system_prompt="s", user_payload={}, schema_hint={}
+    )
+    assert result == {"situation_summary": "ok"}
+    assert route.call_count == 2
+    # The retry must not send response_format, and must not leak the credential.
+    retry_body = route.calls[1].request.content
+    assert b"response_format" not in retry_body
+    assert b"gsk-test" not in retry_body
+
+
+@respx.mock
+async def test_unknown_model_reports_actionable_error(monkeypatch):
+    # An unrecognised model id must produce a clear, non-secret message that
+    # names GROQ_MODEL instead of a bare "HTTP 400".
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
+    monkeypatch.setenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    get_settings.cache_clear()
+    respx.post(GROQ_URL).mock(
+        return_value=httpx.Response(
+            400,
+            json={"error": {"message": "The model `llama-3.3-70b-versatile` does not exist"}},
+        )
+    )
+    with pytest.raises(ProviderError) as exc:
+        await ai_provider.complete_json(system_prompt="s", user_payload={}, schema_hint={})
+    assert "GROQ_MODEL" in exc.value.message
+    assert exc.value.details.get("model") == "llama-3.3-70b-versatile"
+    assert "gsk-test" not in exc.value.message
 
 
 # --- End-to-end endpoint behaviour -----------------------------------------

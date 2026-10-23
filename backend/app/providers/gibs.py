@@ -220,6 +220,117 @@ _SPECS: tuple[GIBSSpec, ...] = (
         disclaimer="NDVI is a greenness indicator, not a drought classification.",
     ),
     GIBSSpec(
+        id="hls_s30_reflectance",
+        gibs_layer="HLS_S30_Nadir_BRDF_Adjusted_Reflectance",
+        name="NASA HLS reflectance — Sentinel-2 source (30 m)",
+        category="imagery",
+        description=(
+            "NASA Harmonized Landsat Sentinel-2 (HLS) S30 nadir BRDF-adjusted "
+            "surface reflectance, derived from Sentinel-2. Harmonized to a common "
+            "30 m grid; it is not native 10 m Sentinel-2."
+        ),
+        classification=DataClassification.SATELLITE_ESTIMATE,
+        units="surface reflectance (RGB rendering)",
+        spatial_resolution="30 m (harmonized)",
+        temporal_resolution="Daily (per Sentinel-2 overpass)",
+        tile_matrix_set="GoogleMapsCompatible_Level12",
+        tile_format="png",
+        max_zoom=12,
+        product="HLS S30 (HLSS30.020) via NASA GIBS",
+        docs_url="https://hls.gsfc.nasa.gov/data-access-and-tools/",
+        color_scale=[],
+        legend=[
+            (None, "#6b7f6b", "Land (reflectance rendering)"),
+            (None, "#1d4f8f", "Water (dark)"),
+            (None, "#ffffff", "Cloud / bright surface"),
+        ],
+        legend_note=(
+            "A reflectance rendering for context. Transparent tiles mean no "
+            "harmonized scene covers that date and area."
+        ),
+        default_opacity=0.8,
+        limitations=[
+            "HLS is harmonized to 30 m, so it is coarser than native 10 m Sentinel-2.",
+            "Optical product: cloud and haze obscure the surface.",
+            "A visual rendering, not a quantitative dataset.",
+        ],
+        disclaimer="Harmonized 30 m imagery, not native Sentinel-2 resolution.",
+    ),
+    GIBSSpec(
+        id="hls_l30_reflectance",
+        gibs_layer="HLS_L30_Nadir_BRDF_Adjusted_Reflectance",
+        name="NASA HLS reflectance — Landsat source (30 m)",
+        category="imagery",
+        description=(
+            "NASA Harmonized Landsat Sentinel-2 (HLS) L30 nadir BRDF-adjusted "
+            "surface reflectance, derived from Landsat 8/9. Added as context "
+            "alongside the Sentinel-2-sourced HLS layer."
+        ),
+        classification=DataClassification.SATELLITE_ESTIMATE,
+        units="surface reflectance (RGB rendering)",
+        spatial_resolution="30 m (harmonized)",
+        temporal_resolution="Daily (per Landsat overpass)",
+        tile_matrix_set="GoogleMapsCompatible_Level12",
+        tile_format="png",
+        max_zoom=12,
+        product="HLS L30 (HLSL30.020) via NASA GIBS",
+        docs_url="https://hls.gsfc.nasa.gov/data-access-and-tools/",
+        color_scale=[],
+        legend=[
+            (None, "#6b7f6b", "Land (reflectance rendering)"),
+            (None, "#1d4f8f", "Water (dark)"),
+            (None, "#ffffff", "Cloud / bright surface"),
+        ],
+        legend_note=(
+            "A reflectance rendering for context. Transparent tiles mean no "
+            "harmonized scene covers that date and area."
+        ),
+        default_opacity=0.8,
+        limitations=[
+            "Landsat revisits less often than Sentinel-2, so fewer dates are covered.",
+            "Optical product: cloud and haze obscure the surface.",
+            "A visual rendering, not a quantitative dataset.",
+        ],
+        disclaimer="Harmonized 30 m imagery, not native Sentinel-2 resolution.",
+    ),
+    GIBSSpec(
+        id="opera_dswx_hls",
+        gibs_layer="OPERA_L3_Dynamic_Surface_Water_Extent-HLS",
+        name="NASA OPERA dynamic surface water extent (HLS-based)",
+        category="surface_water",
+        description=(
+            "NASA OPERA L3 Dynamic Surface Water Extent (DSWx-HLS), a satellite "
+            "classification of surface water derived from HLS. An observation of "
+            "water extent, not a flood forecast."
+        ),
+        classification=DataClassification.SATELLITE_ESTIMATE,
+        units="surface-water classification",
+        spatial_resolution="30 m (HLS)",
+        temporal_resolution="Per HLS overpass",
+        tile_matrix_set="GoogleMapsCompatible_Level12",
+        tile_format="png",
+        max_zoom=12,
+        product="OPERA_L3_DSWx-HLS via NASA GIBS",
+        docs_url="https://gibs.earthdata.nasa.gov/",
+        color_scale=["#afafaf", "#b4d5f4", "#00ffff", "#0000ff"],
+        legend=[
+            (None, "#afafaf", "Not water"),
+            (None, "#b4d5f4", "Partial surface water"),
+            (None, "#00ffff", "Water"),
+            (None, "#0000ff", "Water (secondary class)"),
+        ],
+        legend_note=(
+            "Colours mark NASA OPERA's surface-water classification. It shows "
+            "water observed from space and does not by itself prove a damaging flood."
+        ),
+        limitations=[
+            "Satellite classification of water extent, not a flood forecast.",
+            "Optical product: cloud, terrain shadow and night limit coverage.",
+            "Detected water is not by itself proof of a damaging flood.",
+        ],
+        disclaimer="An observation of surface water, not a validated flood forecast.",
+    ),
+    GIBSSpec(
         id="modis_true_color",
         gibs_layer="MODIS_Terra_CorrectedReflectance_TrueColor",
         name="True-colour imagery (context)",

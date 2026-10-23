@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { classificationStyle, formatCoord, formatNumber, shiftDateYears } from "@/lib/format";
+import { classificationStyle, formatCoord, formatIndicatorValue, formatNumber, shiftDateYears } from "@/lib/format";
 
 describe("formatNumber", () => {
   it("formats with fixed digits", () => {
@@ -17,6 +17,38 @@ describe("formatNumber", () => {
 
   it("renders an em dash for NaN", () => {
     expect(formatNumber(Number.NaN)).toBe("—");
+  });
+});
+
+describe("formatIndicatorValue", () => {
+  it("renders the wet-day fraction as a percentage without changing the value", () => {
+    expect(formatIndicatorValue({ key: "wet_day_fraction", value: 0.633, unit: "ratio" })).toEqual({
+      value: "63.3",
+      unit: "%",
+    });
+  });
+
+  it("never turns a multiplier ratio into a percentage", () => {
+    // 1.0 means normal river flow; 100% would be wrong.
+    expect(
+      formatIndicatorValue({ key: "river_discharge_ratio", value: 1.0, unit: "ratio" }),
+    ).toEqual({ value: "1.00", unit: "ratio" });
+  });
+
+  it("leaves percentage and other units untouched", () => {
+    expect(
+      formatIndicatorValue({ key: "rainfall_anomaly", value: -10.5, unit: "%" }),
+    ).toEqual({ value: "-10.5", unit: "%" });
+    expect(
+      formatIndicatorValue({ key: "coverage", value: 93.3, unit: "%" }),
+    ).toEqual({ value: "93.3", unit: "%" });
+  });
+
+  it("renders an em dash for a missing value", () => {
+    expect(formatIndicatorValue({ key: "wet_day_fraction", value: null, unit: "ratio" })).toEqual({
+      value: "—",
+      unit: "ratio",
+    });
   });
 });
 

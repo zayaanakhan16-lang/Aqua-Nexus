@@ -21,7 +21,7 @@ import {
 
 import type { Indicator, LocationSummary } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
-import { classificationStyle, formatCoord, formatDateTime, formatNumber, indicatorStatusLabel } from "@/lib/format";
+import { classificationStyle, formatCoord, formatDateTime, formatIndicatorValue, indicatorStatusLabel } from "@/lib/format";
 import { ClassificationBadge, Chip, Panel, PanelHeader, Skeleton, StatusDot } from "@/components/ui/primitives";
 import { ErrorState, UnavailableNotice } from "@/components/ui/states";
 import { useWorkspace, type SliceState } from "@/lib/workspace";
@@ -57,6 +57,7 @@ function IndicatorRow({ indicator }: { indicator: Indicator }) {
   const panelId = useId();
   const status = indicatorStatusLabel(indicator.status);
   const hasValue = indicator.value !== null && indicator.status === "ok";
+  const display = formatIndicatorValue(indicator);
 
   return (
     <div className="border-b border-white/[0.05] last:border-b-0">
@@ -68,8 +69,8 @@ function IndicatorRow({ indicator }: { indicator: Indicator }) {
             <p className="shrink-0 font-mono text-sm text-ink-100">
               {hasValue ? (
                 <>
-                  {formatNumber(indicator.value, indicator.unit === "ratio" ? 2 : 1)}
-                  <span className="ml-1 text-xs text-ink-400">{indicator.unit}</span>
+                  {display.value}
+                  <span className="ml-1 text-xs text-ink-400">{display.unit}</span>
                 </>
               ) : (
                 <span className={cn("text-xs font-sans", status.className)}>

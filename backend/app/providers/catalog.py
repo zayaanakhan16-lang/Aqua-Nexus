@@ -139,6 +139,33 @@ CDSE_STAC = ProviderMetadata(
     ],
 )
 
+# --- NASA Harmonized Landsat Sentinel-2 (HLS) ---
+HLS_LPCLOUD = ProviderMetadata(
+    id="nasa_hls_lpcloud",
+    name="NASA HLS (LP DAAC / CMR STAC)",
+    product="Harmonized Landsat Sentinel-2 (HLSS30.020 / HLSL30.020)",
+    version="HLS v2.0",
+    url="https://hls.gsfc.nasa.gov/data-access-and-tools/",
+    attribution="NASA Harmonized Landsat Sentinel-2 (HLS) — LP DAAC",
+    license="NASA Earth science data: free and open, attribution required",
+    classification=DataClassification.SATELLITE_ESTIMATE,
+    spatial_resolution="30 m (harmonized)",
+    temporal_resolution="2-3 day combined revisit (S30 + L30)",
+    units="scene metadata",
+    latency_note="New granules appear in CMR within hours to days of acquisition.",
+    coverage_note="Global land (excluding high latitudes in some periods).",
+    limitations=[
+        "HLS is harmonized to a common 30 m grid; it is not native 10 m "
+        "Sentinel-2 or 30 m Landsat, so it is not a like-for-like replacement.",
+        "Discovery uses the anonymous CMR STAC metadata API; downloading the "
+        "pixel data would require an Earthdata Login token, which AquaNexus "
+        "does not use for HLS here.",
+        "Optical imagery is cloud-affected during overcast periods.",
+        "AquaNexus lists HLS catalogue metadata only; it does not run its own "
+        "water-body classification or change detection on HLS pixels.",
+    ],
+)
+
 # --- Mapped water features (OpenStreetMap / Overpass) ---
 OSM_OVERPASS = ProviderMetadata(
     id="osm_overpass",
@@ -242,6 +269,7 @@ ALL_PROVIDERS = [
     OPEN_METEO_CLIMATE,
     OPEN_METEO_FLOOD,
     CDSE_STAC,
+    HLS_LPCLOUD,
     NASA_POWER,
     GPM_IMERG_LATE_DAILY,
     AI_ANALYSIS,

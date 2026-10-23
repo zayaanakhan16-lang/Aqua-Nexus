@@ -9,6 +9,42 @@ export function formatNumber(value: number | null | undefined, digits = 1): stri
   });
 }
 
+/**
+ * Indicators whose value is a 0–1 fraction but reads far better as a percentage.
+ * The stored value and its `ratio` unit are unchanged on the wire; only the
+ * display is converted. Deliberately a fixed allow-list rather than "any ratio",
+ * because ratios such as `river_discharge_ratio` are multipliers (1.0 = normal
+ * flow) and must never be rendered as 100%.
+ */
+const FRACTION_INDICATOR_KEYS = new Set(["wet_day_fraction"]);
+
+export interface IndicatorDisplay {
+  value: string;
+  unit: string;
+}
+
+/**
+ * Format an indicator for display, converting fraction indicators to percent.
+ * Returns the original unit for every other indicator so callers can keep a
+ * single rendering path.
+ */
+export function formatIndicatorValue(indicator: {
+  key: string;
+  value?: number | null;
+  unit: string;
+}): IndicatorDisplay {
+  if (indicator.value === null || indicator.value === undefined || Number.isNaN(indicator.value)) {
+    return { value: "—", unit: indicator.unit };
+  }
+  if (FRACTION_INDICATOR_KEYS.has(indicator.key)) {
+    return { value: formatNumber(indicator.value * 100, 1), unit: "%" };
+  }
+  return {
+    value: formatNumber(indicator.value, indicator.unit === "ratio" ? 2 : 1),
+    unit: indicator.unit,
+  };
+}
+
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);

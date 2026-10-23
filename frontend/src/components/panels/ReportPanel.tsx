@@ -28,7 +28,7 @@ import {
 import { ApiError, api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/lib/workspace";
-import { formatDateTime, formatNumber } from "@/lib/format";
+import { formatDateTime, formatIndicatorValue } from "@/lib/format";
 import type { ReportPayload, ReportSection } from "@/lib/schemas";
 import { Chip, ClassificationBadge, Skeleton } from "@/components/ui/primitives";
 import { EmptyState, ErrorState, UnavailableNotice } from "@/components/ui/states";
@@ -247,7 +247,9 @@ export function ReportPanel({ className }: { className?: string }) {
         <div className="panel p-4">
           <p className="label-caps">Key metrics</p>
           <dl className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {preview.metrics.map((metric) => (
+            {preview.metrics.map((metric) => {
+              const display = formatIndicatorValue(metric);
+              return (
               <div
                 key={metric.key}
                 className="rounded-lg border border-white/[0.06] bg-white/[0.015] px-2.5 py-2"
@@ -255,9 +257,9 @@ export function ReportPanel({ className }: { className?: string }) {
               >
                 <dt className="truncate text-[0.625rem] text-ink-500">{metric.label}</dt>
                 <dd className="mt-0.5 font-mono text-sm text-ink-100">
-                  {formatNumber(metric.value, 1)}
+                  {display.value}
                   {metric.unit ? (
-                    <span className="ml-1 text-[0.625rem] text-ink-400">{metric.unit}</span>
+                    <span className="ml-1 text-[0.625rem] text-ink-400">{display.unit}</span>
                   ) : null}
                 </dd>
                 {metric.classification ? (
@@ -266,7 +268,8 @@ export function ReportPanel({ className }: { className?: string }) {
                   </dd>
                 ) : null}
               </div>
-            ))}
+              );
+            })}
           </dl>
         </div>
       ) : null}

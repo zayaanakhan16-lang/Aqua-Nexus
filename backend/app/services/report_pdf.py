@@ -101,9 +101,16 @@ def _styles() -> dict[str, ParagraphStyle]:
     }
 
 
-def _fmt_value(value: float | None, unit: str) -> str:
+# Indicator keys whose value is a 0–1 fraction but is clearer as a percentage
+# (mirrors the API/UI rule; ``river_discharge_ratio`` is deliberately excluded).
+_FRACTION_KEYS = {"wet_day_fraction"}
+
+
+def _fmt_value(value: float | None, unit: str, key: str | None = None) -> str:
     if value is None:
         return "unavailable"
+    if key in _FRACTION_KEYS:
+        return f"{value * 100:.1f}%"
     if unit == "%":
         return f"{value:.1f}%"
     if unit == "ratio":
@@ -293,7 +300,7 @@ def _metrics_table(payload: ReportPayload, styles) -> Table:
         rows.append(
             [
                 Paragraph(metric.label, styles["cell"]),
-                Paragraph(_fmt_value(metric.value, metric.unit), styles["cellbold"]),
+                Paragraph(_fmt_value(metric.value, metric.unit, metric.key), styles["cellbold"]),
                 Paragraph(
                     (metric.classification.value if metric.classification else "derived"),
                     styles["cell"],

@@ -36,6 +36,7 @@ not cover a location, AquaNexus says so instead of inventing a number.
 | Dry-condition indicator | **Complete** | Dry-day count and wet-day fraction; documented as threshold-dependent rainfall statistics, not a drought index |
 | NASA POWER cross-check | **Complete** | Independent reanalysis corroboration, reported as a shared-valid-date delta |
 | Satellite scene search + imagery | **Complete** | Copernicus CDSE STAC (anonymous); scene metadata **and** the catalogue's rendered preview thumbnail |
+| NASA HLS granule search | **Complete** | Harmonized Landsat Sentinel-2 (30 m) via the anonymous CMR STAC API; plus public GIBS HLS/OPERA map layers |
 | Saved study areas (persistence) | **Complete** | JSON-file store behind `/api/v1/study-areas`; CRUD + per-area workspace |
 | Evidence-grounded AI analysis | **Complete (optional)** | Groq-powered narrative over the real location summary; reports `unconfigured` without `GROQ_API_KEY` and `insufficient_evidence` when the package is too thin to interpret |
 | Professional PDF report | **Complete** | Server-rendered branded PDF from the *actual* selected area, period and analysis; preview endpoint shows exactly what the PDF contains |
@@ -129,12 +130,21 @@ Copy `.env.example` to `backend/.env` (and/or `frontend/.env.local`). All
 variables are optional for the default experience — every credential-gated
 provider simply reports `unconfigured`. Never commit a filled `.env`.
 
+The backend resolves its environment files relative to itself — in precedence
+order `<repo>/.env.local` → `<repo>/.env` → `backend/.env`, with real environment
+variables always winning — so it behaves the same whether you start it from the
+repository root or from `backend/`. Note that the **frontend's** Next.js
+`.env.local` is not read by Python: put server-side secrets in `backend/.env`.
+
 To enable AI analysis, set `GROQ_API_KEY` (and optionally `GROQ_MODEL`, default
-`llama-3.3-70b-versatile`) in `backend/.env`. AquaNexus uses Groq's
+`openai/gpt-oss-120b`) in `backend/.env`. AquaNexus uses Groq's
 OpenAI-compatible chat-completions endpoint; a non-Groq OpenAI-compatible
 endpoint can be configured with `AQUANEXUS_AI_*`, but it is used only when
 `GROQ_API_KEY` is unset. With no AI credential the application and the PDF
 report stay fully functional, using a factual non-AI summary instead.
+
+NASA HLS needs no credential: granule metadata comes from the anonymous CMR STAC
+API and the HLS/OPERA map layers are public NASA GIBS tiles.
 
 ---
 
@@ -151,7 +161,9 @@ report stay fully functional, using a factual non-AI summary instead.
 4. Search for a place (e.g. *Lagos*), or click anywhere on the map. The
    workspace loads that location's real analysis: overview indicators, weather,
    precipitation with a year-over-year anomaly, Water Stress, modelled
-   discharge, and the Sentinel-2 scene list **with rendered previews**.
+   discharge, and the Sentinel-2 scene list **with rendered previews**. The
+   Satellite tab also lists **NASA HLS** (Harmonized Landsat Sentinel-2, 30 m)
+   granules from the anonymous CMR STAC API, clearly separated from Copernicus.
 5. Open the **AI Analysis** tab. Without `GROQ_API_KEY` it reports
    `unconfigured` and still shows the grounded evidence package; with a Groq key
    it produces a structured, evidence-cited narrative.
@@ -245,10 +257,14 @@ into chat, source files or commits.
   temperature, not an air temperature or a heatwave; low NDVI is a greenness
   signal, not a drought index; detected water is an observation, not a flood
   forecast. Each layer states these limits in its own legend panel.
-- **Sentinel-2 shows catalogue imagery, not derived products.** The Satellite
-  Explorer lists real scene records and the catalogue's rendered preview
-  thumbnail. AquaNexus does **not** download or process Level-2A bands, so it
-  makes no water-body classification or change-detection claim.
+- **Satellite shows catalogue imagery, not derived products.** The Satellite
+  Explorer lists real Copernicus Sentinel-2 scene records with the catalogue's
+  rendered preview thumbnail, and separately lists NASA HLS (Harmonized Landsat
+  Sentinel-2, 30 m) granules from the anonymous CMR STAC API. HLS is harmonized
+  to a common 30 m grid and is **not** native 10 m Sentinel-2; the panel labels
+  each HLS row by source (S30 = Sentinel-2, L30 = Landsat). AquaNexus does
+  **not** download or process Level-2A bands, so it makes no water-body
+  classification or change-detection claim for either source.
 - **Provider coverage varies.** Some small islands and high latitudes have
   thinner data. The UI surfaces coverage rather than hiding gaps.
 

@@ -7,10 +7,18 @@ ever talks to this backend, never to a data provider directly.
 from __future__ import annotations
 
 import functools
+from pathlib import Path
 from typing import Literal
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Resolve the environment files from this module's location rather than the
+# current working directory. A relative ``.env`` only resolves when the process
+# is launched from ``backend/``; starting uvicorn from the repository root would
+# otherwise silently load nothing and every credential would look unset.
+_BACKEND_DIR = Path(__file__).resolve().parents[1]
+_REPO_ROOT = _BACKEND_DIR.parent
 
 
 class Settings(BaseSettings):
@@ -21,8 +29,17 @@ class Settings(BaseSettings):
     ``unconfigured`` state instead of failing the whole app.
     """
 
+    # Files are listed lowest-priority first: a later file overrides an earlier
+    # one, and real environment variables always win over every file. The
+    # repository-root entries let a single ``.env``/``.env.local`` configure the
+    # whole workspace; ``backend/.env`` remains the most specific and therefore
+    # the authoritative location for server-side secrets.
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(
+            _REPO_ROOT / ".env.local",
+            _REPO_ROOT / ".env",
+            _BACKEND_DIR / ".env",
+        ),
         env_file_encoding="utf-8",
         env_prefix="AQUANEXUS_",
         extra="ignore",
@@ -100,8 +117,14 @@ class Settings(BaseSettings):
     groq_api_key: str | None = Field(
         default=None, validation_alias=AliasChoices("GROQ_API_KEY", "AQUANEXUS_GROQ_API_KEY")
     )
+    # Default to a model Groq currently serves. ``qwen/qwen3-32b`` (the previous
+    # default) was retired on 2026-07-17 and ``llama-3.3-70b-versatile`` is an
+    # Enterprise-only listing, so either would fail with HTTP 400 on a
+    # developer-plan key. Groq's documented replacement is ``openai/gpt-oss-120b``,
+    # which is an active hosted model. Override with GROQ_MODEL for any other id
+    # the deployment's plan serves.
     groq_model: str = Field(
-        default="llama-3.3-70b-versatile",
+        default="openai/gpt-oss-120b",
         validation_alias=AliasChoices("GROQ_MODEL", "AQUANEXUS_GROQ_MODEL"),
     )
     groq_base_url: str = "https://api.groq.com/openai/v1"
@@ -123,6 +146,10 @@ class Settings(BaseSettings):
     open_meteo_geocoding_url: str = "https://geocoding-api.open-meteo.com/v1/search"
     nasa_power_url: str = "https://power.larc.nasa.gov/api/temporal/daily/point"
     cdse_stac_url: str = "https://stac.dataspace.copernicus.eu/v1/search"
+    # NASA CMR STAC (LP DAAC "LPCLOUD" provider) for Harmonized Landsat
+    # Sentinel-2 (HLS) product discovery. Metadata search is anonymous, so no
+    # Earthdata credential is required to discover HLS granules.
+    cmr_hls_stac_url: str = "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
     # NASA GIBS WMTS endpoint for real global raster map layers (key-free).
     gibs_wmts_url: str = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
     # OpenStreetMap Overpass API for mapped water-feature geometry (key-free).

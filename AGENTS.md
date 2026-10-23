@@ -99,9 +99,24 @@ build. It is landing-only and never required for the working map.
 - **Groq is the preferred provider.** `GROQ_API_KEY` is read with its
   conventional, unprefixed name (via `validation_alias` in `config.py`, which
   also accepts `AQUANEXUS_GROQ_API_KEY`), with `GROQ_MODEL` defaulting to
-  `llama-3.3-70b-versatile`. Groq is reached through its OpenAI-compatible
+  `openai/gpt-oss-120b`. Groq is reached through its OpenAI-compatible
   endpoint `https://api.groq.com/openai/v1`. `Settings.resolved_ai_provider()`
   is the single place that decides which endpoint/model is active.
+- **Model choice matters.** Both `llama-3.3-70b-versatile` (Enterprise-only)
+  and the former default `qwen/qwen3-32b` (retired 2026-07-17) now fail with
+  HTTP 400 on a developer-plan key, so the default is `openai/gpt-oss-120b` —
+  Groq's documented replacement. If a reasoning model is configured,
+  `providers/ai.py` strips a ` thinking…</think>` block and extracts the first
+  balanced JSON object before parsing, so a chain of thought cannot break the
+  response. An unrecognised model id produces an actionable error naming
+  `GROQ_MODEL` rather than a bare "HTTP 400".
+- **Environment files are resolved relative to the backend package, not the
+  working directory**, in this precedence order: `<repo>/.env.local` →
+  `<repo>/.env` → `backend/.env`, with real environment variables always
+  winning. A relative `.env` used to load only when uvicorn was started from
+  `backend/`, which silently produced `unconfigured`. The frontend's Next.js
+  `.env.local` is **never** read by Python — a key placed only there will not
+  reach AI Analysis; put server-side secrets in `backend/.env`.
 - A generic OpenAI-compatible endpoint (`AQUANEXUS_AI_API_KEY` / `_BASE_URL` /
   `_MODEL`) is used **only** when `GROQ_API_KEY` is unset — setting a Groq key
   never silently falls back to another provider. Do not add a second AI path.
@@ -114,6 +129,30 @@ build. It is landing-only and never required for the working map.
   rather than inventing text. The PDF report stays fully functional, using a
   factual non-AI summary. The key is server-side only and is never logged.
 
+
+## NASA HLS — Harmonized Landsat Sentinel-2 (key-free discovery)
+
+- Adapter: `providers/hls.py`; route `GET /api/v1/satellite/hls`; catalog entry
+  `HLS_LPCLOUD` (`nasa_hls_lpcloud`); GIBS layers in `providers/gibs.py`
+  (`hls_s30_reflectance`, `hls_l30_reflectance`, `opera_dswx_hls`).
+- **Two distinct access routes, both public:**
+  1. **Granule discovery** uses NASA's **CMR STAC** API
+     (`https://cmr.earthdata.nasa.gov/stac/LPCLOUD`, collections `HLSS30_2.0`
+     and `HLSL30_2.0`). CMR STAC metadata search is **anonymous** — no Earthdata
+     credential is required, and none is sent.
+  2. **Browse imagery** uses public NASA **GIBS** WMTS tiles
+     (`GoogleMapsCompatible_Level12`), so the layers need no token either.
+- **Do not confuse HLS with Copernicus.** HLS is harmonized to a common **30 m**
+  grid; it is not native 10 m Sentinel-2. `HLSS30` is Sentinel-2-sourced and
+  `HLSL30` is Landsat-sourced. The API returns `data_source` and the UI labels
+  each row, and the result `note` states the 30 m caveat, so the two catalogues
+  stay separate.
+- **Credential note:** `AQUANEXUS_EARTHDATA_*` are needed only for authenticated
+  GPM IMERG retrieval. They are **not** required for HLS discovery or for the
+  HLS/OPERA map layers. Do not make them mandatory for HLS.
+- **Honesty rule:** a CMR failure raises `ProviderUnavailableError` (HTTP 503)
+  and the panel shows an explicit unavailable state. HLS scenes are never
+  synthesized, and no HLS pixel download or AquaNexus-side classification runs.
 
 ## NASA GPM IMERG Late Daily V07 (credential-gated)
 

@@ -89,6 +89,7 @@ export function IntelligenceTabs({
     weather,
     discharge,
     scenes,
+    hls,
     ai,
     refresh,
     refreshAi,
@@ -217,7 +218,7 @@ export function IntelligenceTabs({
                   <DischargePanel slice={discharge} onRetry={refresh} />
                 ) : null}
                 {tab === "satellite" ? (
-                  <SatellitePanel slice={scenes} onRetry={refresh} />
+                  <SatellitePanel slice={scenes} hls={hls} onRetry={refresh} />
                 ) : null}
                 {tab === "global-layers" ? <GlobalLayersPanel /> : null}
                 {tab === "ai" ? <AIAnalysisPanel slice={ai} onGenerate={refreshAi} /> : null}
