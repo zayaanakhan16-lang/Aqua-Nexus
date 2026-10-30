@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { IntelligenceTabs } from "@/components/workspace/IntelligenceTabs";
@@ -59,5 +59,35 @@ describe("IntelligenceTabs default surface", () => {
 
     expect(selectedTab("Overview")).toBe(true);
     expect(selectedTab("Global Layers")).toBe(false);
+  });
+});
+
+describe("Investigation progress", () => {
+  it("reports completion from real slice states, not a simulated timer", async () => {
+    // Every provider call fails, so every stage settles with a failure: the
+    // strip must say so rather than claiming the investigation succeeded.
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: "x", message: "unavailable" } }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    render(
+      <WorkspaceProvider>
+        <SelectButton />
+        <IntelligenceTabs />
+      </WorkspaceProvider>,
+    );
+
+    await act(async () => {
+      screen.getByText("select").click();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/investigation complete/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/stage.* could not reach its source/i)).toBeInTheDocument();
   });
 });

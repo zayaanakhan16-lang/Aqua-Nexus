@@ -26,12 +26,12 @@
     background-image:
       radial-gradient(
         1200px 600px at 78% -10%,
-        rgba(18, 163, 201, 0.13),
+        rgba(18, 97, 160, 0.22),
         transparent 60%
       ),
       radial-gradient(
         900px 500px at 8% 108%,
-        rgba(22, 176, 146, 0.09),
+        rgba(69, 182, 232, 0.10),
         transparent 55%
       ),
       linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
@@ -41,7 +41,7 @@
   }
 
   ::selection {
-    background: rgba(44, 192, 228, 0.35);
+    background: rgba(69, 182, 232, 0.35);
   }
 
   /* Focus visibility everywhere, keyboard-first. */
@@ -127,15 +127,15 @@
     width: 10px;
     height: 10px;
     border-radius: 999px;
-    background: #eafcff;
-    border: 2px solid #12a3c9;
-    box-shadow: 0 0 0 3px rgba(18, 163, 201, 0.25), 0 4px 12px rgba(0, 0, 0, 0.6);
+    background: #eaf5fa;
+    border: 2px solid #1261a0;
+    box-shadow: 0 0 0 3px rgba(18, 97, 160, 0.3), 0 4px 12px rgba(0, 0, 0, 0.6);
   }
   .aquanexus-marker__ring {
     position: absolute;
     inset: 0;
     border-radius: 999px;
-    border: 1.5px solid rgba(99, 216, 243, 0.8);
+    border: 1.5px solid rgba(69, 182, 232, 0.85);
     animation: pulse-ring 2.4s ease-out infinite;
   }
 }

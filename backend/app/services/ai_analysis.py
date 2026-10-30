@@ -28,7 +28,9 @@ from app.providers import ai as ai_provider
 from app.providers import open_meteo
 from app.providers.stac import search_scenes
 from app.models.common import BoundingBox
+from app.services.flood_evidence import assess_flood_evidence
 from app.services.summary import build_location_summary
+from app.services.water_presence import assess_water_presence
 from datetime import datetime, timedelta, timezone
 
 logger = get_logger(__name__)
@@ -99,12 +101,14 @@ async def build_evidence_package(
         north=min(90.0, point.latitude + 0.1),
     )
 
-    summary, weather, discharge, scenes = await asyncio.gather(
+    summary, weather, discharge, scenes, presence, flood = await asyncio.gather(
         _safe(build_location_summary(point, label=label, resolved_place=resolved_place,
                                     window_days=window_days)),
         _safe(open_meteo.fetch_weather_forecast(point, days=7)),
         _safe(open_meteo.fetch_discharge_series(point, days=14)),
         _safe(search_scenes(bbox, start=start, end=end, collection="sentinel-2-l2a", limit=12)),
+        _safe(assess_water_presence(point)),
+        _safe(assess_flood_evidence(point)),
     )
 
     observations: list[EvidenceObservation] = []
@@ -210,6 +214,86 @@ async def build_evidence_package(
                     source=discharge.provider.name,
                 )
             )
+        # Split reanalysis/hindcast from forecast so the model can never present
+        # a forecast value as something already observed.
+        hist = [
+            p.discharge_m3s
+            for p in discharge.points
+            if not p.is_forecast and p.discharge_m3s is not None
+        ]
+        fc = [
+            p.discharge_m3s
+            for p in discharge.points
+            if p.is_forecast and p.discharge_m3s is not None
+        ]
+        if hist:
+            observations.append(
+                EvidenceObservation(
+                    key="modelled_discharge_reanalysis_peak",
+                    label="Modelled peak discharge, reanalysis/hindcast window (GloFAS)",
+                    value=round(max(hist), 2),
+                    unit="m3/s",
+                    classification=DataClassification.SIMULATION,
+                    period=f"{discharge.start_date} to {discharge.points[0].timestamp.date()}",
+                    source=discharge.provider.name,
+                    method=(
+                        "Peak of the modelled discharge days before today. Reanalysis/"
+                        "hindcast, not a gauge measurement."
+                    ),
+                )
+            )
+        if fc:
+            observations.append(
+                EvidenceObservation(
+                    key="modelled_discharge_forecast_peak",
+                    label="Modelled peak discharge, forecast window (GloFAS)",
+                    value=round(max(fc), 2),
+                    unit="m3/s",
+                    classification=DataClassification.SIMULATION,
+                    period=(
+                        f"{discharge.points[-1].timestamp.date()} forecast window "
+                        f"({discharge.forecast_days} days)"
+                    ),
+                    source=discharge.provider.name,
+                    method=(
+                        "Peak of the modelled forecast days from today onward. A "
+                        "hydrological signal, not a flood forecast or warning."
+                    ),
+                )
+            )
+        rel_iqr = [
+            (p.ensemble_p75_m3s - p.ensemble_p25_m3s) / p.ensemble_median_m3s
+            for p in discharge.points
+            if p.is_forecast
+            and p.ensemble_p25_m3s is not None
+            and p.ensemble_p75_m3s is not None
+            and p.ensemble_median_m3s
+            and p.ensemble_median_m3s > 0
+        ]
+        if rel_iqr:
+            rel_iqr.sort()
+            mid = len(rel_iqr) // 2
+            spread = (
+                rel_iqr[mid]
+                if len(rel_iqr) % 2
+                else (rel_iqr[mid - 1] + rel_iqr[mid]) / 2
+            )
+            observations.append(
+                EvidenceObservation(
+                    key="modelled_discharge_ensemble_spread",
+                    label="GloFAS forecast ensemble spread (relative IQR)",
+                    value=round(spread, 3),
+                    unit="ratio",
+                    classification=DataClassification.DERIVED,
+                    period=f"next {discharge.forecast_days} forecast days",
+                    source=discharge.provider.name,
+                    method=(
+                        "Median of (ensemble_p75 - ensemble_p25)/ensemble_median across "
+                        "forecast days; a measure of forecast uncertainty, not a flood "
+                        "probability."
+                    ),
+                )
+            )
     else:
         missing.append("Modelled river discharge (no coverage at this location)")
 
@@ -230,6 +314,69 @@ async def build_evidence_package(
         )
     else:
         missing.append("Satellite catalogue search")
+
+    # --- Surface-water presence (observed / mapped) ---
+    if presence is not None:
+        available.append("Surface-water presence (OSM mapping + Sentinel-2 availability)")
+        observations.append(
+            EvidenceObservation(
+                key="water_presence_status",
+                label="Surface-water presence assessment",
+                value=None,
+                unit="",
+                status="ok" if presence.status in {"water_detected", "no_water_detected"} else "insufficient_data",
+                classification=DataClassification.OBSERVATION,
+                source="OpenStreetMap water features; Copernicus Sentinel-2 catalogue",
+                method=presence.headline + " — " + presence.detail,
+            )
+        )
+        for obs in presence.observations:
+            observations.append(
+                EvidenceObservation(
+                    key=f"presence_{obs.source_id}",
+                    label=f"{obs.source_name}: {obs.product}",
+                    value=obs.value,
+                    unit=obs.unit or "",
+                    status="ok" if obs.detected is not None else "insufficient_data",
+                    classification=obs.classification,
+                    source=obs.source_name,
+                    method=obs.method,
+                )
+            )
+    else:
+        missing.append("Surface-water presence")
+
+    # --- Flood-related evidence (screening, not a forecast) ---
+    if flood is not None:
+        available.append("Flood-related evidence screening")
+        observations.append(
+            EvidenceObservation(
+                key="flood_evidence_status",
+                label="Flood-related evidence screening",
+                value=None,
+                unit="",
+                status="ok" if flood.status != "insufficient_data" else "insufficient_data",
+                classification=DataClassification.DERIVED,
+                source="AquaNexus flood screening",
+                method=flood.headline + " — " + flood.detail + " " + flood.disclaimer,
+            )
+        )
+        for item in flood.items:
+            observations.append(
+                EvidenceObservation(
+                    key=f"flood_{item.key}",
+                    label=item.label,
+                    value=item.value,
+                    unit=item.unit or "",
+                    status=item.status,
+                    classification=item.classification,
+                    period=item.period,
+                    source=item.source,
+                    method=item.method,
+                )
+            )
+    else:
+        missing.append("Flood-related evidence screening")
 
     providers = summary.providers if summary is not None else []
     return AIEvidencePackage(

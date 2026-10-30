@@ -14,17 +14,37 @@
  * place.
  */
 import { Compass, MapPin } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { formatCoord } from "@/lib/format";
-import { WorkspaceProvider, useWorkspace } from "@/lib/workspace";
+import { WorkspaceProvider, useWorkspace, type SelectedLocation } from "@/lib/workspace";
 import { Chip } from "@/components/ui/primitives";
 import { LocationSearch } from "@/components/panels/LocationSearch";
 import { LayerControls } from "@/components/panels/LayerControls";
 import { OnboardingCard } from "@/components/panels/OnboardingCard";
 import { CreateStudyAreaDialog } from "@/components/study-areas/CreateStudyAreaDialog";
-import { IntelligenceTabs } from "@/components/workspace/IntelligenceTabs";
+import { IntelligenceTabs, type WorkspaceTabId } from "@/components/workspace/IntelligenceTabs";
 import { MapPanel } from "@/components/workspace/MapPanel";
+
+/** Tab ids that a deep link (`/explore?tab=…`) may address. */
+const TAB_IDS: WorkspaceTabId[] = [
+  "overview",
+  "weather",
+  "precipitation",
+  "water-presence",
+  "water-atlas",
+  "water-stress",
+  "flood",
+  "outlook",
+  "change",
+  "discharge",
+  "satellite",
+  "global-layers",
+  "ai",
+  "report",
+  "sources",
+];
 
 function SelectionRail() {
   const { location, windowDays } = useWorkspace();
@@ -100,7 +120,13 @@ function SelectionRail() {
   );
 }
 
-function ExploreWorkspace() {
+function ExploreWorkspace({
+  initialTab,
+  tabRequest,
+}: {
+  initialTab?: WorkspaceTabId;
+  tabRequest?: WorkspaceTabId;
+}) {
   const { location } = useWorkspace();
 
   return (
@@ -118,17 +144,60 @@ function ExploreWorkspace() {
           usable before a location is chosen, and every other tab shows an
           explicit "select a location" state rather than disappearing. */}
       <IntelligenceTabs
-        initialTab={location ? "overview" : "global-layers"}
+        initialTab={initialTab ?? (location ? "overview" : "global-layers")}
+        tabRequest={tabRequest}
         className="min-h-0 shrink-0 lg:min-h-[32rem]"
       />
     </div>
   );
 }
 
+/**
+ * Reads the URL so `/explore?lat=…&lon=…&tab=…` opens a working workspace on
+ * arrival. This is what the navigation sections link to: each section points at
+ * the relevant tab, so the sidebar is real navigation rather than a dead label.
+ */
+function ExploreWithParams() {
+  // `useSearchParams` returns null outside a router context (e.g. a unit test
+  // rendering the component directly), so every read is guarded.
+  const searchParams = useSearchParams();
+
+  const initialLocation = ((): SelectedLocation | null => {
+    if (!searchParams) return null;
+    const rawLat = searchParams.get("lat");
+    const rawLon = searchParams.get("lon");
+    if (rawLat === null || rawLon === null) return null;
+    const lat = Number(rawLat);
+    const lon = Number(rawLon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+    return {
+      latitude: lat,
+      longitude: lon,
+      label: searchParams.get("label") ?? `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+      mode: "point",
+    };
+  })();
+
+  const requestedTab = searchParams?.get("tab") ?? null;
+  const initialTab =
+    requestedTab && (TAB_IDS as string[]).includes(requestedTab)
+      ? (requestedTab as WorkspaceTabId)
+      : undefined;
+
+  return (
+    <WorkspaceProvider initialLocation={initialLocation}>
+      <ExploreWorkspace initialTab={initialTab} tabRequest={initialTab} />
+    </WorkspaceProvider>
+  );
+}
+
 export default function ExploreClient() {
   return (
-    <WorkspaceProvider>
-      <ExploreWorkspace />
-    </WorkspaceProvider>
+    // useSearchParams needs a Suspense boundary so the route can still be
+    // statically prerendered.
+    <Suspense fallback={<div className="min-h-[60vh]" />}>
+      <ExploreWithParams />
+    </Suspense>
   );
 }

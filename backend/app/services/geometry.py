@@ -22,6 +22,27 @@ from app.models.water import AreaSelection
 MAX_AREA_KM2 = 400_000.0
 MAX_SPAN_DEG = 12.0
 
+EARTH_RADIUS_KM = 6371.0088
+
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance between two coordinates in kilometres."""
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    )
+    return 2 * EARTH_RADIUS_KM * math.asin(min(1.0, math.sqrt(a)))
+
+
+def nearest_vertex_km(point: GeoPoint, ring: list[list[float]]) -> float:
+    """Distance from a point to the nearest vertex of a lon/lat ring (km)."""
+    return min(
+        (haversine_km(point.latitude, point.longitude, lat, lon) for lon, lat in ring),
+        default=float("inf"),
+    )
+
 
 def _geodesic_area_km2(coords: list[list[float]]) -> float:
     """Spherical-excess area of a lon/lat ring in km^2."""

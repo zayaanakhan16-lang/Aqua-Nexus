@@ -25,9 +25,15 @@ from app.services.aggregation import aggregate_precipitation
 from app.services.ai_analysis import analyze_location
 from app.services.anomaly import compute_anomaly
 from app.services.baseline import expected_window_days
+from app.providers.water_bodies import find_water_bodies
+from app.services.change_detection import detect_change
+from app.services.flood_evidence import assess_flood_evidence
+from app.services.outlook import build_outlook
 from app.services.report_builder import build_report_payload
+from app.services.report_images import collect_report_images
 from app.services.report_pdf import render_report_pdf
 from app.services.summary import build_location_summary
+from app.services.water_presence import assess_water_presence
 
 router = APIRouter(tags=["reports"])
 
@@ -118,6 +124,37 @@ async def _collect_analysis(point: GeoPoint, *, window_days: int, include_ai: bo
         except Exception:  # noqa: BLE001
             ai_report = None
 
+    # --- Local water-intelligence modules (each independently defensive) ---
+    water_presence = None
+    try:
+        water_presence = await assess_water_presence(point)
+    except Exception:  # noqa: BLE001
+        water_presence = None
+
+    water_bodies = None
+    try:
+        water_bodies = await find_water_bodies(point, radius_m=15_000, limit=15)
+    except Exception:  # noqa: BLE001
+        water_bodies = None
+
+    flood_evidence = None
+    try:
+        flood_evidence = await assess_flood_evidence(point)
+    except Exception:  # noqa: BLE001
+        flood_evidence = None
+
+    change_detection = None
+    try:
+        change_detection = await detect_change(point, search_days=180)
+    except Exception:  # noqa: BLE001
+        change_detection = None
+
+    outlook = None
+    try:
+        outlook = await build_outlook(point)
+    except Exception:  # noqa: BLE001
+        outlook = None
+
     return {
         "summary": summary,
         "comparison": comparison,
@@ -125,7 +162,55 @@ async def _collect_analysis(point: GeoPoint, *, window_days: int, include_ai: bo
         "discharge": discharge,
         "scenes": scenes,
         "ai_report": ai_report,
+        "water_presence": water_presence,
+        "water_bodies": water_bodies,
+        "flood_evidence": flood_evidence,
+        "change_detection": change_detection,
+        "outlook": outlook,
     }
+
+
+def _image_candidates(scenes, change_detection) -> list[dict]:
+    """Build report-image candidates from real catalogue previews.
+
+    Sentinel-2 scene previews are used (they carry a provider-rendered thumbnail);
+    the change-detection earlier/later scenes are preferred so the report shows
+    the comparison the analysis is built on.
+    """
+    candidates: list[dict] = []
+    seen: set[str] = set()
+
+    def add(role: str, scene) -> None:
+        url = getattr(scene, "thumbnail", None)
+        if not url or url in seen:
+            return
+        seen.add(url)
+        acquired = getattr(scene, "acquired_at", None)
+        candidates.append(
+            {
+                "url": url,
+                "title": f"Sentinel-2 {role} preview",
+                "collection": getattr(scene, "collection", "") or "",
+                "captured_at": acquired.date().isoformat() if acquired else None,
+                "resolution": "native 10 m (Sentinel-2 L2A)",
+                "note": (
+                    "Provider-rendered catalogue preview. Not an AquaNexus "
+                    "surface-water classification."
+                ),
+            }
+        )
+
+    if change_detection is not None:
+        if change_detection.earlier is not None:
+            add("earlier", change_detection.earlier)
+        if change_detection.later is not None:
+            add("later", change_detection.later)
+    if scenes is not None and getattr(scenes, "items", None):
+        for item in scenes.items:
+            add("scene", item)
+            if len(candidates) >= 4:
+                break
+    return candidates
 
 
 @router.get(
@@ -142,11 +227,15 @@ async def report_preview(
 ) -> ReportPayload:
     point = GeoPoint(latitude=latitude, longitude=longitude)
     analysis = await _collect_analysis(point, window_days=window_days, include_ai=include_ai)
+    images, _blobs = await collect_report_images(
+        _image_candidates(analysis.get("scenes"), analysis.get("change_detection"))
+    )
     return await build_report_payload(
         point,
         name=name,
         window_days=window_days,
         include_ai=include_ai,
+        images=images,
         **analysis,
     )
 
@@ -163,15 +252,19 @@ async def generate_report(payload: ReportRequest) -> StreamingResponse:
     analysis = await _collect_analysis(
         point, window_days=payload.window_days, include_ai=payload.include_ai
     )
+    images, image_blobs = await collect_report_images(
+        _image_candidates(analysis.get("scenes"), analysis.get("change_detection"))
+    )
     report = await build_report_payload(
         point,
         name=payload.name,
         label=payload.label,
         window_days=payload.window_days,
         include_ai=payload.include_ai,
+        images=images,
         **analysis,
     )
-    pdf_bytes = render_report_pdf(report)
+    pdf_bytes = render_report_pdf(report, image_blobs=image_blobs)
     filename = f"AquaNexus-{report.report_id}.pdf"
     return StreamingResponse(
         iter([pdf_bytes]),

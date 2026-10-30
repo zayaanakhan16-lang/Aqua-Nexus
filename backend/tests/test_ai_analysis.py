@@ -89,6 +89,19 @@ def _mock_data_providers() -> None:
     )
 
 
+    # Local water-intelligence sources are now part of the evidence package, so
+    # the Overpass mirrors must be mocked too (all of them, so a fall-through
+    # cannot escape the mock router).
+    for mirror in (
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+    ):
+        respx.post(mirror).mock(
+            return_value=httpx.Response(200, json={"elements": []})
+        )
+
+
 @respx.mock
 async def test_ai_analysis_unconfigured_returns_evidence_only(client, monkeypatch):
     # With no AI credential the endpoint must be honest: unconfigured status,
@@ -212,6 +225,12 @@ async def test_ai_analysis_insufficient_evidence_refuses_to_interpret(client, mo
     respx.get(FLOOD_URL).mock(return_value=httpx.Response(500))
     respx.get(POWER_URL).mock(return_value=httpx.Response(500))
     respx.post(STAC_URL).mock(return_value=httpx.Response(500))
+    for mirror in (
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+    ):
+        respx.post(mirror).mock(return_value=httpx.Response(500))
 
     called = False
 

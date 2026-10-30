@@ -22,7 +22,10 @@ import { ApiError, api } from "@/lib/api";
 import type {
   AIAnalysisReport,
   AreaSelection,
+  ChangeDetectionResult,
   DischargeSeries,
+  FloodEvidenceResult,
+  LocationOutlook,
   HLSSearchResult,
   LocationSummary,
   MapLayerCatalog,
@@ -32,6 +35,8 @@ import type {
   ReportPayload,
   StacSearchResult,
   WaterBodyResult,
+  WaterBodySummary,
+  WaterPresenceResult,
   WeatherForecast,
 } from "@/lib/schemas";
 
@@ -81,6 +86,15 @@ function emptySlice<T>(): SliceState<T> {
   return { data: null, loading: false, error: null, errorCode: null };
 }
 
+export interface InvestigationStage {
+  id: string;
+  label: string;
+  status: "pending" | "running" | "done" | "failed";
+  /** Number of underlying slices that finished, for "3 of 4" style reporting. */
+  done: number;
+  total: number;
+}
+
 interface WorkspaceValue {
   location: SelectedLocation | null;
   layers: LayerState;
@@ -97,6 +111,16 @@ interface WorkspaceValue {
   ai: SliceState<AIAnalysisReport>;
   /** Mapped water features near the selected location (OpenStreetMap). */
   waterBodies: SliceState<WaterBodyResult>;
+  /** Aggregated water-body summary (counts by kind, nearest feature). */
+  waterBodySummary: SliceState<WaterBodySummary>;
+  /** Observed/mapped surface-water presence (distinct from flooding). */
+  waterPresence: SliceState<WaterPresenceResult>;
+  /** Flood-related evidence screening (observed, rainfall and discharge signals). */
+  floodEvidence: SliceState<FloodEvidenceResult>;
+  /** Before/after satellite scene discovery for change inspection. */
+  changeDetection: SliceState<ChangeDetectionResult>;
+  /** Future outlook: forecast rainfall, weather and derived concern signals. */
+  outlook: SliceState<LocationOutlook>;
   /** Global raster layer catalog (NASA GIBS), loaded once per session. */
   mapLayers: SliceState<MapLayerCatalog>;
   /** The raster layer currently drawn over the basemap, or null for none. */
@@ -119,6 +143,13 @@ interface WorkspaceValue {
   refresh: () => void;
   refreshAi: () => void;
   refreshMapLayers: () => void;
+  /**
+   * Real investigation progress, derived from the actual slice states — never a
+   * simulated timer. A stage is "done" only when its underlying requests have
+   * settled.
+   */
+  investigationStages: InvestigationStage[];
+  investigationComplete: boolean;
 }
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
@@ -164,6 +195,19 @@ export function WorkspaceProvider({
   // Mapped water features (OpenStreetMap). Loaded with the location so the
   // "Water features" layer can render immediately when toggled on.
   const [waterBodies, setWaterBodies] = useState<SliceState<WaterBodyResult>>(emptySlice());
+  const [waterBodySummary, setWaterBodySummary] = useState<SliceState<WaterBodySummary>>(
+    emptySlice(),
+  );
+  const [waterPresence, setWaterPresence] = useState<SliceState<WaterPresenceResult>>(
+    emptySlice(),
+  );
+  const [floodEvidence, setFloodEvidence] = useState<SliceState<FloodEvidenceResult>>(
+    emptySlice(),
+  );
+  const [changeDetection, setChangeDetection] = useState<SliceState<ChangeDetectionResult>>(
+    emptySlice(),
+  );
+  const [outlook, setOutlook] = useState<SliceState<LocationOutlook>>(emptySlice());
   // AI analysis is generated on demand (it is comparatively expensive), so it
   // is not part of the automatic location load.
   const [ai, setAi] = useState<SliceState<AIAnalysisReport>>(emptySlice());
@@ -191,6 +235,11 @@ export function WorkspaceProvider({
       setScenes({ data: null, loading: true, error: null, errorCode: null });
       setHls({ data: null, loading: true, error: null, errorCode: null });
       setWaterBodies({ data: null, loading: true, error: null, errorCode: null });
+      setWaterBodySummary({ data: null, loading: true, error: null, errorCode: null });
+      setWaterPresence({ data: null, loading: true, error: null, errorCode: null });
+      setFloodEvidence({ data: null, loading: true, error: null, errorCode: null });
+      setChangeDetection({ data: null, loading: true, error: null, errorCode: null });
+      setOutlook({ data: null, loading: true, error: null, errorCode: null });
       // A new location invalidates any previous AI analysis.
       setAi(emptySlice());
 
@@ -203,6 +252,11 @@ export function WorkspaceProvider({
         scenesRes,
         hlsRes,
         waterRes,
+        waterSummaryRes,
+        presenceRes,
+        floodRes,
+        changeRes,
+        outlookRes,
       ] = await Promise.allSettled([
         api.summary(latitude, longitude, { label, windowDays: days }),
         api.comparison(latitude, longitude, days, 1),
@@ -212,6 +266,11 @@ export function WorkspaceProvider({
         api.scenes(latitude, longitude, { days: 30, limit: 12 }),
         api.hlsScenes(latitude, longitude, { days: 120, limit: 8 }),
         api.waterBodies(latitude, longitude, { radiusM: 15000, limit: 25 }),
+        api.waterBodiesSummary(latitude, longitude, { radiusM: 15000, limit: 25 }),
+        api.waterPresence(latitude, longitude),
+        api.floodEvidence(latitude, longitude),
+        api.changeDetection(latitude, longitude),
+        api.outlook(latitude, longitude),
       ]);
 
       if (token !== requestToken.current) return; // superseded
@@ -236,6 +295,11 @@ export function WorkspaceProvider({
       apply(scenesRes, setScenes);
       apply(hlsRes, setHls);
       apply(waterRes, setWaterBodies);
+      apply(waterSummaryRes, setWaterBodySummary);
+      apply(presenceRes, setWaterPresence);
+      apply(floodRes, setFloodEvidence);
+      apply(changeRes, setChangeDetection);
+      apply(outlookRes, setOutlook);
     },
     [],
   );
@@ -277,6 +341,11 @@ export function WorkspaceProvider({
     setDischarge(emptySlice());
     setScenes(emptySlice());
     setWaterBodies(emptySlice());
+    setWaterBodySummary(emptySlice());
+    setWaterPresence(emptySlice());
+    setFloodEvidence(emptySlice());
+    setChangeDetection(emptySlice());
+    setOutlook(emptySlice());
     setAi(emptySlice());
   }, []);
 
@@ -358,6 +427,86 @@ export function WorkspaceProvider({
       });
   }, [location, windowDays]);
 
+  // Real progress: each stage is bound to the slices that actually feed it. A
+  // stage is "done" only when every slice in it has settled (data or error),
+  // "running" while any is still loading, and "failed" when all failed.
+  const investigationStages = useMemo<InvestigationStage[]>(() => {
+    if (!location) return [];
+    const groups: { id: string; label: string; slices: SliceState<unknown>[] }[] = [
+      { id: "resolve", label: "Resolving location", slices: [summary] },
+      { id: "datasets", label: "Discovering available datasets", slices: [mapLayers] },
+      {
+        id: "satellite",
+        label: "Retrieving satellite imagery",
+        slices: [scenes, hls, changeDetection],
+      },
+      {
+        id: "rainfall",
+        label: "Collecting rainfall and weather evidence",
+        slices: [comparison, forecast, weather, outlook],
+      },
+      {
+        id: "water",
+        label: "Checking water-body observations",
+        slices: [waterBodies, waterBodySummary, waterPresence],
+      },
+      { id: "environment", label: "Processing environmental indicators", slices: [discharge] },
+      { id: "flood", label: "Assessing flood-related evidence", slices: [floodEvidence] },
+    ];
+    const stages: InvestigationStage[] = groups.map((group) => {
+      const total = group.slices.length;
+      const settled = group.slices.filter((s) => !s.loading).length;
+      const failed = group.slices.filter((s) => s.error && !s.data).length;
+      let status: InvestigationStage["status"] = "pending";
+      if (settled === total) status = failed === total ? "failed" : "done";
+      else if (group.slices.some((s) => s.loading)) status = "running";
+      return { id: group.id, label: group.label, status, done: settled, total };
+    });
+    // "Preparing intelligence results" is the aggregation step: it is the honest
+    // roll-up of the stages above, not a separate request. The AI slice is
+    // excluded because it is generated on demand and would otherwise report this
+    // stage as permanently incomplete.
+    const anyRunning = stages.some((s) => s.status === "running");
+    const anyPending = stages.some((s) => s.status === "pending");
+    const settledCount = stages.filter((s) => s.status === "done" || s.status === "failed").length;
+    const prepareStatus: InvestigationStage["status"] = anyRunning
+      ? "running"
+      : anyPending
+        ? "pending"
+        : stages.every((s) => s.status === "failed")
+          ? "failed"
+          : "done";
+    stages.push({
+      id: "prepare",
+      label: "Preparing intelligence results",
+      status: prepareStatus,
+      done: settledCount,
+      total: stages.length,
+    });
+    return stages;
+  }, [
+    location,
+    summary,
+    mapLayers,
+    scenes,
+    hls,
+    changeDetection,
+    comparison,
+    forecast,
+    weather,
+    outlook,
+    waterBodies,
+    waterBodySummary,
+    waterPresence,
+    discharge,
+    floodEvidence,
+  ]);
+
+  const investigationComplete =
+    investigationStages.length > 0 &&
+    investigationStages.every((s) => s.status === "done" || s.status === "failed");
+
+
   const value = useMemo<WorkspaceValue>(
     () => ({
       location,
@@ -372,6 +521,11 @@ export function WorkspaceProvider({
       hls,
       ai,
       waterBodies,
+      waterBodySummary,
+      waterPresence,
+      floodEvidence,
+      changeDetection,
+      outlook,
       mapLayers,
       activeRasterLayerId,
       rasterLayerDate,
@@ -389,6 +543,8 @@ export function WorkspaceProvider({
       refresh,
       refreshAi,
       refreshMapLayers: loadMapLayers,
+      investigationStages,
+      investigationComplete,
     }),
     [
       location,
@@ -403,6 +559,11 @@ export function WorkspaceProvider({
       hls,
       ai,
       waterBodies,
+      waterBodySummary,
+      waterPresence,
+      floodEvidence,
+      changeDetection,
+      outlook,
       mapLayers,
       activeRasterLayerId,
       rasterLayerDate,
@@ -420,6 +581,8 @@ export function WorkspaceProvider({
       refresh,
       refreshAi,
       loadMapLayers,
+      investigationStages,
+      investigationComplete,
     ],
   );
 

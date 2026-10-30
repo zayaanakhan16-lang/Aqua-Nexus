@@ -63,6 +63,21 @@ export function DischargePanel({
                   Latest {formatNumber(latest.discharge_m3s, 1)} m³/s
                 </Chip>
               ) : null}
+              {data.historical_days ? (
+                <Chip title="Reanalysis/hindcast days before today">
+                  {data.historical_days} reanalysis days
+                </Chip>
+              ) : null}
+              {data.forecast_days ? (
+                <Chip title="Forecast days from today">
+                  {data.forecast_days} forecast days
+                </Chip>
+              ) : null}
+              {data.grid_cell ? (
+                <Chip title="Provider-resolved model grid cell (~5 km resolution)">
+                  Grid cell {data.grid_cell.latitude.toFixed(3)}, {data.grid_cell.longitude.toFixed(3)}
+                </Chip>
+              ) : null}
             </div>
 
             <div className="rounded-lg border border-white/[0.06] bg-abyss-950/40 p-2">
@@ -72,8 +87,11 @@ export function DischargePanel({
             <div className="flex items-start gap-2 rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 py-2 text-[0.6875rem] leading-relaxed text-ink-400">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-water-300" aria-hidden />
               <span>
-                {data.note} Source: {data.provider.name}. Modelled discharge is a simulation and
-                must not be read as a flood warning or a river-gauge record.
+                {data.note} Source: {data.provider.name}
+                {data.model ? ` · ${data.model}` : ""}
+                {data.retrieved_at ? ` · retrieved ${new Date(data.retrieved_at).toUTCString()}` : ""}
+                . Modelled discharge is a simulation and must not be read as a flood warning or a
+                river-gauge record.
               </span>
             </div>
           </>

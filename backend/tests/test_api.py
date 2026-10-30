@@ -191,7 +191,7 @@ async def test_stac_scenes_endpoint(client):
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == 1
-    assert "not yet" in body["note"].lower()
+    assert "does not download bands" in body["note"].lower()
 
 
 async def test_historical_rejects_lone_start_date(client):

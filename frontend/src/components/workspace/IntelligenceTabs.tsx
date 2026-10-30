@@ -14,6 +14,8 @@
  */
 import {
   Activity,
+  CalendarClock,
+  CalendarRange,
   CloudRain,
   Droplets,
   FileCheck2,
@@ -22,6 +24,7 @@ import {
   MapPin,
   RefreshCw,
   Satellite,
+  ShieldAlert,
   Sparkles,
   Thermometer,
   Waves,
@@ -30,10 +33,15 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/lib/workspace";
-import { Chip } from "@/components/ui/primitives";
+import { Chip, StatusDot } from "@/components/ui/primitives";
 import { EmptyState } from "@/components/ui/states";
 import { AIAnalysisPanel } from "@/components/panels/AIAnalysisPanel";
+import { ChangeDetectionPanel } from "@/components/panels/ChangeDetectionPanel";
 import { DischargePanel } from "@/components/panels/DischargePanel";
+import { FloodPanel } from "@/components/panels/FloodPanel";
+import { OutlookPanel } from "@/components/panels/OutlookPanel";
+import { WaterAtlasPanel } from "@/components/panels/WaterAtlasPanel";
+import { WaterPresencePanel } from "@/components/panels/WaterPresencePanel";
 import { GlobalLayersPanel } from "@/components/panels/GlobalLayersPanel";
 import { IntelligencePanel } from "@/components/panels/IntelligencePanel";
 import { RainfallPanel } from "@/components/panels/RainfallPanel";
@@ -47,7 +55,12 @@ export type WorkspaceTabId =
   | "overview"
   | "weather"
   | "precipitation"
+  | "water-presence"
+  | "water-atlas"
   | "water-stress"
+  | "flood"
+  | "outlook"
+  | "change"
   | "discharge"
   | "satellite"
   | "global-layers"
@@ -65,7 +78,12 @@ const TABS: {
   { id: "overview", label: "Overview", icon: Activity, needsLocation: true },
   { id: "weather", label: "Weather", icon: Thermometer, needsLocation: true },
   { id: "precipitation", label: "Precipitation", icon: CloudRain, needsLocation: true },
+  { id: "water-presence", label: "Water Presence", icon: Droplets, needsLocation: true },
+  { id: "water-atlas", label: "Water Atlas", icon: Layers, needsLocation: true },
   { id: "water-stress", label: "Water Stress", icon: Waves, needsLocation: true },
+  { id: "flood", label: "Flood", icon: ShieldAlert, needsLocation: true },
+  { id: "outlook", label: "Outlook", icon: CalendarClock, needsLocation: true },
+  { id: "change", label: "Change", icon: CalendarRange, needsLocation: true },
   { id: "discharge", label: "River Discharge", icon: Droplets, needsLocation: true },
   { id: "satellite", label: "Satellite Explorer", icon: Satellite, needsLocation: true },
   { id: "global-layers", label: "Global Layers", icon: Layers },
@@ -73,12 +91,81 @@ const TABS: {
   { id: "report", label: "Report", icon: FileText, needsLocation: true },
   { id: "sources", label: "Sources & Evidence", icon: FileCheck2 },
 ];
+/**
+ * Live investigation status.
+ *
+ * The stages are derived from the real slice states in the workspace store, so a
+ * stage only turns "done" when its underlying requests have actually settled.
+ * Nothing here is a simulated progress bar, and once every stage has settled the
+ * strip collapses to a single quiet "investigation complete" line.
+ */
+function InvestigationProgress() {
+  const { investigationStages, investigationComplete } = useWorkspace();
+  if (!investigationStages.length) return null;
+
+  if (investigationComplete) {
+    const failed = investigationStages.filter((s) => s.status === "failed").length;
+    return (
+      <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-3 py-1.5">
+        <StatusDot tone={failed ? "caution" : "good"} label="Investigation status" />
+        <span className="text-[0.6875rem] text-ink-400">
+          Investigation complete
+          {failed
+            ? ` — ${failed} stage${failed === 1 ? "" : "s"} could not reach its source`
+            : " — all stages returned"}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-white/[0.06] px-3 py-2"
+      aria-live="polite"
+      aria-label="Investigation progress"
+    >
+      {investigationStages.map((stage) => {
+        const tone =
+          stage.status === "done"
+            ? "good"
+            : stage.status === "failed"
+              ? "caution"
+              : stage.status === "running"
+                ? "info"
+                : "muted";
+        return (
+          <span key={stage.id} className="inline-flex items-center gap-1.5">
+            <StatusDot tone={tone} pulse={stage.status === "running"} label={stage.status} />
+            <span
+              className={cn(
+                "text-[0.6875rem]",
+                stage.status === "pending" ? "text-ink-500" : "text-ink-300",
+              )}
+            >
+              {stage.label}
+              {stage.total > 1 ? ` (${stage.done}/${stage.total})` : ""}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+
 
 export function IntelligenceTabs({
   initialTab,
+  tabRequest,
   className,
 }: {
   initialTab?: WorkspaceTabId;
+  /**
+   * A tab the caller wants opened, e.g. from a URL search param. Unlike
+   * `initialTab` it is honoured on later changes too, so a sidebar link to
+   * `/explore?tab=flood` switches the tab without a full remount.
+   */
+  tabRequest?: WorkspaceTabId;
   className?: string;
 }) {
   const {
@@ -91,10 +178,24 @@ export function IntelligenceTabs({
     scenes,
     hls,
     ai,
+    waterPresence,
+    waterBodies,
+    floodEvidence,
+    outlook,
+    changeDetection,
     refresh,
     refreshAi,
   } = useWorkspace();
   const [tab, setTab] = useState<WorkspaceTabId>(() => initialTab ?? (location ? "overview" : "global-layers"));
+
+  // Honour a caller-supplied tab request on change (deep link navigation).
+  const lastRequest = useRef<WorkspaceTabId | undefined>(tabRequest);
+  useEffect(() => {
+    if (tabRequest && tabRequest !== lastRequest.current) {
+      setTab(tabRequest);
+    }
+    lastRequest.current = tabRequest;
+  }, [tabRequest]);
 
   // Selecting a location is the moment the analysis becomes meaningful, so move
   // the user to the Overview tab the first time a location is chosen. Later
@@ -110,7 +211,15 @@ export function IntelligenceTabs({
   const ok = summary.data?.providers.filter((p) => p.status === "ok").length ?? 0;
   const total = summary.data?.providers.length ?? 0;
   const anyError = Boolean(
-    summary.error || comparison.error || forecast.error || weather.error,
+    summary.error ||
+      comparison.error ||
+      forecast.error ||
+      weather.error ||
+      waterPresence.error ||
+      floodEvidence.error ||
+      outlook.error ||
+      changeDetection.error ||
+      waterBodies.error,
   );
 
   return (
@@ -139,6 +248,8 @@ export function IntelligenceTabs({
           Refresh
         </button>
       </div>
+
+      {location ? <InvestigationProgress /> : null}
 
       <div
         role="tablist"
@@ -210,6 +321,21 @@ export function IntelligenceTabs({
                 {tab === "weather" ? <WeatherPanel slice={weather} onRetry={refresh} /> : null}
                 {tab === "precipitation" ? (
                   <RainfallPanel comparison={comparison} forecast={forecast} onRetry={refresh} />
+                ) : null}
+                {tab === "water-presence" ? (
+                  <WaterPresencePanel slice={waterPresence} onRetry={refresh} />
+                ) : null}
+                {tab === "water-atlas" ? (
+                  <WaterAtlasPanel slice={waterBodies} onRetry={refresh} />
+                ) : null}
+                {tab === "flood" ? (
+                  <FloodPanel slice={floodEvidence} onRetry={refresh} />
+                ) : null}
+                {tab === "outlook" ? (
+                  <OutlookPanel slice={outlook} onRetry={refresh} />
+                ) : null}
+                {tab === "change" ? (
+                  <ChangeDetectionPanel slice={changeDetection} onRetry={refresh} />
                 ) : null}
                 {tab === "water-stress" ? (
                   <WaterStressPanel slice={summary} onRetry={refresh} />

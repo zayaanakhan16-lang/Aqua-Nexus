@@ -1,11 +1,16 @@
 import type { Config } from "tailwindcss";
 
 /**
- * AquaNexus design tokens.
+ * AquaNexus design tokens — premium blue water-intelligence identity.
  *
- * A deep ocean/navy foundation with water-cyan and restrained teal accents.
- * These tokens are the single source of visual truth so a later design pass can
- * retune the palette without touching components.
+ * Palette anchors (documented in docs/DESIGN.md):
+ *   Deep Ocean  #071D35   Ocean Blue  #1261A0
+ *   Water Cyan  #45B6E8   Ice White   #EAF5FA   Soft Blue  #D5EAF5
+ *
+ * The token *names* are stable so components never change when the palette is
+ * retuned; only these values move. `ink-500` is deliberately lighter than
+ * `ink-400` (it is the small-muted-text colour and must clear WCAG AA on the
+ * composited abyss surfaces), matching the convention established earlier.
  */
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
@@ -13,51 +18,51 @@ const config: Config = {
     extend: {
       colors: {
         abyss: {
-          950: "#030914",
-          900: "#061426",
-          850: "#08192e",
-          800: "#0b2038",
-          700: "#102b47",
-          600: "#173a5c",
+          950: "#04101f",
+          900: "#071d35",
+          850: "#0a2542",
+          800: "#0d2c4d",
+          700: "#123a63",
+          600: "#17497a",
         },
         water: {
-          50: "#eafcff",
-          100: "#cbf5fd",
-          200: "#9deafa",
-          300: "#63d8f3",
-          400: "#2cc0e4",
-          500: "#12a3c9",
-          600: "#0c82a6",
-          700: "#0e6885",
-          800: "#12556c",
-          900: "#14475c",
+          50: "#eaf5fa",
+          100: "#d5eaf5",
+          200: "#b3daf0",
+          300: "#45b6e8",
+          400: "#2f9fd8",
+          500: "#1261a0",
+          600: "#0f5490",
+          700: "#0d4778",
+          800: "#0b3a63",
+          900: "#0a2f50",
         },
         teal: {
-          400: "#39d3b4",
-          500: "#16b092",
-          600: "#0f8b74",
+          400: "#38d0a6",
+          500: "#14a883",
+          600: "#0d8a6b",
         },
         ink: {
-          50: "#f4f7fa",
-          100: "#e3eaf1",
-          200: "#c7d3e0",
-          300: "#9fb0c4",
-          400: "#6f8399",
-          // 500 raised from #4c5f74 so small muted text meets WCAG AA (~5.6:1)
-          // on the abyss palette instead of the previous ~2.8:1.
-          500: "#7d90a6",
-          600: "#35465a",
-          700: "#233246",
-          800: "#162233",
-          900: "#0d1622",
+          50: "#f2f8fc",
+          100: "#eaf5fa",
+          200: "#cfe4f2",
+          300: "#a9c9e0",
+          400: "#7f9fbc",
+          // 500 is the small-muted-text colour; it must clear AA on the
+          // composited abyss surfaces, so it is lighter than ink-400.
+          500: "#97b6ce",
+          600: "#3a5a78",
+          700: "#27405a",
+          800: "#16293d",
+          900: "#0c1a29",
         },
         // Semantic states used across panels and badges.
         signal: {
-          good: "#39d3b4",
-          caution: "#e5b454",
-          alert: "#e4795b",
-          info: "#63d8f3",
-          muted: "#6f8399",
+          good: "#38d0a6",
+          caution: "#e9b955",
+          alert: "#ec7a5c",
+          info: "#45b6e8",
+          muted: "#7f9fbc",
         },
       },
       fontFamily: {

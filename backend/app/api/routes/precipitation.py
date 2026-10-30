@@ -73,10 +73,13 @@ async def weather(
 async def discharge(
     latitude: float = Query(..., ge=-90, le=90),
     longitude: float = Query(..., ge=-180, le=180),
-    days: int = Query(14, ge=1, le=210),
+    days: int = Query(14, ge=1, le=210, description="Forecast days ahead of today."),
+    past_days: int = Query(
+        30, ge=0, le=92, description="Reanalysis/hindcast days before today."
+    ),
 ) -> DischargeSeries:
     return await open_meteo.fetch_discharge_series(
-        GeoPoint(latitude=latitude, longitude=longitude), days=days
+        GeoPoint(latitude=latitude, longitude=longitude), days=days, past_days=past_days
     )
 
 

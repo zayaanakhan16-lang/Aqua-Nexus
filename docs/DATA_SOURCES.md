@@ -117,6 +117,30 @@ modelled. Where no modelled river passes near the point, the provider returns no
 values and the panel explains the coverage limitation rather than showing a
 zero-flow reading.
 
+### E2. Flood screening — mapped water features
+
+**OpenStreetMap water features (Overpass API)** — `osm_overpass`
+<https://wiki.openstreetmap.org/wiki/Overpass_API>
+
+- Classification: **observation** (contributor mapping)
+- Resolution: vector features as drawn by contributors
+- Units: feature count
+- Coverage: global where contributors have mapped water
+- Auth: **none**
+- Limitations: this is mapping data, not a hydrological survey; a feature being
+  absent from OSM does not mean water is absent; boundaries may be approximate;
+  drainage, canals and ephemeral water are inconsistently tagged; presence of
+  water is not evidence of a flood.
+
+The **Flood Intelligence** tab (`GET /api/v1/flood/evidence`) uses this only as
+*context*. It is a separate evidence type (`surface_water_context`) from rainfall
+signals and modelled discharge, and it never becomes a flood statement.
+
+**Honesty rule:** the public Overpass mirrors stall frequently. When none
+answers, the item is returned as `status="unavailable"` with a `null` value —
+never as `0 features observed`, which would present a service outage as a
+measurement. See `docs/SCIENCE.md` §4.
+
 ---
 
 ## F. Satellite imagery — catalogue search

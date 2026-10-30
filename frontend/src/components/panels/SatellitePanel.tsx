@@ -13,44 +13,62 @@
  * Both are catalogue records, not an AquaNexus surface-water classification —
  * the panel states that plainly and never claims water-body detection.
  */
-import { ExternalLink, ImageOff, Satellite } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, ImageOff, Maximize2, Satellite } from "lucide-react";
 
 import { ClassificationBadge, Chip, Panel, PanelHeader, Skeleton } from "@/components/ui/primitives";
+import { ImageViewer, type ViewerScene } from "@/components/panels/ImageViewer";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { SliceState } from "@/lib/workspace";
 import type { HLSItem, HLSSearchResult, StacItem, StacSearchResult } from "@/lib/schemas";
 
-function SceneRow({ item }: { item: StacItem }) {
+function SceneThumb({ item }: { item: StacItem }) {
+  // A catalogue URL can expire or fail to load. When it does, fall back to the
+  // "no preview" state rather than showing a broken image, so the row never
+  // implies an observation that was not actually retrieved.
+  const [failed, setFailed] = useState(false);
+  if (!item.thumbnail || failed) {
+    return (
+      <span
+        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-white/10 bg-abyss-900 text-ink-600"
+        title={
+          item.thumbnail
+            ? "The catalogue preview could not be loaded"
+            : "This catalogue record has no rendered preview"
+        }
+      >
+        <ImageOff className="h-4 w-4" aria-hidden />
+      </span>
+    );
+  }
+  return (
+    <a
+      href={item.thumbnail}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-white/10 bg-abyss-900"
+      title="Open the full rendered scene preview"
+    >
+      {/* A plain <img> keeps the external catalogue URL out of the Next
+          image optimizer, which would otherwise require remotePatterns and
+          re-serve a third-party asset. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={item.thumbnail}
+        alt={`Sentinel-2 rendered preview for scene ${item.id}`}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="h-full w-full object-cover"
+      />
+    </a>
+  );
+}
+
+function SceneRow({ item, onInspect }: { item: StacItem; onInspect: (scene: ViewerScene) => void }) {
   return (
     <li className="flex items-start gap-3 px-3 py-2.5">
-      {item.thumbnail ? (
-        <a
-          href={item.thumbnail}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-white/10 bg-abyss-900"
-          title="Open the full rendered scene preview"
-        >
-          {/* A plain <img> keeps the external catalogue URL out of the Next
-              image optimizer, which would otherwise require remotePatterns and
-              re-serve a third-party asset. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={item.thumbnail}
-            alt={`Sentinel-2 rendered preview for scene ${item.id}`}
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
-        </a>
-      ) : (
-        <span
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-white/10 bg-abyss-900 text-ink-600"
-          title="This catalogue record has no rendered preview"
-        >
-          <ImageOff className="h-4 w-4" aria-hidden />
-        </span>
-      )}
+      <SceneThumb item={item} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-mono text-xs text-ink-100">{item.id}</p>
         <p className="mt-0.5 text-[0.6875rem] text-ink-400">
@@ -67,15 +85,35 @@ function SceneRow({ item }: { item: StacItem }) {
         ) : null}
       </div>
       {item.thumbnail ? (
-        <a
-          href={item.thumbnail}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="inline-flex shrink-0 items-center gap-1 text-[0.6875rem] text-water-300 transition hover:text-water-200"
-        >
-          Record
-          <ExternalLink className="h-3 w-3" aria-hidden />
-        </a>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <button
+            type="button"
+            onClick={() =>
+              onInspect({
+                id: item.id,
+                collection: item.collection,
+                acquiredAt: item.acquired_at,
+                cloudCover: item.cloud_cover,
+                platform: item.platform,
+                resolution: "native 10 m (Sentinel-2 L2A)",
+                thumbnail: item.thumbnail as string,
+              })
+            }
+            className="inline-flex items-center gap-1 text-[0.6875rem] text-water-300 transition hover:text-water-200"
+          >
+            <Maximize2 className="h-3 w-3" aria-hidden />
+            Inspect
+          </button>
+          <a
+            href={item.thumbnail}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-1 text-[0.6875rem] text-ink-400 transition hover:text-ink-200"
+          >
+            Record
+            <ExternalLink className="h-3 w-3" aria-hidden />
+          </a>
+        </div>
       ) : null}
     </li>
   );
@@ -182,9 +220,11 @@ export function SatellitePanel({
   onRetry: () => void;
 }) {
   const data = slice.data;
+  const [viewerScene, setViewerScene] = useState<ViewerScene | null>(null);
 
   return (
     <Panel className="overflow-hidden">
+      <ImageViewer scene={viewerScene} onClose={() => setViewerScene(null)} />
       <PanelHeader
         title="Satellite explorer"
         subtitle="Real Copernicus and NASA catalogues (not processed imagery)"
@@ -229,7 +269,7 @@ export function SatellitePanel({
               ) : (
                 <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-lg border border-white/[0.06]">
                   {data.items.map((item) => (
-                    <SceneRow key={item.id} item={item} />
+                    <SceneRow key={item.id} item={item} onInspect={setViewerScene} />
                   ))}
                 </ul>
               )}

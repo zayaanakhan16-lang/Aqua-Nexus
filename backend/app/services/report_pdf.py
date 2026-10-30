@@ -15,7 +15,8 @@ from __future__ import annotations
 import io
 from datetime import datetime
 
-from reportlab.graphics.shapes import Drawing, Line, PolyLine, String
+from reportlab.graphics.shapes import Drawing, Line, PolyLine, Rect, String
+from reportlab.lib.colors import Color
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -23,6 +24,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
+    Image,
     KeepTogether,
     PageTemplate,
     Paragraph,
@@ -229,6 +231,24 @@ def _chart_drawing(chart: ReportChart, styles) -> Drawing:
     # Axes.
     drawing.add(Line(left, bottom, right, bottom, strokeColor=INK_SOFT, strokeWidth=0.7))
     drawing.add(Line(left, bottom, left, top, strokeColor=INK_SOFT, strokeWidth=0.7))
+
+    # Shade the forecast span so modelled future values are visually distinct
+    # from reanalysis history.
+    if chart.observed_points:
+        split_x = x_of(chart.observed_points - 0.5)
+        drawing.add(
+            Rect(
+                split_x, bottom, max(right - split_x, 0), top - bottom,
+                fillColor=Color(0.91, 0.96, 0.99), strokeColor=None,
+            )
+        )
+        drawing.add(
+            String(
+                (split_x + right) / 2, top + 3, "modelled forecast",
+                fontName="Helvetica-Oblique", fontSize=6, fillColor=INK_SOFT,
+                textAnchor="middle",
+            )
+        )
 
     # The series, split into continuous segments so gaps are visibly gaps.
     segment: list[float] = []
@@ -448,8 +468,56 @@ class _ReportDoc(BaseDocTemplate):
         canvas.restoreState()
 
 
-def render_report_pdf(payload: ReportPayload) -> bytes:
+def _image_flowables(payload: ReportPayload, image_blobs: dict[str, bytes], styles) -> list:
+    """Real provider previews, with their provenance printed under each one."""
+    flow: list = []
+    if not payload.images:
+        return flow
+    flow.append(Paragraph("Satellite imagery", styles["h2"]))
+    flow.append(
+        Paragraph(
+            "Provider-rendered catalogue previews for the study area. These are the "
+            "catalogue's own renders, not an AquaNexus surface-water classification.",
+            styles["smallmuted"],
+        )
+    )
+    flow.append(Spacer(1, 4))
+    for entry in payload.images:
+        blob = image_blobs.get(entry.url)
+        caption_bits = [entry.title]
+        if entry.captured_at:
+            caption_bits.append(entry.captured_at)
+        if entry.resolution:
+            caption_bits.append(entry.resolution)
+        caption = " · ".join(caption_bits)
+        if blob is None:
+            flow.append(Paragraph(f"{caption} — preview unavailable; {entry.url}", styles["smallmuted"]))
+            continue
+        try:
+            drawing = Image(io.BytesIO(blob))
+        except Exception:
+            flow.append(Paragraph(f"{caption} — preview could not be embedded; {entry.url}", styles["smallmuted"]))
+            continue
+        max_w = 150 * mm
+        max_h = 90 * mm
+        scale = min(max_w / drawing.imageWidth, max_h / drawing.imageHeight, 1.0)
+        drawing.drawWidth = drawing.imageWidth * scale
+        drawing.drawHeight = drawing.imageHeight * scale
+        block = [
+            drawing,
+            Paragraph(caption, styles["small"]),
+            Paragraph(entry.attribution, styles["smallmuted"]),
+        ]
+        if entry.note:
+            block.append(Paragraph(entry.note, styles["smallmuted"]))
+        block.append(Spacer(1, 8))
+        flow.append(KeepTogether(block))
+    return flow
+
+
+def render_report_pdf(payload: ReportPayload, image_blobs: dict[str, bytes] | None = None) -> bytes:
     """Render the payload to PDF bytes."""
+    image_blobs = image_blobs or {}
     styles = _styles()
     buffer = io.BytesIO()
     doc = _ReportDoc(buffer, payload, styles)
@@ -503,6 +571,16 @@ def render_report_pdf(payload: ReportPayload) -> bytes:
     story.extend(_section_flowables(payload.flood_findings, styles))
     story.extend(_section_flowables(payload.surface_water_findings, styles))
     story.extend(_section_flowables(payload.dry_condition_findings, styles))
+    for optional in (
+        payload.water_presence_findings,
+        payload.water_bodies_findings,
+        payload.change_detection_findings,
+        payload.outlook_findings,
+    ):
+        if optional is not None:
+            story.extend(_section_flowables(optional, styles))
+
+    story.extend(_image_flowables(payload, image_blobs, styles))
 
     if payload.charts:
         story.append(Paragraph("Charts", styles["h2"]))
@@ -512,6 +590,7 @@ def render_report_pdf(payload: ReportPayload) -> bytes:
                 story.append(Paragraph(chart.note, styles["smallmuted"]))
 
     story.extend(_section_flowables(payload.data_quality, styles))
+    story.extend(_section_flowables(payload.uncertainty, styles))
     story.extend(_section_flowables(payload.ai_interpretation, styles))
     story.extend(_section_flowables(payload.follow_up, styles))
 

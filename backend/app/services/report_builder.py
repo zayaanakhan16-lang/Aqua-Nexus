@@ -25,6 +25,7 @@ from app.models.common import DataClassification, GeoPoint, PlaceResult
 from app.models.report import (
     ReportChart,
     ReportChartPoint,
+    ReportImage,
     ReportMetric,
     ReportPayload,
     ReportSection,
@@ -133,6 +134,12 @@ async def build_report_payload(
     discharge=None,
     scenes=None,
     ai_report=None,
+    water_presence=None,
+    water_bodies=None,
+    flood_evidence=None,
+    change_detection=None,
+    outlook=None,
+    images: list[ReportImage] | None = None,
 ) -> ReportPayload:
     """Assemble the report payload from already-fetched analysis where supplied.
 
@@ -310,9 +317,10 @@ async def build_report_payload(
             title="Surface water (satellite scene catalogue)",
             available=bool(items),
             body=(
-                "Sentinel-2 scene metadata is listed for the study area. These are "
-                "catalogue records, not processed imagery; water-body classification "
-                "and change detection are not performed in this build."
+                "Sentinel-2 scene metadata is listed for the study area. These entries "
+                "are catalogue records, not processed imagery. Surface-water presence "
+                "and change detection are reported separately below from their own "
+                "sources; this section only lists what the catalogue returned."
             )
             if items
             else None,
@@ -324,6 +332,122 @@ async def build_report_payload(
             title="Surface water (satellite scene catalogue)",
             available=False,
             unavailable_reason="The satellite catalogue was not reachable for this report.",
+        )
+
+    # --- Surface-water presence (observed/mapped) -------------------------
+    if water_presence is not None:
+        presence_items = [f"{water_presence.headline}: {water_presence.detail}"]
+        for obs in water_presence.observations:
+            detail = obs.method
+            if obs.value is not None:
+                detail += f" Value: {obs.value:g} {obs.unit or ''}".rstrip() + "."
+            presence_items.append(f"[{obs.classification.value}] {obs.source_name} — {detail}")
+        water_presence_findings = ReportSection(
+            title="Surface-water presence (observed/mapped)",
+            available=True,
+            body=(
+                "Observed or mapped surface water only. This is not a flood statement, "
+                "and absence of evidence is reported as insufficient evidence rather "
+                "than as absence of water."
+            ),
+            items=presence_items,
+        )
+    else:
+        water_presence_findings = ReportSection(
+            title="Surface-water presence (observed/mapped)",
+            available=False,
+            unavailable_reason="The surface-water presence module did not return a result.",
+        )
+
+    # --- Nearby water bodies ----------------------------------------------
+    if water_bodies is not None and water_bodies.count:
+        body_items = [
+            f"{b.name or 'Unnamed feature'} ({b.kind})"
+            + (f" — {b.area_km2:.2f} km²" if b.area_km2 else "")
+            for b in water_bodies.bodies[:15]
+        ]
+        water_bodies_findings = ReportSection(
+            title="Nearby lakes, rivers and water bodies",
+            available=True,
+            body=(
+                f"{water_bodies.count} mapped feature(s) within "
+                f"{(water_bodies.lookup_radius_m or water_bodies.radius_m) // 1000} km. "
+                + (f"Nearest: {water_bodies.nearest_km:.2f} km. " if water_bodies.nearest_km else "")
+                + "Source: OpenStreetMap contributor mapping (not a hydrological survey)."
+            ),
+            items=body_items,
+        )
+    else:
+        water_bodies_findings = ReportSection(
+            title="Nearby lakes, rivers and water bodies",
+            available=False,
+            unavailable_reason=(
+                "No mapped water features were returned for this radius, or the mapping "
+                "service was unavailable. Absence of mapped features is not proof that "
+                "water is absent."
+            ),
+        )
+
+    # --- Environmental change detection -----------------------------------
+    if change_detection is not None:
+        change_items = [change_detection.comparability_note]
+        if change_detection.earlier and change_detection.later:
+            change_items.append(
+                f"Earlier scene: {change_detection.earlier.scene_id} "
+                f"({change_detection.earlier.acquired_at.date().isoformat() if change_detection.earlier.acquired_at else 'date unknown'})."
+            )
+            change_items.append(
+                f"Later scene: {change_detection.later.scene_id} "
+                f"({change_detection.later.acquired_at.date().isoformat() if change_detection.later.acquired_at else 'date unknown'})."
+            )
+        change_items.append("Indicators a full analysis would require: " + "; ".join(change_detection.indicators) + ".")
+        change_detection_findings = ReportSection(
+            title="Environmental change detection",
+            available=True,
+            body=(
+                "Before/after scene discovery only. AquaNexus does not classify imagery "
+                "pixels in this build, so no change value is reported."
+            ),
+            items=change_items,
+        )
+    else:
+        change_detection_findings = ReportSection(
+            title="Environmental change detection",
+            available=False,
+            unavailable_reason="No comparable satellite scenes were discovered.",
+        )
+
+    # --- Future outlook ---------------------------------------------------
+    if outlook is not None and outlook.signals:
+        outlook_items = [
+            f"{s.label}: {s.value:g} {s.unit}".rstrip()
+            if s.value is not None
+            else f"{s.label}: unavailable"
+            for s in outlook.signals
+        ]
+        if outlook.rainy_periods:
+            outlook_items.append(
+                "Rainy forecast periods: "
+                + "; ".join(
+                    f"{p.start_date.isoformat()}→{p.end_date.isoformat()} ({p.days}d, "
+                    f"{(p.total_mm or 0):.1f} mm)"
+                    for p in outlook.rainy_periods[:4]
+                )
+            )
+        outlook_findings = ReportSection(
+            title="Future weather and rainfall outlook",
+            available=True,
+            body=(
+                "All values in this section are modelled forecasts or derived flags, "
+                "not observations. AquaNexus does not issue flood probabilities."
+            ),
+            items=outlook_items,
+        )
+    else:
+        outlook_findings = ReportSection(
+            title="Future weather and rainfall outlook",
+            available=False,
+            unavailable_reason="No forecast product returned usable data for this location.",
         )
 
     # --- Data quality -----------------------------------------------------
@@ -433,9 +557,11 @@ async def build_report_payload(
             )
         )
     if discharge is not None and getattr(discharge, "points", None):
+        hist_points = [p for p in discharge.points if not p.is_forecast]
+        fc_points = [p for p in discharge.points if p.is_forecast]
         charts.append(
             ReportChart(
-                title="Modelled river discharge (GloFAS)",
+                title="Modelled river discharge (GloFAS): reanalysis then forecast",
                 unit="m3/s",
                 points=[
                     ReportChartPoint(
@@ -445,7 +571,21 @@ async def build_report_payload(
                     for p in discharge.points
                 ],
                 available=True,
-                note="Modelled discharge, not a gauge measurement.",
+                observed_points=len(hist_points),
+                forecast_points=len(fc_points),
+                note=(
+                    f"Modelled discharge, not a gauge measurement. {len(hist_points)} "
+                    f"reanalysis/hindcast day(s) before today, then {len(fc_points)} "
+                    f"forecast day(s) from today. Provider: {discharge.provider.name}; "
+                    f"grid cell ~{discharge.grid_resolution_km} km"
+                    + (
+                        f" ({discharge.grid_cell.latitude:.3f}, "
+                        f"{discharge.grid_cell.longitude:.3f})"
+                        if discharge.grid_cell
+                        else ""
+                    )
+                    + "."
+                ),
             )
         )
 
@@ -527,6 +667,52 @@ async def build_report_payload(
             "unavailable. No official warning is implied."
         )
 
+    # --- Missing data and uncertainty -------------------------------------
+    # Explicitly lists what is missing and why, so a reader never mistakes an
+    # unavailable section for a zero or an all-clear.
+    missing_bits: list[str] = []
+    for report in summary.providers:
+        if report.status.value not in {"ok", "partial"}:
+            reason = report.message or "no usable data returned"
+            missing_bits.append(f"{report.provider_name}: unavailable ({reason}).")
+    for section in (
+        observed_conditions,
+        rainfall_findings,
+        heat_findings,
+        flood_section,
+        surface_section,
+        dry_findings,
+        water_presence_findings,
+        water_bodies_findings,
+        change_detection_findings,
+        outlook_findings,
+    ):
+        if section is not None and not section.available:
+            label = section.title
+            reason = section.unavailable_reason or "no usable data returned"
+            line = f"{label}: unavailable ({reason})."
+            if line not in missing_bits:
+                missing_bits.append(line)
+    if ai_section is not None and not ai_section.available:
+        missing_bits.append("AI interpretation: not generated for this report.")
+
+    uncertainty = ReportSection(
+        title="Missing data and uncertainty",
+        available=True,
+        body=(
+            "This section records what could not be established from the available "
+            "evidence. A missing section is not a zero and not an all-clear. "
+            "Reanalysis, forecast, satellite estimate and simulation values carry "
+            "their own uncertainty and are never interchangeable with direct "
+            "measurements."
+        ),
+        items=missing_bits
+        or [
+            "Every source queried for this report returned usable data for the "
+            "selected period; residual uncertainty still applies to each product."
+        ],
+    )
+
     return ReportPayload(
         report_id=f"AQN-{generated_at.strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}",
         generated_at=generated_at,
@@ -545,12 +731,18 @@ async def build_report_payload(
         flood_findings=flood_section,
         surface_water_findings=surface_section,
         dry_condition_findings=dry_findings,
+        water_presence_findings=water_presence_findings,
+        water_bodies_findings=water_bodies_findings,
+        change_detection_findings=change_detection_findings,
+        outlook_findings=outlook_findings,
         data_quality=data_quality,
+        uncertainty=uncertainty,
         follow_up=follow_up,
         ai_interpretation=ai_section,
         ai_generated=ai_generated,
         metrics=metrics,
         charts=charts,
+        images=images or [],
         sources=sources,
         limitations=limitations,
         citations=citations,

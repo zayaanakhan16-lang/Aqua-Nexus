@@ -110,12 +110,23 @@ class WeatherForecast(BaseModel):
 
 
 class DischargePoint(BaseModel):
-    """One day of modelled river discharge (GloFAS)."""
+    """One day of modelled river discharge (GloFAS).
+
+    ``is_forecast`` separates the reanalysis/hindcast portion of the series from
+    the forecast portion: the same daily variable name is used for both by the
+    provider, so the distinction must travel with each point rather than being
+    inferred by the reader.
+    """
 
     timestamp: datetime
     discharge_m3s: float | None = None
     ensemble_mean_m3s: float | None = None
     ensemble_median_m3s: float | None = None
+    ensemble_max_m3s: float | None = None
+    ensemble_min_m3s: float | None = None
+    ensemble_p25_m3s: float | None = None
+    ensemble_p75_m3s: float | None = None
+    is_forecast: bool = False
 
 
 class DischargeSeries(BaseModel):
@@ -136,6 +147,15 @@ class DischargeSeries(BaseModel):
     valid_days: int = 0
     missing_days: int = 0
     note: str = ""
+    # Provider-resolved grid cell. The API snaps the request to the model grid,
+    # so the returned coordinates can differ from the requested point; reporting
+    # them is the honest way to say where the value actually came from.
+    grid_cell: GeoPoint | None = None
+    grid_resolution_km: float = 5.0
+    model: str | None = None
+    retrieved_at: datetime | None = None
+    historical_days: int = 0
+    forecast_days: int = 0
 
 
 class TemperatureSeries(BaseModel):

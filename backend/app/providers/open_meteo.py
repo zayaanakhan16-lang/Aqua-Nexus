@@ -316,22 +316,35 @@ async def fetch_weather_forecast(point: GeoPoint, *, days: int = 7) -> WeatherFo
     )
 
 
-async def fetch_discharge_series(point: GeoPoint, *, days: int = 14) -> DischargeSeries:
-    """Modelled GloFAS river discharge as a normalized daily series.
+async def fetch_discharge_series(
+    point: GeoPoint, *, days: int = 14, past_days: int = 30
+) -> DischargeSeries:
+    """Modelled GloFAS river discharge: reanalysis/hindcast plus forecast.
 
-    Classification: SIMULATION. The Open-Meteo Flood API returns the deterministic
-    GloFAS ``river_discharge`` plus same-day ensemble statistics for the forecast
-    window; those statistics are not historical observations.
+    Classification: SIMULATION. The Open-Meteo Flood API returns the GloFAS
+    ``river_discharge`` for a requested window; the portion before today is
+    reanalysis/hindcast and the portion from today onward is forecast. The same
+    variable name covers both, so each point carries ``is_forecast`` explicitly
+    and the caller can never read a forecast as an observation. The provider also
+    returns same-day ensemble statistics (mean/median/max/min/p25/p75) which are
+    used to communicate forecast spread.
     """
     days = max(1, min(days, 210))
+    past_days = max(0, min(past_days, 92))
     settings = get_settings()
+    retrieved_at = datetime.now(tz=timezone.utc)
     try:
         payload = await request_json(
             settings.open_meteo_flood_url,
             params={
                 "latitude": point.latitude,
                 "longitude": point.longitude,
-                "daily": "river_discharge,river_discharge_mean,river_discharge_median",
+                "daily": (
+                    "river_discharge,river_discharge_mean,river_discharge_median,"
+                    "river_discharge_max,river_discharge_min,river_discharge_p25,"
+                    "river_discharge_p75"
+                ),
+                "past_days": past_days,
                 "forecast_days": days,
                 "timezone": "GMT",
             },
@@ -348,21 +361,46 @@ async def fetch_discharge_series(point: GeoPoint, *, days: int = 14) -> Discharg
     discharge = daily.get("river_discharge") or []
     mean = daily.get("river_discharge_mean") or []
     median = daily.get("river_discharge_median") or []
+    vmax = daily.get("river_discharge_max") or []
+    vmin = daily.get("river_discharge_min") or []
+    p25 = daily.get("river_discharge_p25") or []
+    p75 = daily.get("river_discharge_p75") or []
 
+    # The provider snaps the request to its model grid; report the cell it used.
+    grid_cell = None
+    if isinstance(payload.get("latitude"), (int, float)) and isinstance(
+        payload.get("longitude"), (int, float)
+    ):
+        grid_cell = GeoPoint(
+            latitude=float(payload["latitude"]), longitude=float(payload["longitude"])
+        )
+
+    today = retrieved_at.date()
     points: list[DischargePoint] = []
     missing = 0
+    historical_days = 0
+    forecast_days = 0
     for i, stamp in enumerate(times):
+        day = date.fromisoformat(stamp)
+        is_forecast = day >= today
+        if is_forecast:
+            forecast_days += 1
+        else:
+            historical_days += 1
         value = _at(discharge, i)
         if value is None:
             missing += 1
         points.append(
             DischargePoint(
-                timestamp=datetime.combine(
-                    date.fromisoformat(stamp), time(12, 0), tzinfo=timezone.utc
-                ),
+                timestamp=datetime.combine(day, time(12, 0), tzinfo=timezone.utc),
                 discharge_m3s=value,
                 ensemble_mean_m3s=_at(mean, i),
                 ensemble_median_m3s=_at(median, i),
+                ensemble_max_m3s=_at(vmax, i),
+                ensemble_min_m3s=_at(vmin, i),
+                ensemble_p25_m3s=_at(p25, i),
+                ensemble_p75_m3s=_at(p75, i),
+                is_forecast=is_forecast,
             )
         )
 
@@ -382,22 +420,33 @@ async def fetch_discharge_series(point: GeoPoint, *, days: int = 14) -> Discharg
             source_name=FLOOD.name,
             classification=DataClassification.SIMULATION,
             observed_at=points[-1].timestamp,
+            retrieved_at=retrieved_at,
             method="GloFAS v4 modelled daily river_discharge via Open-Meteo Flood API",
             method_version="1.0",
             notes=[
                 "Modelled discharge along the GloFAS river network; not a gauge reading.",
                 "GloFAS selects the largest river within ~5 km of the point.",
+                "Values before today are reanalysis/hindcast; values from today "
+                "onward are forecast.",
             ],
         ),
         provider=FLOOD,
         valid_days=valid_days,
         missing_days=missing,
+        grid_cell=grid_cell,
+        grid_resolution_km=5.0,
+        model="GloFAS v4 (Copernicus Emergency Management Service)",
+        retrieved_at=retrieved_at,
+        historical_days=historical_days,
+        forecast_days=forecast_days,
         note=(
             "Modelled discharge, not an observation. Values are grid-cell averages "
             "along the modelled river network and are unavailable where no modelled "
-            "river passes near the point."
+            "river passes near the point. Forecast values carry ensemble spread; a "
+            "high discharge is a hydrological signal, not a confirmed flood."
         ),
     )
+
 
 
 def _at(values: list, index: int) -> float | None:

@@ -71,6 +71,44 @@ def _mock_all_providers() -> None:
     respx.post(STAC_URL).mock(
         return_value=httpx.Response(200, json={"features": []})
     )
+    # The report now also assembles the local water-intelligence modules, which
+    # query OpenStreetMap Overpass. All mirrors are mocked so a fall-through
+    # cannot escape the mock router.
+    for mirror in (
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+    ):
+        respx.post(mirror).mock(
+            return_value=httpx.Response(200, json={"elements": []})
+        )
+
+
+@respx.mock
+async def test_report_preview_includes_local_water_intelligence_sections(client):
+    """The report must carry the water-presence, outlook and change sections."""
+    _mock_all_providers()
+    r = await client.get(
+        "/api/v1/reports/preview",
+        params={"latitude": 6.45, "longitude": 3.39, "include_ai": "false"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    for key in (
+        "water_presence_findings",
+        "change_detection_findings",
+        "outlook_findings",
+        "water_bodies_findings",
+    ):
+        assert key in body, key
+        section = body[key]
+        assert section is not None, key
+        # Each section is either populated with items or honest about why not.
+        assert section["available"] or section["unavailable_reason"]
+    # The outlook must be labelled as forecast/derived, never as observation.
+    outlook = body["outlook_findings"]
+    assert outlook["available"] is True
+    assert any("forecast" in item.lower() or "modelled" in item.lower() for item in outlook["items"])
 
 
 @respx.mock

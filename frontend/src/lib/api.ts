@@ -19,6 +19,11 @@ import {
   reportPayloadSchema,
   stacSearchResultSchema,
   hlsSearchResultSchema,
+  waterBodySummarySchema,
+  waterPresenceResultSchema,
+  floodEvidenceResultSchema,
+  changeDetectionResultSchema,
+  locationOutlookSchema,
   studyAreaListResponseSchema,
   studyAreaSchema,
   dischargeSeriesSchema,
@@ -42,6 +47,11 @@ import {
   type StudyArea,
   type StudyAreaListResponse,
   type WaterBodyResult,
+  type WaterBodySummary,
+  type WaterPresenceResult,
+  type FloodEvidenceResult,
+  type ChangeDetectionResult,
+  type LocationOutlook,
   type WeatherForecast,
 } from "./schemas";
 
@@ -358,6 +368,64 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     });
+  },
+
+  waterBodiesSummary(
+    lat: number,
+    lon: number,
+    opts: { radiusM?: number; limit?: number } = {},
+  ): Promise<WaterBodySummary> {
+    return request(
+      `/api/v1/water/bodies/summary${qs({
+        latitude: lat,
+        longitude: lon,
+        radius_m: opts.radiusM ?? 15000,
+        limit: opts.limit ?? 25,
+      })}`,
+      waterBodySummarySchema,
+      { timeoutMs: 40000 },
+    );
+  },
+
+  waterPresence(lat: number, lon: number, radiusM = 10000): Promise<WaterPresenceResult> {
+    return request(
+      `/api/v1/water/presence${qs({ latitude: lat, longitude: lon, radius_m: radiusM })}`,
+      waterPresenceResultSchema,
+      { timeoutMs: 45000 },
+    );
+  },
+
+  floodEvidence(lat: number, lon: number): Promise<FloodEvidenceResult> {
+    return request(
+      `/api/v1/flood/evidence${qs({ latitude: lat, longitude: lon })}`,
+      floodEvidenceResultSchema,
+      { timeoutMs: 60000 },
+    );
+  },
+
+  changeDetection(
+    lat: number,
+    lon: number,
+    opts: { searchDays?: number; radiusDeg?: number } = {},
+  ): Promise<ChangeDetectionResult> {
+    return request(
+      `/api/v1/change/detection${qs({
+        latitude: lat,
+        longitude: lon,
+        search_days: opts.searchDays ?? 180,
+        radius_deg: opts.radiusDeg ?? 0.2,
+      })}`,
+      changeDetectionResultSchema,
+      { timeoutMs: 60000 },
+    );
+  },
+
+  outlook(lat: number, lon: number): Promise<LocationOutlook> {
+    return request(
+      `/api/v1/outlook${qs({ latitude: lat, longitude: lon })}`,
+      locationOutlookSchema,
+      { timeoutMs: 45000 },
+    );
   },
 
   discharge(lat: number, lon: number, days = 14): Promise<DischargeSeries> {

@@ -250,6 +250,169 @@ export const waterBodyResultSchema = z.object({
   bodies: z.array(waterBodySchema).default([]),
   provider: providerReportSchema,
   note: z.string(),
+  // Distinguishes "no mapped water" from "mapping service unreachable".
+  service_reachable: z.boolean().default(true),
+});
+
+export const waterBodySummarySchema = z.object({
+  location: geoPointSchema,
+  radius_m: z.number(),
+  count: z.number(),
+  bodies: z.array(waterBodySchema).default([]),
+  provider: providerReportSchema,
+  note: z.string(),
+  by_kind: z.record(z.number()).default({}),
+  nearest_km: z.number().nullable().optional(),
+});
+
+export const waterPresenceStatusSchema = z.enum([
+  "water_detected",
+  "no_water_detected",
+  "partial_coverage",
+  "insufficient_evidence",
+  "unavailable",
+]);
+
+export const waterPresenceObservationSchema = z.object({
+  source_id: z.string(),
+  source_name: z.string(),
+  product: z.string(),
+  classification: dataClassificationSchema,
+  observed_at: z.string().nullable().optional(),
+  spatial_resolution: z.string(),
+  method: z.string(),
+  method_version: z.string().default("1.0"),
+  detected: z.boolean().nullable().optional(),
+  coverage_fraction: z.number().nullable().optional(),
+  value: z.number().nullable().optional(),
+  unit: z.string().nullable().optional(),
+  confidence: z.string().nullable().optional(),
+  limitations: z.array(z.string()).default([]),
+  notes: z.array(z.string()).default([]),
+});
+
+export const waterPresenceResultSchema = z.object({
+  location: geoPointSchema,
+  generated_at: z.string(),
+  status: waterPresenceStatusSchema,
+  headline: z.string(),
+  detail: z.string(),
+  observations: z.array(waterPresenceObservationSchema).default([]),
+  providers: z.array(providerReportSchema).default([]),
+  evidence_count: z.number().default(0),
+  notes: z.array(z.string()).default([]),
+});
+
+export const floodStatusSchema = z.enum([
+  "observed_flood_water",
+  "heavy_rainfall_signal",
+  "elevated_discharge_signal",
+  "no_flood_evidence",
+  "insufficient_data",
+]);
+
+export const floodEvidenceItemSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  evidence_type: z.string(),
+  status: z.string(),
+  value: z.number().nullable().optional(),
+  unit: z.string().nullable().optional(),
+  period: z.string().nullable().optional(),
+  source: z.string(),
+  classification: dataClassificationSchema,
+  method: z.string().nullable().optional(),
+  limitations: z.array(z.string()).default([]),
+});
+
+export const dischargePointSchema = z.object({
+  timestamp: z.string(),
+  discharge_m3s: z.number().nullable().optional(),
+  ensemble_mean_m3s: z.number().nullable().optional(),
+  ensemble_median_m3s: z.number().nullable().optional(),
+  ensemble_max_m3s: z.number().nullable().optional(),
+  ensemble_min_m3s: z.number().nullable().optional(),
+  ensemble_p25_m3s: z.number().nullable().optional(),
+  ensemble_p75_m3s: z.number().nullable().optional(),
+  is_forecast: z.boolean().default(false),
+});
+
+export const dischargeSeriesSchema = z.object({
+  location: geoPointSchema,
+  start_date: z.string(),
+  end_date: z.string(),
+  granularity: z.string(),
+  unit: z.string(),
+  points: z.array(dischargePointSchema),
+  provenance: provenanceSchema,
+  provider: providerMetadataSchema,
+  valid_days: z.number().default(0),
+  missing_days: z.number().default(0),
+  note: z.string().default(""),
+  grid_cell: geoPointSchema.nullable().optional(),
+  grid_resolution_km: z.number().default(5),
+  model: z.string().nullable().optional(),
+  retrieved_at: z.string().nullable().optional(),
+  historical_days: z.number().default(0),
+  forecast_days: z.number().default(0),
+});
+export const floodEvidenceResultSchema = z.object({
+  location: geoPointSchema,
+  generated_at: z.string(),
+  status: floodStatusSchema,
+  headline: z.string(),
+  detail: z.string(),
+  items: z.array(floodEvidenceItemSchema).default([]),
+  providers: z.array(providerReportSchema).default([]),
+  disclaimer: z.string(),
+  notes: z.array(z.string()).default([]),
+  discharge: dischargeSeriesSchema.nullable().optional(),
+});
+
+export const changeSceneSchema = z.object({
+  role: z.enum(["earlier", "later"]),
+  scene_id: z.string(),
+  collection: z.string(),
+  acquired_at: z.string().nullable().optional(),
+  cloud_cover: z.number().nullable().optional(),
+  platform: z.string().nullable().optional(),
+  thumbnail: z.string().nullable().optional(),
+  bbox: z.array(z.number()).nullable().optional(),
+  resolution: z.string(),
+});
+
+export const changeDetectionResultSchema = z.object({
+  location: geoPointSchema,
+  bbox: boundingBoxSchema,
+  generated_at: z.string(),
+  comparable: z.boolean(),
+  comparability_note: z.string(),
+  earlier: changeSceneSchema.nullable().optional(),
+  later: changeSceneSchema.nullable().optional(),
+  scenes: z.array(changeSceneSchema).default([]),
+  indicators: z.array(z.string()).default([]),
+  providers: z.array(providerReportSchema).default([]),
+  limitations: z.array(z.string()).default([]),
+  notes: z.array(z.string()).default([]),
+});
+
+export const outlookPeriodSchema = z.object({
+  kind: z.enum(["rainy", "dry"]),
+  start_date: z.string(),
+  end_date: z.string(),
+  days: z.number(),
+  total_mm: z.number().nullable().optional(),
+});
+
+export const outlookSignalSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  value: z.number().nullable().optional(),
+  unit: z.string().default(""),
+  status: z.string().default("ok"),
+  classification: dataClassificationSchema,
+  method: z.string(),
+  limitations: z.array(z.string()).default([]),
 });
 
 export const areaSelectionSchema = z.object({
@@ -290,25 +453,18 @@ export const weatherForecastSchema = z.object({
   notes: z.array(z.string()).default([]),
 });
 
-export const dischargePointSchema = z.object({
-  timestamp: z.string(),
-  discharge_m3s: z.number().nullable().optional(),
-  ensemble_mean_m3s: z.number().nullable().optional(),
-  ensemble_median_m3s: z.number().nullable().optional(),
-});
-
-export const dischargeSeriesSchema = z.object({
+export const locationOutlookSchema = z.object({
   location: geoPointSchema,
-  start_date: z.string(),
-  end_date: z.string(),
-  granularity: z.string(),
-  unit: z.string(),
-  points: z.array(dischargePointSchema),
-  provenance: provenanceSchema,
-  provider: providerMetadataSchema,
-  valid_days: z.number().default(0),
-  missing_days: z.number().default(0),
-  note: z.string().default(""),
+  generated_at: z.string(),
+  forecast: precipitationSeriesSchema.nullable().optional(),
+  weather: weatherForecastSchema.nullable().optional(),
+  comparison: precipitationComparisonSchema.nullable().optional(),
+  rainy_periods: z.array(outlookPeriodSchema).default([]),
+  dry_periods: z.array(outlookPeriodSchema).default([]),
+  signals: z.array(outlookSignalSchema).default([]),
+  providers: z.array(providerReportSchema).default([]),
+  notes: z.array(z.string()).default([]),
+  limitations: z.array(z.string()).default([]),
 });
 
 export const studyAreaSchema = z.object({
@@ -487,6 +643,10 @@ export const reportPayloadSchema = z.object({
   flood_findings: reportSectionSchema,
   surface_water_findings: reportSectionSchema,
   dry_condition_findings: reportSectionSchema,
+  water_presence_findings: reportSectionSchema.nullable().optional(),
+  water_bodies_findings: reportSectionSchema.nullable().optional(),
+  change_detection_findings: reportSectionSchema.nullable().optional(),
+  outlook_findings: reportSectionSchema.nullable().optional(),
   data_quality: reportSectionSchema,
   follow_up: reportSectionSchema,
   ai_interpretation: reportSectionSchema,
@@ -532,6 +692,18 @@ export type LegendStop = z.infer<typeof legendStopSchema>;
 export type BoundingBox = z.infer<typeof boundingBoxSchema>;
 export type WaterBody = z.infer<typeof waterBodySchema>;
 export type WaterBodyResult = z.infer<typeof waterBodyResultSchema>;
+export type WaterBodySummary = z.infer<typeof waterBodySummarySchema>;
+export type WaterPresenceStatus = z.infer<typeof waterPresenceStatusSchema>;
+export type WaterPresenceObservation = z.infer<typeof waterPresenceObservationSchema>;
+export type WaterPresenceResult = z.infer<typeof waterPresenceResultSchema>;
+export type FloodStatus = z.infer<typeof floodStatusSchema>;
+export type FloodEvidenceItem = z.infer<typeof floodEvidenceItemSchema>;
+export type FloodEvidenceResult = z.infer<typeof floodEvidenceResultSchema>;
+export type ChangeScene = z.infer<typeof changeSceneSchema>;
+export type ChangeDetectionResult = z.infer<typeof changeDetectionResultSchema>;
+export type OutlookPeriod = z.infer<typeof outlookPeriodSchema>;
+export type OutlookSignal = z.infer<typeof outlookSignalSchema>;
+export type LocationOutlook = z.infer<typeof locationOutlookSchema>;
 export type AreaSelection = z.infer<typeof areaSelectionSchema>;
 export type MapLayer = z.infer<typeof mapLayerSchema>;
 export type MapLayerCatalog = z.infer<typeof mapLayerCatalogSchema>;

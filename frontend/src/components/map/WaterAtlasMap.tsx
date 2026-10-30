@@ -25,7 +25,7 @@
  * an explicit, accessible fallback so the rest of the workspace stays usable.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, MapPin, RefreshCw, SquareDashed } from "lucide-react";
+import { AlertTriangle, MapPin, RefreshCw, SquareDashed, X } from "lucide-react";
 import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from "maplibre-gl";
 
 import { cn } from "@/lib/utils";
@@ -36,7 +36,25 @@ import { RasterMap, type RasterOverlay } from "@/components/map/RasterMap";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+// Key-free OpenFreeMap vector styles. "Liberty" is the natural-colour default;
+// the others give users a lighter or darker canvas for reading overlays.
+const BASEMAPS = [
+  { id: "liberty", label: "Terrain", url: "https://tiles.openfreemap.org/styles/liberty" },
+  { id: "bright", label: "Bright", url: "https://tiles.openfreemap.org/styles/bright" },
+  { id: "positron", label: "Light", url: "https://tiles.openfreemap.org/styles/positron" },
+  { id: "dark", label: "Dark", url: "https://tiles.openfreemap.org/styles/dark" },
+] as const;
+type BasemapId = (typeof BASEMAPS)[number]["id"];
+const STYLE_URL = BASEMAPS[0].url;
+
+/** Escape contributor-supplied names before they reach the popup's innerHTML. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 const SCENES_SOURCE = "aquanexus-scenes";
 const SCENES_FILL = "aquanexus-scenes-fill";
 // Global raster overlay (NASA GIBS). Kept as a single source/layer pair so a
@@ -218,16 +236,23 @@ export function WaterAtlasMap() {
     selectionMode,
     setSelectionMode,
     selectDrawnArea,
+    clearLocation,
   } = useWorkspace();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
+  const popupRef = useRef<maplibregl.Popup | null>(null);
   // Guards the "map engine failed" transition so a stream of error events cannot
   // flip us back and forth or re-render in a loop.
   const failedRef = useRef(false);
   const [status, setStatus] = useState<MapStatus>({ kind: "pending" });
   // Bumping this re-runs initialisation for the explicit retry action only.
   const [attempt, setAttempt] = useState(0);
+  // Bumped whenever the basemap style finishes (re)loading. Overlay effects
+  // depend on it so they re-apply their data after a `setStyle` wipe.
+  const [styleEpoch, setStyleEpoch] = useState(0);
+  const [basemap, setBasemap] = useState<BasemapId>(BASEMAPS[0].id);
+  const appliedBasemapRef = useRef<BasemapId>(BASEMAPS[0].id);
   // Drag-to-draw state. Kept in refs because the map's mouse handlers run
   // outside React's render cycle; only the final ring is pushed into state.
   const drawStartRef = useRef<{ lng: number; lat: number } | null>(null);
@@ -297,6 +322,7 @@ export function WaterAtlasMap() {
     let removed = false;
     let resizeObserver: ResizeObserver | null = null;
     let onLoad: (() => void) | null = null;
+    let onStyleLoad: (() => void) | null = null;
     let onClick: ((event: { lngLat: { lat: number; lng: number } }) => void) | null = null;
     let onMouseDown: ((event: { lngLat: { lat: number; lng: number } }) => void) | null = null;
     let onMouseMove: ((event: { lngLat: { lat: number; lng: number } }) => void) | null = null;
@@ -309,6 +335,7 @@ export function WaterAtlasMap() {
       removed = true;
       resizeObserver?.disconnect();
       if (onLoad) map.off("load", onLoad);
+      if (onStyleLoad) map.off("style.load", onStyleLoad);
       if (onClick) map.off("click", onClick);
       if (onMouseDown) map.off("mousedown", onMouseDown);
       if (onMouseMove) map.off("mousemove", onMouseMove);
@@ -404,7 +431,10 @@ export function WaterAtlasMap() {
     map.on("mousemove", onMouseMove);
     map.on("mouseup", onMouseUp);
 
-    onLoad = () => {
+    // Every source and layer AquaNexus owns is registered here. It runs on the
+    // first load and again after a basemap switch, because `setStyle` discards
+    // all non-basemap sources and layers.
+    const addOverlays = () => {
       if (!map.getSource(SCENES_SOURCE)) {
         map.addSource(SCENES_SOURCE, {
           type: "geojson",
@@ -489,9 +519,22 @@ export function WaterAtlasMap() {
           },
         });
       }
+    };
+
+    onLoad = () => {
+      addOverlays();
       if (!failedRef.current) setStatus({ kind: "ready" });
     };
     map.on("load", onLoad);
+
+    // A basemap switch keeps the map instance but drops AquaNexus layers, so
+    // they must be re-added. The camera, marker and selection survive because
+    // they are restored by their own effects.
+    onStyleLoad = () => {
+      addOverlays();
+      setStyleEpoch((n) => n + 1);
+    };
+    map.on("style.load", onStyleLoad);
 
     return teardown;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -519,7 +562,7 @@ export function WaterAtlasMap() {
     } else {
       markerRef.current.setLngLat([location.longitude, location.latitude]);
     }
-  }, [location, layers.places, status.kind]);
+  }, [location, layers.places, status.kind, styleEpoch]);
 
   // Recenter on a new selection, independently of marker visibility. Zoom never
   // drops below the current view, so navigating to a place cannot restrict the
@@ -532,7 +575,7 @@ export function WaterAtlasMap() {
       zoom: Math.max(map.getZoom(), FOCUS_ZOOM),
       duration: 700,
     });
-  }, [location, status.kind]);
+  }, [location, status.kind, styleEpoch]);
 
   // Commit a finished drag: reject degenerate rectangles locally, otherwise hand
   // the ring to the workspace, which validates it server-side.
@@ -581,7 +624,7 @@ export function WaterAtlasMap() {
 
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [location, status.kind]);
+  }, [location, status.kind, styleEpoch]);
 
   // Draw the live draft rectangle while the user is dragging.
   useEffect(() => {
@@ -638,7 +681,56 @@ export function WaterAtlasMap() {
 
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [waterBodies.data, layers.water, status.kind]);
+  }, [waterBodies.data, layers.water, status.kind, styleEpoch]);
+
+  // Feature inspection: clicking a mapped water outline opens a small popup with
+  // its real attributes. This is additive — the click handler that sets the
+  // analysis point still runs, so inspecting a lake never blocks selecting it.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const onClickFeature = (event: {
+      features?: { properties?: Record<string, unknown> }[];
+      lngLat: { lat: number; lng: number };
+    }) => {
+      const props = event.features?.[0]?.properties;
+      if (!props) return;
+      const name = typeof props.name === "string" && props.name ? props.name : "Unnamed water body";
+      const kind = typeof props.kind === "string" ? props.kind : "water";
+      const area =
+        typeof props.area_km2 === "number" ? `${props.area_km2.toFixed(2)} km²` : "area not mapped";
+      popupRef.current?.remove();
+      popupRef.current = new maplibregl.Popup({ closeButton: true, offset: 8 })
+        .setLngLat(event.lngLat)
+        .setHTML(
+          `<div style="font:12px/1.45 system-ui,sans-serif;color:#0b2237">` +
+            `<strong>${escapeHtml(name)}</strong><br/>` +
+            `${escapeHtml(kind)} · ${escapeHtml(area)}<br/>` +
+            `<span style="opacity:.7">Source: OpenStreetMap contributors</span></div>`,
+        )
+        .addTo(map);
+    };
+
+    const enter = () => {
+      if (layers.water) map.getCanvas().style.cursor = "pointer";
+    };
+    const leave = () => {
+      map.getCanvas().style.cursor = "";
+    };
+
+    map.on("click", WATER_FILL, onClickFeature);
+    map.on("mouseenter", WATER_FILL, enter);
+    map.on("mouseleave", WATER_FILL, leave);
+
+    return () => {
+      map.off("click", WATER_FILL, onClickFeature);
+      map.off("mouseenter", WATER_FILL, enter);
+      map.off("mouseleave", WATER_FILL, leave);
+      popupRef.current?.remove();
+      popupRef.current = null;
+    };
+  }, [layers.water, status.kind, styleEpoch]);
 
   // Crosshair cursor while the draw tool is armed, so the mode is unmistakable.
   useEffect(() => {
@@ -701,7 +793,7 @@ export function WaterAtlasMap() {
 
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [scenes.data, layers.satellite, status.kind]);
+  }, [scenes.data, layers.satellite, status.kind, styleEpoch]);
 
   // Draw the active global raster layer (NASA GIBS) over the basemap.
   //
@@ -749,7 +841,21 @@ export function WaterAtlasMap() {
 
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [mapLayers.data, activeRasterLayerId, rasterLayerDate, rasterOpacity, status.kind]);
+  }, [mapLayers.data, activeRasterLayerId, rasterLayerDate, rasterOpacity, status.kind, styleEpoch]);
+
+  // Switch the basemap style on request. The map instance is reused, so the
+  // camera and selection survive; the overlay effects re-apply their data once
+  // the new style has loaded (see `styleEpoch`). `appliedBasemapRef` records
+  // what the map is actually showing, since the style object does not expose
+  // the URL it was created from.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const target = BASEMAPS.find((b) => b.id === basemap);
+    if (!target || appliedBasemapRef.current === target.id) return;
+    appliedBasemapRef.current = target.id;
+    map.setStyle(target.url);
+  }, [basemap, status.kind]);
 
   const activeRasterLayer = mapLayers.data?.layers.find(
     (l) => l.id === activeRasterLayerId,
@@ -857,6 +963,43 @@ export function WaterAtlasMap() {
               <SquareDashed className="h-3.5 w-3.5 shrink-0" aria-hidden />
               Draw an area
             </button>
+            {location ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawError(null);
+                  setDraftRing(null);
+                  clearLocation();
+                }}
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium text-ink-300 transition hover:bg-white/[0.06] hover:text-ink-100"
+              >
+                <X className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                Reset selection
+              </button>
+            ) : null}
+            <div className="mt-0.5 border-t border-white/[0.08] px-1.5 pb-0.5 pt-1.5">
+              <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-ink-400">
+                Basemap
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {BASEMAPS.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    aria-pressed={basemap === b.id}
+                    onClick={() => setBasemap(b.id)}
+                    className={cn(
+                      "rounded-md px-1.5 py-0.5 text-[0.6875rem] font-medium transition",
+                      basemap === b.id
+                        ? "bg-water-400/15 text-water-100 ring-1 ring-water-400/40"
+                        : "text-ink-300 hover:bg-white/[0.06]",
+                    )}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {selectionMode === "draw" ? (

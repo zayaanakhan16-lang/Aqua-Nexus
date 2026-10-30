@@ -66,6 +66,26 @@ class ReportChart(BaseModel):
     points: list[ReportChartPoint] = Field(default_factory=list)
     available: bool = True
     note: str | None = None
+    # Optional split so the PDF can distinguish observed/reanalysis history from
+    # a modelled forecast instead of drawing one undifferentiated line.
+    observed_points: int | None = None
+    forecast_points: int | None = None
+
+
+class ReportImage(BaseModel):
+    """A real provider-rendered satellite preview embedded in the report.
+
+    Only catalogue-rendered previews are used. If the bytes cannot be fetched the
+    image is omitted and the URL is printed instead, so the report never shows a
+    placeholder that could be mistaken for an observation.
+    """
+
+    title: str
+    url: str
+    attribution: str
+    captured_at: str | None = None
+    resolution: str | None = None
+    note: str | None = None
 
 
 class ReportPayload(BaseModel):
@@ -88,12 +108,21 @@ class ReportPayload(BaseModel):
     flood_findings: ReportSection
     surface_water_findings: ReportSection
     dry_condition_findings: ReportSection
+    # Local water-intelligence sections. Optional with defaults so a payload built
+    # by an older caller (or a test) remains valid; the builder always populates
+    # them from real module output.
+    water_presence_findings: ReportSection | None = None
+    water_bodies_findings: ReportSection | None = None
+    change_detection_findings: ReportSection | None = None
+    outlook_findings: ReportSection | None = None
     data_quality: ReportSection
+    uncertainty: ReportSection | None = None
     follow_up: ReportSection
     ai_interpretation: ReportSection
     ai_generated: bool
     metrics: list[ReportMetric] = Field(default_factory=list)
     charts: list[ReportChart] = Field(default_factory=list)
+    images: list[ReportImage] = Field(default_factory=list)
     sources: list[ReportSource] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     citations: list[str] = Field(default_factory=list)

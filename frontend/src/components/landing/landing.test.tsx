@@ -41,17 +41,22 @@ describe("Hero", () => {
 });
 
 describe("CapabilitiesSection", () => {
-  it("lists the four real modules and marks them available", () => {
+  it("lists every implemented module and marks them available", () => {
     render(<CapabilitiesSection />);
-    for (const name of [
+    const names = [
       "Water Stress Explorer",
+      "Local Water Intelligence",
       "Flood Intelligence",
       "Weather & Rainfall",
-      "Satellite Explorer",
-    ]) {
+      "Satellite Intelligence",
+      "Future Outlook",
+      "Global Intelligence",
+      "AI Intelligence",
+    ];
+    for (const name of names) {
       expect(screen.getByRole("heading", { name })).toBeInTheDocument();
     }
-    expect(screen.getAllByText("Available")).toHaveLength(4);
+    expect(screen.getAllByText("Available")).toHaveLength(names.length);
   });
 });
 

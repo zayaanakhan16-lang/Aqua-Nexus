@@ -31,3 +31,6 @@ packages = ["app"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 filterwarnings = ["ignore::DeprecationWarning"]
+markers = [
+    "live: hits a real external provider API (requires network; excluded by default)",
+]

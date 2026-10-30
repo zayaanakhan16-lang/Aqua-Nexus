@@ -45,13 +45,16 @@ npm run dev            # port 3000
 There is exactly **one** water-intelligence workspace: `/explore`. The legacy
 `/atlas` route was removed and its functionality consolidated into Explore Map.
 The shared results surface is `components/workspace/IntelligenceTabs.tsx`, which
-renders every supported category (Overview, Weather, Precipitation, Water Stress,
-River Discharge, Satellite Explorer, AI Analysis, Sources & Evidence) for the
-location held by the `lib/workspace.tsx` store. Both `/explore` and the saved
+renders every supported category (Overview, Weather, Precipitation, Water
+Presence, Water Atlas, Water Stress, Flood, Outlook, Change, River Discharge,
+Satellite Explorer, Global Layers, AI Analysis, Report, Sources & Evidence) for
+the location held by the `lib/workspace.tsx` store. Both `/explore` and the saved
 study-area workspace (`/study-areas/[id]`) use the same `IntelligenceTabs` and
-`MapPanel`, so there is one results experience, not two. Do not add a second
-workspace route. Component names that still contain "Atlas" (`WaterAtlasMap`)
-are shared map internals and are deliberately retained.
+`MapPanel`, so there is one results experience, not two. `/global` is a separate
+*dataset* exploration surface, not a second local workspace, and it hands the
+point the user picks back to `/explore`. Do not add a second workspace route.
+Component names that still contain "Atlas" (`WaterAtlasMap`) are shared map
+internals and are deliberately retained.
 
 ## Map (2D, MapLibre GL JS v4 — do not reintroduce a globe)
 
@@ -73,12 +76,15 @@ build. It is landing-only and never required for the working map.
 
 ## Verified state
 
-- Backend: 128 pytest tests pass (includes the IMERG adapter suite and the AI
-  analysis suite). Frontend: 77 vitest tests pass; typecheck, lint and
+- Backend: 189 pytest tests pass (includes the IMERG adapter suite and the AI
+  analysis suite). Frontend: 91 vitest tests pass; typecheck, lint and
   `next build` all clean. The search/workspace suite
   (`panels/location-search.test.tsx`, `lib/workspace.test.tsx`) pins the
   stale-response guarantees: a superseded search is aborted and a late response
-  can never overwrite the current location's results.
+  can never overwrite the current location's results. `lib/workspace.test.tsx`
+  also pins the drawn-area path: the ring is validated server-side and the area
+  size shown is the backend's value, and a rejected ring surfaces its error
+  instead of failing silently.
 - Landing tests (`components/landing/landing.test.tsx`) enforce honesty copy:
   the NASA Blue Marble attribution and the "no readings and no live" disclosure
   on the product-preview schematic. Do not remove those without cause.
@@ -208,6 +214,23 @@ build. It is landing-only and never required for the working map.
   and binary bodies (the PDF report) stream through as bytes. No secrets in
   the client bundle; only `NEXT_PUBLIC_API_BASE_URL` is public.
 - Heavy libs: MapLibre loads with `ssr:false`; ECharts is dynamically imported.
+- OpenStreetMap water features come from the public Overpass API
+  (`providers/water_bodies.py`). The public mirrors stall often, so the adapter
+  queries every mirror **concurrently** and takes the first answer, then caches
+  the result (including an "at capacity" failure) for the cache TTL. The cache
+  key is `(lat, lon, radius_m)` and ignores the caller's `limit`, so the presence
+  panel, the flood screen and the report share one provider round-trip; the
+  caller's limit is applied to the cached copy. A result therefore carries
+  `lookup_radius_m` — the radius it was actually built for — and callers must
+  report that, not their requested radius. When the primary filter reaches no
+  mirror the loop stops early rather than retrying the lower-priority filters
+  against the same dead hosts.
+- **A service failure is never a measured zero.** `WaterBodyResult.service_reachable`
+  distinguishes "the mapping service answered with no features" from "the service
+  did not answer". The flood module's `surface_water_context` item must be
+  `status="unavailable"` with `value=None` in the latter case; reporting `0`
+  would present an outage as an observation. See
+  `tests/test_water_intel.py::test_flood_surface_water_context_is_unavailable_not_zero_when_service_fails`.
 - Data provider endpoints and terms change — re-verify against the linked docs
   before relying on a source.
 - Tooling quirk: `file_editor` create fails when the target directory does not

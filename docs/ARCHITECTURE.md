@@ -61,6 +61,14 @@ provider-specific logic and no scientific arithmetic.
 | `GET /api/v1/weather` | Modelled current conditions + daily forecast |
 | `GET /api/v1/discharge` | Modelled GloFAS river discharge series |
 | `GET /api/v1/satellite/scenes` | STAC scene metadata search (with rendered previews) |
+| `GET /api/v1/satellite/hls` | NASA HLS (HLSS30/HLSL30) granule discovery via CMR STAC |
+| `GET /api/v1/water/bodies` | Mapped water features near a point (OpenStreetMap/Overpass) |
+| `GET /api/v1/water/bodies/summary` | Compact water-feature summary for the map/panel |
+| `POST /api/v1/water/area` | Area of a drawn polygon + its analysis centre point |
+| `GET /api/v1/water/presence` | Surface-water presence evidence for a point |
+| `GET /api/v1/flood/evidence` | Evidence-based flood screening (observed / rainfall / modelled) |
+| `GET /api/v1/change/detection` | Comparable before/after scene discovery |
+| `GET /api/v1/outlook` | Forecast outlook (rainfall, temperature, derived concern flags) |
 | `GET /api/v1/map/layers` | Global raster layer catalog (NASA GIBS) with legends |
 | `GET /api/v1/reports/preview` | Structured preview of the report payload |
 | `POST /api/v1/reports` | Server-rendered branded PDF report |
@@ -97,6 +105,19 @@ The scientific engine, deliberately independent of HTTP and independent of React
 - `summary.py` — graceful orchestration: independent providers are fetched
   concurrently, and a failed provider degrades one slice, never the whole
   response.
+- `water_presence.py` — surface-water presence screening from mapped features
+  and available satellite evidence, with an explicit "insufficient evidence"
+  state.
+- `flood_evidence.py` — evidence-based flood screening. Keeps observed extent,
+  rainfall signals and modelled GloFAS discharge as **distinct** evidence types
+  and never derives a flood probability.
+- `change_detection.py` — discovers two real, date-separated scenes and reports
+  whether they are comparable; it does not classify pixels.
+- `outlook.py` — assembles the forecast outlook from the forecast providers and
+  derives explicit concern flags. Every value is a forecast or a derived flag.
+- `report_builder.py` / `report_pdf.py` / `report_images.py` — build the
+  structured report payload, render the branded PDF, and embed the report
+  figures.
 
 Each function is pure given its inputs and has its own tests.
 
@@ -112,9 +133,10 @@ never untyped dicts passed around internally.
   analysis window and fetched data slices. Fetches happen on location/window
   change, not per component render. A monotonic request token discards stale
   responses.
-- **Independent slices.** Summary, comparison, forecast and scenes each carry
-  their own `loading`/`error` state, so a satellite failure does not blank the
-  rainfall chart.
+- **Independent slices.** Summary, comparison, forecast, scenes, weather,
+  discharge, water bodies, water presence, flood evidence, change detection and
+  the outlook each carry their own `loading`/`error` state, so a satellite
+  failure does not blank the rainfall chart.
 - **Zod at the boundary.** `lib/api.ts` validates every response; a contract
   drift becomes a `contract_error` instead of a bad render.
 - **Heavy libraries are deferred.** MapLibre loads with `ssr:false`; ECharts is

@@ -35,6 +35,13 @@ class WaterBodyResult(BaseModel):
     bodies: list[WaterBody] = Field(default_factory=list)
     provider: ProviderReport
     note: str
+    # True when the mapping service answered (even with zero features); False when
+    # it could not be reached. Callers must use this to distinguish "no mapped
+    # water" from "no coverage" — the provider status alone conflates the two.
+    service_reachable: bool = True
+    # The radius actually queried. Cached lookups are keyed on it, so a shared
+    # result must report the radius it was built for rather than the caller's.
+    lookup_radius_m: int | None = None
 
 
 class AreaSelection(BaseModel):

@@ -167,7 +167,43 @@ is thin.
 
 ---
 
-## 4. Timestamp and unit normalization
+## 4. Flood screening, change detection and outlook
+
+`app/services/flood_evidence.py`, `change_detection.py`, `outlook.py`.
+
+**Flood screening** keeps three kinds of evidence strictly apart and never
+converts one into another:
+
+| Evidence type | Meaning | Never implies |
+| --- | --- | --- |
+| `observed_extent` | A satellite product's surface-water observation | a flood forecast |
+| `rainfall_signal` | Observed or forecast heavy rainfall | that a flood occurred |
+| `discharge_signal` | Modelled GloFAS river discharge and its ensemble spread | a gauge measurement or a flood probability |
+| `surface_water_context` | Count of mapped water features nearby | a hydrological measurement |
+
+- Heavy rainfall is counted against an explicit, documented threshold
+  (≥ 20 mm/day); the threshold is a documented choice, not a warning criterion.
+- A high modelled discharge is a hydrological signal. It is not a confirmed
+  flood, and AquaNexus issues no flood probability.
+- The module is labelled **evidence-based screening**, not an official flood
+  warning, everywhere it surfaces.
+- **A failed provider is not a zero.** When the mapping service does not answer,
+  `surface_water_context` is `status="unavailable"` with a `null` value, because
+  reporting `0` would present a service outage as an observation.
+
+**Change detection** discovers two real, date-separated scenes and reports
+whether they are comparable (minimum separation, usable cloud cover). It does
+**not** download Level-2A bands, so it reports no water-surface or vegetation
+*change measurement* — only the comparison conditions a real analysis would need.
+
+**Outlook** carries only forecasts and derived flags. Every value is labelled
+`forecast` or `derived`, never `observation`, and the payload states the
+provider, period, units and limitations. Reservoir levels and groundwater are
+not predicted, because no suitable dataset is connected.
+
+---
+
+## 5. Timestamp and unit normalization
 
 - All internal timestamps are timezone-aware UTC (`datetime`, `tz=utc`).
 - Daily series are keyed by calendar date (UTC).
@@ -176,11 +212,11 @@ is thin.
 
 ---
 
-## 5. What AquaNexus deliberately does not do
+## 6. What AquaNexus deliberately does not do
 
-- It does not run a flood-prediction model.
-- It does not perform water-body classification or change detection (no
-  verified processing pipeline exists in this build).
+- It does not run a flood-prediction model, and it issues no flood probability.
+- It does not download satellite bands or classify pixels, so it reports no
+  water-surface or vegetation change measurement from imagery.
 - It does not present demonstration values as live data.
 - It does not substitute fabricated numbers when a provider is unavailable; it
   returns an explicit unavailable state.

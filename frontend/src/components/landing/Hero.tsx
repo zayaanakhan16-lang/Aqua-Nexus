@@ -11,9 +11,9 @@ import { ArrowRight, Compass, Globe2 } from "lucide-react";
 import { EarthGlobe } from "@/components/landing/EarthGlobe";
 
 const PILLARS = [
+  "Surface-water observations",
   "Rainfall history & forecasts",
-  "Modelled river discharge",
-  "Satellite scene metadata",
+  "Satellite imagery & change",
   "Traceable provenance",
 ];
 
@@ -38,9 +38,13 @@ export function Hero() {
             shaping our world.
           </h1>
 
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-300 sm:text-lg">
-            Explore environmental conditions, understand changing water patterns, and turn
-            location-specific evidence into informed decisions.
+          <p className="mt-6 font-display text-lg font-medium tracking-tight text-water-200 sm:text-xl">
+            Understand Water. Detect Risks. Find Solutions.
+          </p>
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-300 sm:text-lg">
+            Select any point or draw an area anywhere on Earth. AquaNexus investigates it with real
+            satellite, rainfall, weather and water-body evidence, then explains what the data shows
+            and what it does not.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">

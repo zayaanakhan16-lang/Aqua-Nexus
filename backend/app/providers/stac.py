@@ -131,7 +131,8 @@ async def search_scenes(
             classification=PROVIDER.classification,
         ),
         note=(
-            "Scene metadata only. AquaNexus does not yet perform water-body "
-            "classification or change detection on this imagery."
+            "Scene metadata and the provider's rendered preview only. AquaNexus "
+            "discovers and compares scene dates but does not download bands or "
+            "classify pixels, so it reports no water-surface change measurement."
         ),
     )

@@ -1,4 +1,5 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { WorkspaceProvider, useWorkspace, type SelectedLocation } from "@/lib/workspace";
@@ -67,12 +68,25 @@ function deferred<T>() {
 }
 
 function Harness() {
-  const { location, summary, selectLocation, clearLocation } = useWorkspace();
+  const { location, summary, selectLocation, clearLocation, selectDrawnArea } = useWorkspace();
+  const [drawn, setDrawn] = useState("pending");
+  const [failed, setFailed] = useState("pending");
+  const ring = [
+    [33.0, -1.0],
+    [33.1, -1.0],
+    [33.1, -1.1],
+    [33.0, -1.1],
+    [33.0, -1.0],
+  ];
   return (
     <div>
       <span data-testid="label">{location?.label ?? "none"}</span>
+      <span data-testid="mode">{location?.mode ?? "none"}</span>
+      <span data-testid="area-km2">{location?.area?.area_km2 ?? "none"}</span>
       <span data-testid="summary-label">{summary.data?.label ?? "none"}</span>
       <span data-testid="summary-loading">{String(summary.loading)}</span>
+      <span data-testid="drawn">{drawn}</span>
+      <span data-testid="failed">{failed}</span>
       <button type="button" onClick={() => selectLocation(BERLIN)}>
         select-berlin
       </button>
@@ -81,6 +95,17 @@ function Harness() {
       </button>
       <button type="button" onClick={clearLocation}>
         clear
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void selectDrawnArea(ring).then((area) => {
+            setDrawn(area ? String(area.area_km2) : "null");
+            setFailed(area ? "no" : "yes");
+          });
+        }}
+      >
+        draw-area
       </button>
     </div>
   );
@@ -166,5 +191,77 @@ describe("workspace store location changes", () => {
     });
 
     expect(screen.getByTestId("summary-label")).toHaveTextContent("Lagos");
+  });
+
+  it("adopts a drawn area and carries its server-computed size", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/water/area")) {
+        return Promise.resolve(
+          json({
+            bbox: { west: 33.0, south: -1.1, east: 33.1, north: -1.0 },
+            coordinates: [
+              [33.0, -1.0],
+              [33.1, -1.0],
+              [33.1, -1.1],
+              [33.0, -1.1],
+              [33.0, -1.0],
+            ],
+            area_km2: 123.45,
+            analysis_point: { latitude: -1.05, longitude: 33.05 },
+            coverage: "bounding_box",
+            coverage_note: "Analysis runs at the polygon centre.",
+            label: null,
+          }),
+        );
+      }
+      return Promise.resolve(json(seriesBody(1)));
+    });
+
+    renderHarness();
+    await act(async () => {
+      screen.getByText("draw-area").click();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(screen.getByTestId("failed")).toHaveTextContent("no"));
+    // Let the location's background slices settle before asserting.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId("mode")).toHaveTextContent("draw");
+    // The area comes from the backend, not a client-side guess.
+    expect(screen.getByTestId("area-km2")).toHaveTextContent("123.45");
+    expect(screen.getByTestId("label")).toHaveTextContent("123 km²");
+  });
+
+  it("surfaces a rejected drawn area instead of failing silently", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/water/area")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ detail: "Polygon is too small to analyse." }), {
+            status: 422,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+      return Promise.resolve(json(seriesBody(1)));
+    });
+
+    renderHarness();
+    await act(async () => {
+      screen.getByText("draw-area").click();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(screen.getByTestId("failed")).toHaveTextContent("yes"));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId("drawn")).toHaveTextContent("null");
+    expect(screen.getByTestId("mode")).toHaveTextContent("none");
   });
 });

@@ -93,6 +93,7 @@ async def test_complete_json_without_credential_raises_unconfigured():
         )
 
 
+
 @respx.mock
 async def test_complete_json_posts_to_groq_endpoint(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
@@ -316,6 +317,19 @@ def _mock_data_providers() -> None:
     respx.post(STAC_URL).mock(
         return_value=httpx.Response(200, json={"features": [{"id": "S1", "properties": {"datetime": "2026-06-29T10:20:21Z"}}]})
     )
+
+    # Local water-intelligence sources are now part of the evidence package, so
+    # the Overpass mirrors must be mocked too (all of them, so a fall-through
+    # cannot escape the mock router).
+    for mirror in (
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+    ):
+        respx.post(mirror).mock(
+            return_value=httpx.Response(200, json={"elements": []})
+        )
+
 
 
 @respx.mock

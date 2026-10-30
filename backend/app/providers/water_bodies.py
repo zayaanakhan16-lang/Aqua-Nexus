@@ -25,6 +25,7 @@ from app.logging_config import get_logger
 from app.models.common import BoundingBox, DataClassification, GeoPoint, ProviderReport, ProviderStatus
 from app.models.water import WaterBody, WaterBodyResult
 from app.providers import catalog
+from app.providers.base import get_cache
 
 logger = get_logger(__name__)
 
@@ -60,12 +61,14 @@ _AREA_FILTERS = (
 )
 
 # Total wall-clock budget for the whole lookup. Public Overpass mirrors can stall
-# for tens of seconds; a bounded budget keeps the panel responsive and lets the
-# UI show an honest "at capacity" state instead of hanging.
-TOTAL_BUDGET_SECONDS = 20.0
+# for tens of seconds under load; a bounded budget keeps the panel responsive and
+# lets the UI show an honest "at capacity" state instead of hanging.
+TOTAL_BUDGET_SECONDS = 26.0
 # Per-attempt timeout. A mirror that has not answered in this long is treated as
-# unavailable so the budget is not consumed by a single stalled host.
-PER_ATTEMPT_SECONDS = 6.0
+# unavailable so the budget is not consumed by a single stalled host. Observed
+# latency on the public mirrors ranges from ~1 s to ~40 s, so this is set high
+# enough for a slow-but-working mirror to answer while staying bounded.
+PER_ATTEMPT_SECONDS = 20.0
 
 
 def _close_ring(coords: list[list[float]]) -> list[list[float]]:
@@ -131,10 +134,34 @@ def _water_kind(tags: dict[str, Any]) -> str:
 
 
 def _normalize(element: dict[str, Any]) -> WaterBody | None:
-    geometry = element.get("geometry")
-    if not isinstance(geometry, list):
-        return None
-    coords = _normalize_geometry(geometry)
+    """Normalize an Overpass ``way`` or ``relation`` into a WaterBody.
+
+    Large water bodies (e.g. Lake Victoria) are mapped in OpenStreetMap as
+    **relations**, not ways. A way-only query silently misses them, which would
+    make the presence assessment wrong at exactly the places where water is most
+    obvious. For a relation we take its outer rings and keep the largest by
+    geodesic area, so a multi-polygon lake is represented by its main body.
+    """
+    if element.get("type") == "relation":
+        outer_rings: list[list[list[float]]] = []
+        for member in element.get("members") or []:
+            geometry = member.get("geometry")
+            if not isinstance(geometry, list):
+                continue
+            if (member.get("role") or "outer") == "inner":
+                continue
+            ring = _normalize_geometry(geometry)
+            if ring:
+                outer_rings.append(ring)
+        if not outer_rings:
+            return None
+        coords = max(outer_rings, key=lambda r: _area_km2(r) or 0.0)
+    else:
+        geometry = element.get("geometry")
+        if not isinstance(geometry, list):
+            return None
+        coords = _normalize_geometry(geometry)
+
     if not coords:
         return None
     tags = element.get("tags") or {}
@@ -155,39 +182,80 @@ def _normalize(element: dict[str, Any]) -> WaterBody | None:
     )
 
 
+async def _query_mirror(
+    client: httpx.AsyncClient, query: str, mirror: str
+) -> list[dict[str, Any]] | None:
+    """Query a single Overpass mirror. ``None`` means this mirror did not answer."""
+    try:
+        response = await asyncio.wait_for(
+            client.post(mirror, data={"data": query}), timeout=PER_ATTEMPT_SECONDS
+        )
+        if response.status_code == 200:
+            payload = response.json()
+            return payload.get("elements") or []
+        logger.info("Overpass mirror %s returned %s", mirror, response.status_code)
+    except (httpx.HTTPError, ValueError, asyncio.TimeoutError) as exc:
+        logger.info("Overpass mirror %s failed: %s", mirror, type(exc).__name__)
+    return None
+
+
 async def _run_query(
     client: httpx.AsyncClient, query: str, mirrors: tuple[str, ...]
 ) -> list[dict[str, Any]] | None:
-    """Run one Overpass query, trying each mirror until one answers.
+    """Run one Overpass query against all mirrors concurrently.
 
-    Returns the element list, or ``None`` when every mirror failed. A 502 means
-    the mirror is at capacity (transient), so it is skipped rather than treated
-    as a hard error.
+    Public mirrors routinely stall, so querying them in parallel and taking the
+    first successful answer bounds latency to roughly a single attempt instead of
+    the sum of every stalled host. A 502 means a mirror is at capacity
+    (transient) and is simply ignored. Returns ``None`` only when every mirror
+    fails, which the caller reports honestly as "at capacity".
     """
-    for mirror in mirrors:
-        try:
-            response = await asyncio.wait_for(
-                client.post(mirror, data={"data": query}), timeout=PER_ATTEMPT_SECONDS
-            )
-            if response.status_code == 200:
-                payload = response.json()
-                return payload.get("elements") or []
-            logger.info("Overpass mirror %s returned %s", mirror, response.status_code)
-        except (httpx.HTTPError, ValueError, asyncio.TimeoutError) as exc:
-            logger.info("Overpass mirror %s failed: %s", mirror, type(exc).__name__)
-    return None
+    tasks = [
+        asyncio.create_task(_query_mirror(client, query, mirror)) for mirror in mirrors
+    ]
+    try:
+        for coro in asyncio.as_completed(tasks):
+            elements = await coro
+            if elements is not None:
+                return elements
+        return None
+    finally:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 async def find_water_bodies(
     point: GeoPoint, *, radius_m: int = DEFAULT_RADIUS_M, limit: int = 25
 ) -> WaterBodyResult:
-    """Find mapped water bodies within ``radius_m`` of a point."""
+    """Find mapped water bodies within ``radius_m`` of a point.
+
+    Results (including "at capacity" failures) are cached for the configured TTL
+    so the panel, the flood-evidence screen and the report can share one lookup
+    instead of each spending the full Overpass budget on the same coordinates.
+    The lookup always fetches up to ``MAX_BODIES`` features and the caller's
+    ``limit`` is applied to the cached copy, so callers that differ only in
+    ``limit`` still share a single provider round-trip.
+    """
     if not (MIN_RADIUS_M <= radius_m <= MAX_RADIUS_M):
         raise ValidationError(
             f"radius_m must be between {MIN_RADIUS_M} and {MAX_RADIUS_M}."
         )
     limit = max(1, min(limit, MAX_BODIES))
+    result = await get_cache().get_or_set(
+        "osm-water-bodies",
+        {"lat": point.latitude, "lon": point.longitude, "radius_m": radius_m},
+        lambda: _find_water_bodies_uncached(point, radius_m=radius_m, limit=MAX_BODIES),
+    )
+    if len(result.bodies) <= limit:
+        return result
+    return result.model_copy(update={"bodies": result.bodies[:limit], "count": limit})
 
+
+async def _find_water_bodies_uncached(
+    point: GeoPoint, *, radius_m: int, limit: int
+) -> WaterBodyResult:
     settings = get_settings()
     # Allow a deployment to override the mirror list via configuration while
     # keeping the public defaults.
@@ -211,8 +279,9 @@ async def find_water_bodies(
                 logger.info("Overpass time budget exhausted before %s", tag_filter)
                 break
             query = (
-                f"[out:json][timeout:25];"
-                f"way{tag_filter}(around:{radius_m},{point.latitude},{point.longitude});"
+                f"[out:json][timeout:20];"
+                f"(way{tag_filter}(around:{radius_m},{point.latitude},{point.longitude});"
+                f"rel{tag_filter}(around:{radius_m},{point.latitude},{point.longitude}););"
                 f"out geom {MAX_BODIES};"
             )
             try:
@@ -223,6 +292,12 @@ async def find_water_bodies(
                 logger.info("Overpass query for %s exceeded the time budget", tag_filter)
                 break
             if elements is None:
+                # The primary filter reaching no mirror means the service itself
+                # is down. Retrying the lower-priority filters against the same
+                # dead hosts would only burn the budget, so stop and report it.
+                if tag_filter == _AREA_FILTERS[0]:
+                    logger.info("Overpass unreachable for the primary filter; stopping")
+                    break
                 continue
             any_success = True
             for element in elements:
@@ -255,6 +330,8 @@ async def find_water_bodies(
                 "service could not be reached. This is a service limitation, not a "
                 "statement that the area has no water."
             ),
+            service_reachable=False,
+            lookup_radius_m=radius_m,
         )
 
     ordered = sorted(bodies.values(), key=lambda b: (b.area_km2 or 0.0), reverse=True)
@@ -277,4 +354,6 @@ async def find_water_bodies(
             "hydrological survey or satellite water detection. A feature being "
             "listed means it is mapped; absence does not mean water is absent."
         ),
+        service_reachable=True,
+        lookup_radius_m=radius_m,
     )
