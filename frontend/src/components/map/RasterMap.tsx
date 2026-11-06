@@ -474,7 +474,7 @@ export function RasterMap({
           }}
           aria-label="Zoom in"
           disabled={zoom >= MAX_ZOOM}
-          className="flex h-9 w-9 items-center justify-center text-ink-100 transition hover:bg-water-400/15 disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center text-ink-100 transition hover:bg-water-300/15 disabled:opacity-40"
         >
           <Plus className="h-4 w-4" aria-hidden />
         </button>
@@ -487,14 +487,14 @@ export function RasterMap({
           }}
           aria-label="Zoom out"
           disabled={zoom <= MIN_ZOOM}
-          className="flex h-9 w-9 items-center justify-center text-ink-100 transition hover:bg-water-400/15 disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center text-ink-100 transition hover:bg-water-300/15 disabled:opacity-40"
         >
           <Minus className="h-4 w-4" aria-hidden />
         </button>
       </div>
 
       {/* Zoom level readout. */}
-      <div className="pointer-events-none absolute right-3 top-[6.5rem] rounded-md border border-white/10 bg-abyss-900/85 px-2 py-1 font-mono text-[0.625rem] text-ink-300 backdrop-blur">
+      <div className="pointer-events-none absolute right-3 top-[6.5rem] rounded-md border border-white/10 bg-abyss-900/85 px-2 py-1 font-mono text-3xs text-ink-300 backdrop-blur">
         z{zoom}
       </div>
 
@@ -503,7 +503,7 @@ export function RasterMap({
           role="status"
           className="pointer-events-none absolute left-3 top-3 max-w-xs rounded-lg border border-signal-caution/30 bg-abyss-900/90 px-3 py-2 backdrop-blur"
         >
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-signal-caution">
+          <p className="text-2xs font-semibold uppercase tracking-wide text-signal-caution">
             Base tiles unavailable
           </p>
           <p className="mt-0.5 text-xs text-ink-300">
@@ -513,7 +513,7 @@ export function RasterMap({
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute bottom-0 right-0 z-10 px-2 py-1 text-[0.625rem] text-ink-400">
+      <div className="pointer-events-none absolute bottom-0 right-0 z-10 px-2 py-1 text-3xs text-ink-400">
         <span className="rounded bg-abyss-950/70 px-1.5 py-0.5 backdrop-blur">{ATTRIBUTION}</span>
       </div>
     </div>

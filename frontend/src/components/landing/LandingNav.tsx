@@ -36,7 +36,7 @@ export function LandingNav() {
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-abyss-950/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-abyss-950/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="shrink-0" aria-label="AquaNexus home">
           {/* Placeholder mark: see Brand.tsx. Swap for the official asset when supplied. */}
@@ -48,7 +48,7 @@ export function LandingNav() {
             <a
               key={link.href}
               href={link.href}
-              className="rounded-md px-3 py-2 text-sm text-ink-300 transition hover:bg-white/[0.04] hover:text-ink-50"
+              className="rounded-md px-2.5 py-1.5 text-xs font-medium text-ink-300 transition hover:bg-white/[0.05] hover:text-ink-50"
             >
               {link.label}
             </a>
@@ -58,7 +58,7 @@ export function LandingNav() {
         <div className="ml-auto flex items-center gap-2">
           <Link
             href="/explore"
-            className="group hidden items-center gap-1.5 rounded-lg bg-water-400 px-3.5 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300 sm:inline-flex"
+            className="group hidden items-center gap-1.5 rounded-lg bg-ink-100 px-3.5 py-2 text-xs font-semibold text-abyss-950 transition hover:bg-white sm:inline-flex"
           >
             Create Study Area
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
@@ -98,7 +98,7 @@ export function LandingNav() {
           <Link
             href="/explore"
             onClick={() => setOpen(false)}
-            className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-water-400 px-3.5 py-2.5 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
+            className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-ink-100 px-3.5 py-2.5 text-xs font-semibold text-abyss-950 transition hover:bg-white"
           >
             Create Study Area
             <ArrowRight className="h-4 w-4" aria-hidden />

@@ -37,7 +37,7 @@ const ToastContext = createContext<ToastValue | null>(null);
 const TONE_STYLE: Record<ToastTone, { icon: typeof Info; className: string }> = {
   success: { icon: CheckCircle2, className: "border-signal-good/40 text-signal-good" },
   error: { icon: AlertTriangle, className: "border-signal-alert/40 text-signal-alert" },
-  info: { icon: Info, className: "border-water-400/40 text-water-300" },
+  info: { icon: Info, className: "border-water-300/40 text-water-300" },
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {

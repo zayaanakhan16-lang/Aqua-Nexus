@@ -19,9 +19,11 @@ import { WorkspaceProvider, useWorkspace } from "@/lib/workspace";
 import { Chip } from "@/components/ui/primitives";
 import { ErrorState } from "@/components/ui/states";
 import { Skeleton } from "@/components/ui/primitives";
-import { LayerControls } from "@/components/panels/LayerControls";
 import { IntelligenceTabs } from "@/components/workspace/IntelligenceTabs";
+import { InvestigationList } from "@/components/workspace/InvestigationList";
+import { MapWorkspace } from "@/components/workspace/MapWorkspace";
 import { MapPanel } from "@/components/workspace/MapPanel";
+import { MapAnalyticsToggle, type WorkspaceMode } from "@/components/map/MapAnalyticsToggle";
 
 function LocationHeader({ area }: { area: StudyArea }) {
   const { summary, refresh } = useWorkspace();
@@ -38,7 +40,7 @@ function LocationHeader({ area }: { area: StudyArea }) {
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
         </Link>
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-water-400/25 bg-water-400/[0.08] text-water-300">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-water-300/25 bg-water-300/[0.08] text-water-300">
           <MapPin className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0">
@@ -71,27 +73,49 @@ function LocationHeader({ area }: { area: StudyArea }) {
 }
 
 function WorkspaceBody({ area }: { area: StudyArea }) {
+  const [mode, setMode] = useState<WorkspaceMode>("map");
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <LocationHeader area={area} />
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <div className="mx-auto grid w-full max-w-7xl gap-3 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="flex min-h-0 flex-col gap-3">
-            <MapPanel className="relative min-h-[42vh] overflow-hidden rounded-xl border border-white/[0.06] bg-abyss-900 shadow-panel" />
+      <div className="relative flex min-h-0 flex-1 flex-col gap-3 p-3">
+        <div className="pointer-events-none absolute inset-x-0 top-6 z-30 hidden justify-center lg:flex">
+          <MapAnalyticsToggle mode={mode} onChange={setMode} className="pointer-events-auto" />
+        </div>
+
+        <div className="flex shrink-0 items-center justify-center lg:hidden">
+          <MapAnalyticsToggle mode={mode} onChange={setMode} />
+        </div>
+
+        <div className="chrome hidden flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 lg:flex">
+          <span className="label-caps">Data classification</span>
+          {["Reanalysis", "Forecast", "Simulation", "Derived", "Catalogue"].map((kind) => (
+            <span
+              key={kind}
+              className="rounded border border-white/10 bg-white/[0.03] px-1.5 py-px text-3xs text-ink-300"
+            >
+              {kind}
+            </span>
+          ))}
+          <span className="ml-auto text-3xs text-ink-500">
+            Every value carries its source, method and limitations. Missing data stays visibly
+            missing.
+          </span>
+        </div>
+
+        {mode === "map" ? (
+          <MapWorkspace
+            rail={<InvestigationList />}
+            railLabel="Investigations"
+            className="min-h-[32rem] rounded-xl border border-white/[0.08] bg-abyss-950 lg:min-h-0"
+          >
+            <MapPanel className="absolute inset-0" showHint={false} />
+          </MapWorkspace>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto">
             <IntelligenceTabs className="min-h-[36rem]" />
           </div>
-          <aside className="flex min-h-0 flex-col gap-3">
-            <LayerControls />
-            <div className="panel p-4">
-              <p className="label-caps">Data classification</p>
-              <p className="mt-2 text-[0.6875rem] leading-relaxed text-ink-500">
-                Every tab labels what it shows — reanalysis, forecast, simulation, derived or
-                satellite catalogue metadata. They are never interchangeable, and missing data
-                stays visibly missing.
-              </p>
-            </div>
-          </aside>
-        </div>
+        )}
       </div>
     </div>
   );

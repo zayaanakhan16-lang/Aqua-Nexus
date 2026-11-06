@@ -19,7 +19,7 @@ export default function HomePage() {
     <div className="min-h-dvh bg-abyss-950">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-water-400 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-abyss-950"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-ink-100 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-abyss-950"
       >
         Skip to content
       </a>

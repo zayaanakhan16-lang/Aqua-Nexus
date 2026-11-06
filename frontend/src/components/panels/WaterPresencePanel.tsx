@@ -42,7 +42,7 @@ function ObservationRow({ obs }: { obs: WaterPresenceObservation }) {
             <p className="text-sm font-medium text-ink-100">{obs.source_name}</p>
             <ClassificationBadge classification={obs.classification} compact />
           </div>
-          <p className="mt-0.5 text-[0.6875rem] text-ink-500">{obs.product}</p>
+          <p className="mt-0.5 text-2xs text-ink-500">{obs.product}</p>
           <p className="mt-1.5 text-xs leading-relaxed text-ink-300">{obs.method}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <Chip title="Native spatial resolution of this product">
@@ -63,7 +63,7 @@ function ObservationRow({ obs }: { obs: WaterPresenceObservation }) {
               {obs.limitations.map((limitation) => (
                 <li
                   key={limitation}
-                  className="flex items-start gap-1.5 text-[0.6875rem] leading-relaxed text-ink-500"
+                  className="flex items-start gap-1.5 text-2xs leading-relaxed text-ink-500"
                 >
                   <Info className="mt-0.5 h-3 w-3 shrink-0 text-ink-600" aria-hidden />
                   <span>{limitation}</span>
@@ -120,7 +120,7 @@ export function WaterPresencePanel({
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-ink-100">{data.headline}</p>
                 <p className="mt-1 text-xs leading-relaxed text-ink-300">{data.detail}</p>
-                <p className="mt-1 text-[0.6875rem] leading-relaxed text-ink-500">
+                <p className="mt-1 text-2xs leading-relaxed text-ink-500">
                   {status.meaning}
                 </p>
               </div>
@@ -154,13 +154,13 @@ export function WaterPresencePanel({
                     tone={p.status === "ok" ? "good" : p.status === "partial" ? "caution" : "muted"}
                     label={p.status}
                   />
-                  <span className="text-[0.6875rem] text-ink-400">{p.provider_name}</span>
+                  <span className="text-2xs text-ink-400">{p.provider_name}</span>
                 </span>
               ))}
             </div>
 
             {data.notes.length ? (
-              <ul className="space-y-1 text-[0.6875rem] leading-relaxed text-ink-500">
+              <ul className="space-y-1 text-2xs leading-relaxed text-ink-500">
                 {data.notes.map((note) => (
                   <li key={note}>{note}</li>
                 ))}

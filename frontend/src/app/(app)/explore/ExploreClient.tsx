@@ -3,11 +3,12 @@
 /**
  * Explore Map — the single, primary AquaNexus water-intelligence workspace.
  *
- * One selected location drives everything: the search rail sets it, the map
- * renders it, and the intelligence tabs report every category the connected
- * providers support for it. The full tabbed results surface (previously split
- * across the legacy Atlas route and the study-area workspace) now lives here, so there
- * is one workspace rather than several competing entry points.
+ * One selected location drives everything: search and the map set it, and the
+ * intelligence surface reports every category the connected providers support
+ * for it. The layout follows the AgriSense pattern: the map takes the remaining
+ * width with the investigation rail in a fixed-width column on the right, a
+ * vertical toolbar on the left edge and a Map / Analytics control at the top
+ * centre. The results surface lives in `components/workspace/IntelligenceTabs`.
  *
  * Selecting a new location clears the previous results while the new ones load
  * (see the workspace store), so stale evidence is never shown against a new
@@ -18,13 +19,16 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { formatCoord } from "@/lib/format";
+import { useStudyAreas } from "@/lib/study-areas";
 import { WorkspaceProvider, useWorkspace, type SelectedLocation } from "@/lib/workspace";
 import { Chip } from "@/components/ui/primitives";
 import { LocationSearch } from "@/components/panels/LocationSearch";
-import { LayerControls } from "@/components/panels/LayerControls";
 import { OnboardingCard } from "@/components/panels/OnboardingCard";
 import { CreateStudyAreaDialog } from "@/components/study-areas/CreateStudyAreaDialog";
 import { IntelligenceTabs, type WorkspaceTabId } from "@/components/workspace/IntelligenceTabs";
+import { InvestigationList } from "@/components/workspace/InvestigationList";
+import { MapWorkspace } from "@/components/workspace/MapWorkspace";
+import { MapAnalyticsToggle, type WorkspaceMode } from "@/components/map/MapAnalyticsToggle";
 import { MapPanel } from "@/components/workspace/MapPanel";
 
 /** Tab ids that a deep link (`/explore?tab=…`) may address. */
@@ -46,76 +50,49 @@ const TAB_IDS: WorkspaceTabId[] = [
   "sources",
 ];
 
-function SelectionRail() {
+/**
+ * Search is a compact strip above the map rather than a second column, so the
+ * document stays within the viewport and the map keeps the width it needs.
+ */
+function SearchBar({ onAdd }: { onAdd: () => void }) {
   const { location, windowDays } = useWorkspace();
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <div className="flex min-h-0 flex-col gap-3 lg:overflow-y-auto">
-      <div className="panel space-y-3 p-3">
-        <div className="flex items-center gap-2">
-          <Compass className="h-4 w-4 text-water-300" aria-hidden />
-          <p className="label-caps">Find a location</p>
-        </div>
+    <div className="chrome flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
+      <span className="flex shrink-0 items-center gap-1.5">
+        <Compass className="h-3.5 w-3.5 text-water-300" aria-hidden />
+        <span className="label-caps">Find a location</span>
+      </span>
+
+      <div className="min-w-[14rem] flex-1">
         <LocationSearch />
+      </div>
+
+      {location ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-water-300" aria-hidden />
+            <span className="truncate text-xs font-medium text-ink-100">
+              {location.place?.name ?? location.label}
+            </span>
+            <span className="hidden font-mono text-2xs tabular-nums text-ink-400 xl:inline">
+              {formatCoord(location.latitude, "lat")} · {formatCoord(location.longitude, "lon")}
+            </span>
+          </span>
+          <Chip title="Analysis window used by every section">Window {windowDays} d</Chip>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="shrink-0 rounded-lg border border-water-300/35 bg-water-300/12 px-2.5 py-1.5 text-2xs font-medium text-water-200 transition hover:bg-water-300/20"
+          >
+            New investigation
+          </button>
+        </div>
+      ) : (
         <Chip title="Search also accepts direct coordinates">
           Try typing <span className="font-mono">52.52, 13.40</span>
         </Chip>
-      </div>
-
-      <div className="panel space-y-3 p-3">
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-water-300" aria-hidden />
-          <p className="label-caps">Selected location</p>
-        </div>
-
-        {location ? (
-          <>
-            <div className="rounded-lg border border-water-400/25 bg-water-400/[0.07] px-3 py-2.5">
-              <p className="truncate text-sm font-medium text-ink-100">
-                {location.place?.name ?? location.label}
-              </p>
-              <p className="mt-0.5 font-mono text-xs text-ink-300">
-                {formatCoord(location.latitude, "lat")} · {formatCoord(location.longitude, "lon")}
-              </p>
-              {location.place?.display_name &&
-              location.place.display_name !== location.place.name ? (
-                <p className="mt-0.5 truncate text-xs text-ink-500">
-                  {location.place.display_name}
-                </p>
-              ) : null}
-              <p className="mt-1.5 text-[0.6875rem] text-ink-500">
-                Analysis window: {windowDays} days
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setDialogOpen(true)}
-              className="w-full rounded-lg bg-water-400 px-4 py-2.5 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
-            >
-              Create study area
-            </button>
-          </>
-        ) : (
-          <p className="text-xs leading-relaxed text-ink-400">
-            Search for a place or click anywhere on the map to set an analysis point. Then save it
-            as a study area to keep it.
-          </p>
-        )}
-      </div>
-
-      <LayerControls />
-
-      {location ? (
-        <CreateStudyAreaDialog
-          open={dialogOpen}
-          onClose={() => setDialogOpen(false)}
-          latitude={location.latitude}
-          longitude={location.longitude}
-          label={location.label}
-          place={location.place}
-        />
-      ) : null}
+      )}
     </div>
   );
 }
@@ -128,26 +105,80 @@ function ExploreWorkspace({
   tabRequest?: WorkspaceTabId;
 }) {
   const { location } = useWorkspace();
+  const { areas } = useStudyAreas();
+  const [mode, setMode] = useState<WorkspaceMode>("map");
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const rail = <InvestigationList onAdd={() => setDialogOpen(true)} />;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
       {/* Visually hidden page heading: the workspace is a full-bleed map with no
           visible title, but screen-reader users still need an h1 to orient. */}
       <h1 className="sr-only">Explore Map</h1>
-      <div className="grid min-h-0 shrink-0 grid-cols-1 gap-3 lg:grid-cols-[22rem_minmax(0,1fr)]">
-        <SelectionRail />
-        <MapPanel />
+
+      <SearchBar onAdd={() => setDialogOpen(true)} />
+
+      <div className="relative flex min-h-0 flex-1 flex-col gap-3 lg:overflow-hidden">
+        {/* The single Map / Analytics control for this surface. */}
+        <div className="pointer-events-none absolute inset-x-0 top-3 z-30 hidden justify-center lg:flex">
+          <MapAnalyticsToggle
+            mode={mode}
+            onChange={setMode}
+            className="pointer-events-auto"
+          />
+        </div>
+
+        <div className="flex shrink-0 items-center justify-center lg:hidden">
+          <MapAnalyticsToggle mode={mode} onChange={setMode} />
+        </div>
+
+        {mode === "map" ? (
+          <MapWorkspace
+            rail={rail}
+            railCount={areas.length}
+            className="min-h-[32rem] rounded-xl border border-white/[0.08] bg-abyss-950 lg:min-h-0"
+            overlay={
+              !location ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-16 z-10 flex justify-center px-4">
+                  <div className="chrome max-w-sm px-3 py-2 text-center">
+                    <p className="text-2xs text-ink-300">
+                      Click the map to place an analysis point, or search above.
+                    </p>
+                  </div>
+                </div>
+              ) : null
+            }
+          >
+            <MapPanel className="absolute inset-0" showHint={false} />
+          </MapWorkspace>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {!location ? <OnboardingCard /> : null}
+            {/* The results surface is always mounted: Global Layers and Sources
+                stay usable before a location is chosen, and every other section
+                shows an explicit "select a location" state rather than
+                disappearing. */}
+            <IntelligenceTabs
+              initialTab={initialTab ?? (location ? "overview" : "global-layers")}
+              tabRequest={tabRequest}
+              className="min-h-[36rem]"
+            />
+          </div>
+        )}
       </div>
 
-      {!location ? <OnboardingCard /> : null}
-      {/* The results surface is always mounted: Global Layers and Sources stay
-          usable before a location is chosen, and every other tab shows an
-          explicit "select a location" state rather than disappearing. */}
-      <IntelligenceTabs
-        initialTab={initialTab ?? (location ? "overview" : "global-layers")}
-        tabRequest={tabRequest}
-        className="min-h-0 shrink-0 lg:min-h-[32rem]"
-      />
+      {location ? (
+        <CreateStudyAreaDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          latitude={location.latitude}
+          longitude={location.longitude}
+          label={location.label}
+          place={location.place}
+          areaKm2={location.area?.area_km2 ?? null}
+        />
+      ) : null}
     </div>
   );
 }

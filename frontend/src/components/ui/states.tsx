@@ -77,7 +77,7 @@ export function ErrorState({
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-ink-100 transition hover:border-water-400/40 hover:bg-water-400/10"
+          className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-ink-100 transition hover:border-water-300/40 hover:bg-water-300/10"
         >
           Try again
         </button>

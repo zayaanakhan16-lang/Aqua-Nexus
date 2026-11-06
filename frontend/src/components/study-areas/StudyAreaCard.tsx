@@ -55,7 +55,7 @@ export function StudyAreaCard({ area }: { area: StudyArea }) {
   }
 
   return (
-    <article className="panel flex flex-col gap-3 p-4 transition hover:border-water-400/30">
+    <article className="panel flex flex-col gap-3 p-4 transition hover:border-water-300/30">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-water-300">
           <MapPin className="h-4 w-4" aria-hidden />
@@ -69,7 +69,7 @@ export function StudyAreaCard({ area }: { area: StudyArea }) {
           {area.place?.display_name ? (
             <p className="mt-0.5 truncate text-xs text-ink-500">{area.place.display_name}</p>
           ) : null}
-          <p className="mt-1 text-[0.6875rem] text-ink-500">
+          <p className="mt-1 text-2xs text-ink-500">
             Created {formatDateTime(area.created_at)}
           </p>
         </div>
@@ -78,7 +78,7 @@ export function StudyAreaCard({ area }: { area: StudyArea }) {
       <div className="flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
         <Link
           href={`/study-areas/${area.id}`}
-          className="group inline-flex items-center gap-1.5 rounded-md bg-water-400/15 px-3 py-1.5 text-xs font-medium text-water-100 transition hover:bg-water-400/25"
+          className="group inline-flex items-center gap-1.5 rounded-md bg-water-300/15 px-3 py-1.5 text-xs font-medium text-water-100 transition hover:bg-water-300/25"
         >
           Open workspace
           <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" aria-hidden />
@@ -119,7 +119,7 @@ export function StudyAreaCard({ area }: { area: StudyArea }) {
               onChange={(e) => setDraftName(e.target.value)}
               maxLength={120}
               autoFocus
-              className="mt-1.5 h-10 w-full rounded-lg border border-white/10 bg-abyss-850/90 px-3 text-sm text-ink-100 focus:border-water-400/50"
+              className="mt-1.5 h-10 w-full rounded-lg border border-white/10 bg-abyss-850/90 px-3 text-sm text-ink-100 focus:border-water-300/50"
             />
           </div>
           <div className="flex justify-end gap-2">
@@ -133,7 +133,7 @@ export function StudyAreaCard({ area }: { area: StudyArea }) {
             <button
               type="submit"
               disabled={busy}
-              className="rounded-lg bg-water-400 px-4 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300 disabled:opacity-60"
+              className="rounded-lg bg-ink-100 px-4 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300 disabled:opacity-60"
             >
               Save
             </button>

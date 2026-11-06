@@ -33,7 +33,7 @@ function Metric({
     <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-3">
       <div className="flex items-center gap-1.5 text-ink-400">
         <Icon className="h-3.5 w-3.5" aria-hidden />
-        <span className="text-[0.6875rem] font-medium uppercase tracking-wide">{label}</span>
+        <span className="text-2xs font-medium uppercase tracking-wide">{label}</span>
       </div>
       <p className="mt-1.5 font-mono text-lg font-semibold text-ink-100">
         {value}
@@ -126,7 +126,7 @@ export function WeatherPanel({
               </div>
             ) : null}
 
-            <div className="rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 py-2 text-[0.6875rem] leading-relaxed text-ink-400">
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 py-2 text-2xs leading-relaxed text-ink-400">
               <p className="flex items-start gap-1.5">
                 <CloudRain className="mt-0.5 h-3.5 w-3.5 shrink-0 text-water-300" aria-hidden />
                 <span>

@@ -1,16 +1,23 @@
 import type { Config } from "tailwindcss";
 
 /**
- * AquaNexus design tokens — premium blue water-intelligence identity.
- *
- * Palette anchors (documented in docs/DESIGN.md):
- *   Deep Ocean  #071D35   Ocean Blue  #1261A0
- *   Water Cyan  #45B6E8   Ice White   #EAF5FA   Soft Blue  #D5EAF5
+ * AquaNexus design tokens — the AgriSense interface language, recoloured blue.
  *
  * The token *names* are stable so components never change when the palette is
- * retuned; only these values move. `ink-500` is deliberately lighter than
- * `ink-400` (it is the small-muted-text colour and must clear WCAG AA on the
- * composited abyss surfaces), matching the convention established earlier.
+ * retuned; only these values move. The scale, density and surface treatments
+ * follow the AgriSense reference (compact SaaS chrome, 1px borders, restrained
+ * accent), while the hues stay AquaNexus water-blue:
+ *
+ *   abyss-950  deep ocean / near-black background
+ *   abyss-900  sidebar and panel surface
+ *   ink-100    ice white primary text
+ *   water-300  restrained water-cyan accent
+ *   boundary   warm amber/gold stroke for drawn areas (stays legible on blue)
+ *   viz.*      colour-blind-considerate categorical data-visualisation set
+ *
+ * `ink-500` is deliberately lighter than `ink-400`: it is the small-muted-text
+ * colour and must clear WCAG AA on the composited abyss surfaces. Contrast is
+ * verified from rendered pixels, not inferred from these values.
  */
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
@@ -47,7 +54,10 @@ const config: Config = {
           100: "#eaf5fa",
           200: "#cfe4f2",
           300: "#a9c9e0",
-          400: "#7f9fbc",
+          // 400 is the default muted text/placeholder tone. It is set so it
+          // still clears AA on the lightest composited surface it lands on
+          // (floating chrome over satellite imagery), not just on the panels.
+          400: "#88a8c4",
           // 500 is the small-muted-text colour; it must clear AA on the
           // composited abyss surfaces, so it is lighter than ink-400.
           500: "#97b6ce",
@@ -55,6 +65,27 @@ const config: Config = {
           700: "#27405a",
           800: "#16293d",
           900: "#0c1a29",
+        },
+        /**
+         * Warm amber/gold used only for drawn-area boundaries and their
+         * handles. Deliberately outside the blue ramp: an area the user drew
+         * must never be mistaken for the cyan accent or for provider imagery.
+         */
+        boundary: {
+          DEFAULT: "#e3b341",
+          soft: "#f2d27a",
+          deep: "#8a6420",
+        },
+        /** Categorical chart colours that stay distinguishable on blue. */
+        viz: {
+          1: "#45b6e8",
+          2: "#f2b134",
+          3: "#4fd1a5",
+          4: "#f2708a",
+          5: "#a78bfa",
+          6: "#f2e14c",
+          7: "#7fb6e0",
+          8: "#e4795b",
         },
         // Semantic states used across panels and badges.
         signal: {
@@ -70,10 +101,16 @@ const config: Config = {
         display: ["var(--font-display)", "var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
+      fontSize: {
+        // AgriSense's compact label sizes.
+        "2xs": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0.03em" }],
+        "3xs": ["0.625rem", { lineHeight: "0.875rem", letterSpacing: "0.06em" }],
+      },
       boxShadow: {
-        panel: "0 1px 0 0 rgba(255,255,255,0.04) inset, 0 12px 32px -18px rgba(0,0,0,0.9)",
-        float: "0 18px 48px -24px rgba(0,0,0,0.95)",
-        focus: "0 0 0 2px rgba(99,216,243,0.6)",
+        panel: "0 1px 2px rgba(2, 10, 22, 0.35), 0 12px 30px -16px rgba(0, 0, 0, 0.85)",
+        float: "0 2px 8px rgba(2, 10, 22, 0.4), 0 26px 60px -22px rgba(0, 0, 0, 0.9)",
+        inset: "inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+        focus: "0 0 0 2px rgba(69, 182, 232, 0.6)",
       },
       borderRadius: {
         xl: "0.75rem",

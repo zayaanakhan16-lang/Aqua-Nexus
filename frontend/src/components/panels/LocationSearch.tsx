@@ -182,7 +182,7 @@ export function LocationSearch() {
           onFocus={() => results.length && setOpen(true)}
           onKeyDown={onKeyDown}
           placeholder="Search a city, river, lake — or type 52.52, 13.40"
-          className="h-10 w-full rounded-lg border border-white/10 bg-abyss-850/90 pl-9 pr-9 text-sm text-ink-100 placeholder:text-ink-500 transition focus:border-water-400/50 focus:bg-abyss-850"
+          className="h-10 w-full rounded-lg border border-white/10 bg-abyss-850/90 pl-9 pr-9 text-sm text-ink-100 placeholder:text-ink-500 transition focus:border-water-300/50 focus:bg-abyss-850"
         />
         {loading ? (
           <Loader2
@@ -217,7 +217,7 @@ export function LocationSearch() {
               role="option"
               aria-selected="false"
               onClick={() => chooseCoordinate(coordinates.lat, coordinates.lon)}
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition hover:bg-water-400/10"
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition hover:bg-water-300/10"
             >
               <MapPin className="h-4 w-4 shrink-0 text-teal-400" aria-hidden />
               <span className="min-w-0">
@@ -245,7 +245,7 @@ export function LocationSearch() {
               onClick={() => choose(place)}
               className={cn(
                 "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition",
-                index === activeIndex ? "bg-water-400/10" : "hover:bg-white/[0.04]",
+                index === activeIndex ? "bg-water-300/10" : "hover:bg-white/[0.04]",
               )}
             >
               <MapPin className="h-4 w-4 shrink-0 text-water-300" aria-hidden />
@@ -255,7 +255,7 @@ export function LocationSearch() {
                   {place.display_name}
                 </span>
               </span>
-              <span className="ml-auto shrink-0 font-mono text-[0.6875rem] text-ink-500">
+              <span className="ml-auto shrink-0 font-mono text-2xs text-ink-500">
                 {place.latitude.toFixed(2)}, {place.longitude.toFixed(2)}
               </span>
             </button>

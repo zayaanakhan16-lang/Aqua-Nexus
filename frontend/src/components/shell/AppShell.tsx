@@ -15,8 +15,10 @@
  *   already open (`/explore?tab=…`), so they work without duplicating the
  *   workspace.
  *
- * The landing page at `/` does not use this shell — it is the public entry
- * point.
+ * There is exactly one navigation surface per viewport width: the desktop rail
+ * is hidden below `lg` and the mobile disclosure replaces it, so the same
+ * section list is never presented twice. The landing page at `/` does not use
+ * this shell — it is the public entry point.
  */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -107,7 +109,7 @@ function BackendStatus() {
     };
   }, []);
   return (
-    <span className="inline-flex items-center gap-2 text-[0.6875rem] text-ink-300">
+    <span className="inline-flex items-center gap-2 text-2xs text-ink-300">
       <StatusDot
         tone={healthy === null ? "muted" : healthy ? "good" : "alert"}
         pulse={healthy === true}
@@ -134,14 +136,15 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition",
+        "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
         active
-          ? "bg-water-400/15 text-water-100 shadow-[inset_0_0_0_1px_rgba(69,182,232,0.25)]"
+          ? "bg-water-300/[0.12] text-water-200 shadow-inset"
           : "text-ink-300 hover:bg-white/[0.05] hover:text-ink-50",
       )}
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden />
       <span className="truncate">{item.label}</span>
+      {active ? <span className="ml-auto h-1.5 w-1.5 rounded-full bg-water-300" aria-hidden /> : null}
     </Link>
   );
 }
@@ -151,7 +154,7 @@ function NavGroups({ onNavigate }: { onNavigate?: () => void }) {
     <nav aria-label="Sections" className="flex flex-col gap-5">
       {NAV_GROUPS.map((group) => (
         <div key={group.label}>
-          <p className="label-caps px-3 pb-1.5">{group.label}</p>
+          <p className="label-caps px-2.5 pb-1.5">{group.label}</p>
           <ul className="space-y-0.5">
             {group.items.map((item) => (
               <li key={item.href}>
@@ -178,16 +181,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="relative z-10 flex min-h-dvh bg-abyss-950">
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-water-400 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-abyss-950"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-water-300 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-abyss-950"
         >
           Skip to content
         </a>
 
-        {/* Desktop rail */}
-        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-white/[0.06] bg-abyss-900/60 px-3 py-4 backdrop-blur lg:flex">
+        {/* Desktop rail — the single navigation surface at lg and above. */}
+        <aside className="shell-panel sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-white/[0.08] px-3 py-4 lg:flex">
           <Link
             href="/home"
-            className="mb-5 shrink-0 rounded-md px-1 transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-water-400/60"
+            className="mb-5 shrink-0 rounded-md px-1 transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-water-300/60"
             aria-label="AquaNexus overview"
           >
             <BrandLockup markClassName="h-8 w-8" subtitle={null} />
@@ -195,16 +198,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="min-h-0 flex-1 overflow-y-auto">
             <NavGroups />
           </div>
-          <div className="mt-4 shrink-0 border-t border-white/[0.06] pt-3">
+          <div className="mt-4 shrink-0 space-y-2.5 border-t border-white/[0.08] pt-3">
             <BackendStatus />
+            <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-water-300" aria-hidden />
+              <p className="text-3xs leading-relaxed text-ink-500">
+                Keyless open datasets. No API key required.
+              </p>
+            </div>
           </div>
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-4 border-b border-white/[0.06] bg-abyss-900/85 px-4 backdrop-blur lg:hidden">
+          <header className="shell-panel sticky top-0 z-40 flex h-14 shrink-0 items-center gap-4 border-b border-white/[0.08] px-3 sm:px-4 lg:hidden">
             <Link
               href="/home"
-              className="shrink-0 rounded-md transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-water-400/60"
+              className="shrink-0 rounded-md transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-water-300/60"
               aria-label="AquaNexus overview"
             >
               <BrandLockup markClassName="h-8 w-8" subtitle={null} />
@@ -220,7 +229,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 aria-expanded={menuOpen}
                 aria-controls="app-mobile-menu"
                 aria-label={menuOpen ? "Close navigation" : "Open navigation"}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-ink-200 transition hover:text-ink-50"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-ink-200 transition hover:bg-white/[0.06] hover:text-ink-50"
               >
                 {menuOpen ? (
                   <X className="h-5 w-5" aria-hidden />
@@ -234,7 +243,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {menuOpen ? (
             <div
               id="app-mobile-menu"
-              className="max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-b border-white/[0.06] bg-abyss-950/95 px-3 py-4 lg:hidden"
+              className="max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-b border-white/[0.08] bg-abyss-950/95 px-3 py-4 lg:hidden"
             >
               <NavGroups onNavigate={() => setMenuOpen(false)} />
             </div>

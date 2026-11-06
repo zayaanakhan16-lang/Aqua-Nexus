@@ -34,7 +34,7 @@ export function BackendStatusChip() {
   const label = state === null ? "Checking API" : state.ok ? "API available" : "API unreachable";
 
   return (
-    <span className="inline-flex items-center gap-2 rounded-md border border-white/[0.08] bg-white/[0.02] px-2.5 py-1.5 text-[0.6875rem] text-ink-300">
+    <span className="inline-flex items-center gap-2 rounded-md border border-white/[0.08] bg-white/[0.02] px-2.5 py-1.5 text-2xs text-ink-300">
       <StatusDot tone={tone} pulse={state?.ok === true} label="Backend API status" />
       {label}
       {state?.ok && state.version ? (

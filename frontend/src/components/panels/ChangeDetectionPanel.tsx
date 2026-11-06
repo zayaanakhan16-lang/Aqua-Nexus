@@ -26,11 +26,11 @@ function SceneCard({ scene, label }: { scene: ChangeScene; label: string }) {
   return (
     <div className="min-w-0 flex-1 overflow-hidden rounded-lg border border-white/[0.06] bg-white/[0.015]">
       <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-3 py-2">
-        <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-water-200">
+        <span className="text-2xs font-semibold uppercase tracking-wide text-water-200">
           {label}
         </span>
         {scene.acquired_at ? (
-          <span className="text-[0.6875rem] text-ink-400">{formatDate(scene.acquired_at)}</span>
+          <span className="text-2xs text-ink-400">{formatDate(scene.acquired_at)}</span>
         ) : null}
       </div>
       <div className="relative aspect-square w-full bg-abyss-950">
@@ -46,12 +46,12 @@ function SceneCard({ scene, label }: { scene: ChangeScene; label: string }) {
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-ink-600">
             <Satellite className="h-6 w-6" aria-hidden />
-            <span className="text-[0.625rem]">No rendered preview</span>
+            <span className="text-3xs">No rendered preview</span>
           </div>
         )}
       </div>
       <div className="space-y-1.5 px-3 py-2.5">
-        <p className="truncate font-mono text-[0.6875rem] text-ink-300" title={scene.scene_id}>
+        <p className="truncate font-mono text-2xs text-ink-300" title={scene.scene_id}>
           {scene.scene_id}
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -135,10 +135,10 @@ export function ChangeDetectionPanel({
                       key={scene.scene_id}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-white/[0.05] bg-white/[0.01] px-2.5 py-1.5"
                     >
-                      <span className="truncate font-mono text-[0.6875rem] text-ink-300">
+                      <span className="truncate font-mono text-2xs text-ink-300">
                         {scene.scene_id}
                       </span>
-                      <span className="flex shrink-0 items-center gap-2 text-[0.6875rem] text-ink-500">
+                      <span className="flex shrink-0 items-center gap-2 text-2xs text-ink-500">
                         {scene.acquired_at ? <span>{formatDate(scene.acquired_at)}</span> : null}
                         {scene.cloud_cover !== null && scene.cloud_cover !== undefined ? (
                           <span>{formatNumber(scene.cloud_cover, 0)}% cloud</span>
@@ -160,7 +160,7 @@ export function ChangeDetectionPanel({
                     <Chip key={indicator}>{indicator}</Chip>
                   ))}
                 </div>
-                <p className="mt-2 text-[0.6875rem] leading-relaxed text-ink-500">
+                <p className="mt-2 text-2xs leading-relaxed text-ink-500">
                   AquaNexus does not compute these in this build. No change value is reported.
                 </p>
               </div>

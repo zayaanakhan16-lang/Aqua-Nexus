@@ -46,16 +46,16 @@ function SectionCard({ section }: { section: ReportSection }) {
       {section.available ? (
         <div className="mt-1.5 space-y-1.5">
           {section.body ? (
-            <p className="text-[0.6875rem] leading-relaxed text-ink-300">{section.body}</p>
+            <p className="text-2xs leading-relaxed text-ink-300">{section.body}</p>
           ) : null}
           {section.items.length ? (
             <ul className="space-y-1">
               {section.items.map((item, index) => (
                 <li
                   key={`${item}-${index}`}
-                  className="flex items-start gap-1.5 text-[0.6875rem] leading-relaxed text-ink-400"
+                  className="flex items-start gap-1.5 text-2xs leading-relaxed text-ink-400"
                 >
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-water-400" aria-hidden />
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-water-300" aria-hidden />
                   <span>{item}</span>
                 </li>
               ))}
@@ -63,7 +63,7 @@ function SectionCard({ section }: { section: ReportSection }) {
           ) : null}
         </div>
       ) : (
-        <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-ink-500">
+        <p className="mt-1.5 text-2xs leading-relaxed text-ink-500">
           {section.unavailable_reason ?? "Not available for this selection."}
         </p>
       )}
@@ -178,11 +178,11 @@ export function ReportPanel({ className }: { className?: string }) {
             <p className="mt-1 text-xs text-ink-300">
               {preview.study_area_name} · {preview.analysis_start} → {preview.analysis_end}
             </p>
-            <p className="mt-0.5 font-mono text-[0.625rem] text-ink-500">{preview.report_id}</p>
+            <p className="mt-0.5 font-mono text-3xs text-ink-500">{preview.report_id}</p>
           </div>
           <span
             className={cn(
-              "shrink-0 rounded-md border px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wide",
+              "shrink-0 rounded-md border px-2 py-1 text-3xs font-semibold uppercase tracking-wide",
               tone.className,
             )}
           >
@@ -190,16 +190,16 @@ export function ReportPanel({ className }: { className?: string }) {
           </span>
         </div>
 
-        <p className="mt-2 text-[0.6875rem] leading-relaxed text-ink-400">
+        <p className="mt-2 text-2xs leading-relaxed text-ink-400">
           {preview.completeness_note}
         </p>
 
-        <label className="mt-3 flex items-center gap-2 text-[0.6875rem] text-ink-300">
+        <label className="mt-3 flex items-center gap-2 text-2xs text-ink-300">
           <input
             type="checkbox"
             checked={includeAi}
             onChange={(e) => setIncludeAi(e.target.checked)}
-            className="h-3.5 w-3.5 accent-water-400"
+            className="h-3.5 w-3.5 accent-water-300"
           />
           Include AI interpretation when the provider is configured
         </label>
@@ -209,7 +209,7 @@ export function ReportPanel({ className }: { className?: string }) {
             type="button"
             onClick={download}
             disabled={generating}
-            className="inline-flex items-center gap-2 rounded-lg bg-water-400 px-4 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-lg bg-ink-100 px-4 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300 disabled:opacity-60"
           >
             {generating ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -222,7 +222,7 @@ export function ReportPanel({ className }: { className?: string }) {
             type="button"
             onClick={loadPreview}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs font-medium text-ink-200 transition hover:border-water-400/40 hover:bg-water-400/[0.08] disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs font-medium text-ink-200 transition hover:border-water-300/40 hover:bg-water-300/[0.08] disabled:opacity-60"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} aria-hidden />
             Refresh preview
@@ -230,13 +230,13 @@ export function ReportPanel({ className }: { className?: string }) {
         </div>
 
         {downloadInfo ? (
-          <p className="mt-2 flex items-center gap-1.5 text-[0.6875rem] text-signal-good">
+          <p className="mt-2 flex items-center gap-1.5 text-2xs text-signal-good">
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
             {downloadInfo}
           </p>
         ) : null}
         {generateError ? (
-          <p className="mt-2 flex items-start gap-1.5 text-[0.6875rem] leading-relaxed text-signal-alert">
+          <p className="mt-2 flex items-start gap-1.5 text-2xs leading-relaxed text-signal-alert">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             {generateError}
           </p>
@@ -255,11 +255,11 @@ export function ReportPanel({ className }: { className?: string }) {
                 className="rounded-lg border border-white/[0.06] bg-white/[0.015] px-2.5 py-2"
                 title={metric.method ?? undefined}
               >
-                <dt className="truncate text-[0.625rem] text-ink-500">{metric.label}</dt>
+                <dt className="truncate text-3xs text-ink-500">{metric.label}</dt>
                 <dd className="mt-0.5 font-mono text-sm text-ink-100">
                   {display.value}
                   {metric.unit ? (
-                    <span className="ml-1 text-[0.625rem] text-ink-400">{display.unit}</span>
+                    <span className="ml-1 text-3xs text-ink-400">{display.unit}</span>
                   ) : null}
                 </dd>
                 {metric.classification ? (
@@ -307,7 +307,7 @@ export function ReportPanel({ className }: { className?: string }) {
                 key={source.provider_id}
                 className="flex flex-wrap items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.015] px-2.5 py-2"
               >
-                <span className="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-ink-200">
+                <span className="min-w-0 flex-1 truncate text-2xs font-medium text-ink-200">
                   {source.provider_name}
                 </span>
                 {source.classification ? (
@@ -319,7 +319,7 @@ export function ReportPanel({ className }: { className?: string }) {
                     href={source.url}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="text-[0.625rem] text-water-300 underline decoration-dotted hover:text-water-200"
+                    className="text-3xs text-water-300 underline decoration-dotted hover:text-water-200"
                   >
                     source ↗
                   </a>
@@ -340,13 +340,13 @@ export function ReportPanel({ className }: { className?: string }) {
             {preview.limitations.map((limitation, index) => (
               <li
                 key={`${limitation}-${index}`}
-                className="text-[0.6875rem] leading-relaxed text-ink-400"
+                className="text-2xs leading-relaxed text-ink-400"
               >
                 • {limitation}
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[0.625rem] text-ink-500">
+          <p className="mt-2 text-3xs text-ink-500">
             Generated {formatDateTime(preview.generated_at)} · report {preview.report_id}
           </p>
         </div>

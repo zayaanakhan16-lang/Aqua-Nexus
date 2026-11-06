@@ -82,7 +82,7 @@ describe("study-area persistence flow", () => {
 
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0:"));
 
-    fireEvent.change(screen.getByLabelText(/study-area name/i), {
+    fireEvent.change(screen.getByLabelText(/investigation name/i), {
       target: { value: "Lagos Lagoon" },
     });
     fireEvent.click(screen.getByRole("button", { name: /save study area/i }));
@@ -119,7 +119,7 @@ describe("study-area persistence flow", () => {
       </Harness>,
     );
 
-    const nameField = screen.getByLabelText(/study-area name/i);
+    const nameField = screen.getByLabelText(/investigation name/i);
     fireEvent.change(nameField, { target: { value: "Failing Area" } });
     fireEvent.click(screen.getByRole("button", { name: /save study area/i }));
 

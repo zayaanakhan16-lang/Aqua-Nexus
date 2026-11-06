@@ -65,7 +65,7 @@ function ObservationRow({ obs }: { obs: EvidenceObservation }) {
             )}
           </p>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.6875rem] text-ink-500">
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-ink-500">
           <span>{obs.source}</span>
           {obs.period ? <span>· {obs.period}</span> : null}
           {obs.classification ? (
@@ -99,7 +99,7 @@ function NarrativeBody({ narrative }: { narrative: AINarrative }) {
                         ? "bg-signal-caution"
                         : section.tone === "muted"
                           ? "bg-ink-500"
-                          : "bg-water-400",
+                          : "bg-water-300",
                     )}
                     aria-hidden
                   />
@@ -132,7 +132,7 @@ export function AIAnalysisPanel({
         icon={<Sparkles className="h-4 w-4" aria-hidden />}
       />
       <div className="space-y-4 p-4">
-        <div className="flex items-start gap-2 rounded-lg border border-water-400/20 bg-water-400/[0.05] px-3 py-2.5">
+        <div className="flex items-start gap-2 rounded-lg border border-water-300/20 bg-water-300/[0.05] px-3 py-2.5">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-water-300" aria-hidden />
           <p className="text-xs leading-relaxed text-ink-300">
             The narrative is a model&apos;s interpretation of the evidence below — not a
@@ -145,7 +145,7 @@ export function AIAnalysisPanel({
           <button
             type="button"
             onClick={onGenerate}
-            className="inline-flex items-center gap-2 rounded-lg bg-water-400 px-4 py-2.5 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
+            className="inline-flex items-center gap-2 rounded-lg bg-ink-100 px-4 py-2.5 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
           >
             <Sparkles className="h-4 w-4" aria-hidden />
             Generate analysis
@@ -260,7 +260,7 @@ export function AIAnalysisPanel({
               ) : null}
             </div>
 
-            <p className="text-[0.6875rem] text-ink-500">
+            <p className="text-2xs text-ink-500">
               Generated {formatDateTime(report.evidence.generated_at)}
               {report.status === "ok" ? ` · ${report.provider}` : ""}
               {report.model ? ` · model ${report.model}` : ""}

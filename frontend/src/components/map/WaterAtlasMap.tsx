@@ -25,26 +25,30 @@
  * an explicit, accessible fallback so the rest of the workspace stays usable.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, MapPin, RefreshCw, SquareDashed, X } from "lucide-react";
+import { AlertTriangle, RefreshCw, X } from "lucide-react";
 import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from "maplibre-gl";
 
 import { cn } from "@/lib/utils";
 import { useWorkspace, type SelectedLocation, type SelectionMode } from "@/lib/workspace";
+import { useMapUi, type BasemapId } from "@/lib/map-ui";
+import { useStudyAreas } from "@/lib/study-areas";
 import type { StacItem } from "@/lib/schemas";
 import { detectWebGLSupport } from "@/lib/webgl";
 import { RasterMap, type RasterOverlay } from "@/components/map/RasterMap";
+import { MapToolbar } from "@/components/map/MapToolbar";
+import { MapStatusBar } from "@/components/map/MapStatusBar";
+import { LayerControls } from "@/components/panels/LayerControls";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
 // Key-free OpenFreeMap vector styles. "Liberty" is the natural-colour default;
 // the others give users a lighter or darker canvas for reading overlays.
 const BASEMAPS = [
-  { id: "liberty", label: "Terrain", url: "https://tiles.openfreemap.org/styles/liberty" },
-  { id: "bright", label: "Bright", url: "https://tiles.openfreemap.org/styles/bright" },
-  { id: "positron", label: "Light", url: "https://tiles.openfreemap.org/styles/positron" },
-  { id: "dark", label: "Dark", url: "https://tiles.openfreemap.org/styles/dark" },
-] as const;
-type BasemapId = (typeof BASEMAPS)[number]["id"];
+  { id: "liberty", label: "Terrain", description: "Natural-colour land, water and place names", url: "https://tiles.openfreemap.org/styles/liberty" },
+  { id: "bright", label: "Bright", description: "High-contrast streets and labels", url: "https://tiles.openfreemap.org/styles/bright" },
+  { id: "positron", label: "Light", description: "Pale canvas for reading overlays", url: "https://tiles.openfreemap.org/styles/positron" },
+  { id: "dark", label: "Dark", description: "Low-light canvas for bright rasters", url: "https://tiles.openfreemap.org/styles/dark" },
+] as const satisfies readonly { id: BasemapId; label: string; description: string; url: string }[];
 const STYLE_URL = BASEMAPS[0].url;
 
 /** Escape contributor-supplied names before they reach the popup's innerHTML. */
@@ -74,12 +78,25 @@ const SELECTION_LINE = "aquanexus-selection-line";
 const DRAFT_SOURCE = "aquanexus-draft";
 const DRAFT_FILL = "aquanexus-draft-fill";
 const DRAFT_LINE = "aquanexus-draft-line";
+// The polygon being placed point-by-point with the draw tool.
+const DRAW_SOURCE = "aquanexus-draw";
+const DRAW_FILL = "aquanexus-draw-fill";
+const DRAW_LINE = "aquanexus-draw-line";
+const DRAW_POINTS = "aquanexus-draw-points";
+// The imagery-view overlay: a real NASA GIBS observation layer drawn over the
+// basemap when the toolbar is switched to the imagery view.
+const VIEW_SOURCE = "aquanexus-view";
+const VIEW_LAYER = "aquanexus-view-layer";
+const IMAGERY_LAYER_ID = "modis_true_color";
 
 // Satellite footprints are a dashed, muted grey so they read as reference
 // metadata rather than an active selection (which is solid cyan).
 const SCENE_LINE_COLOR = "#9fb0c4";
 // The selection uses the water accent: unmistakably "this is your area".
 const SELECTION_COLOR = "#63d8f3";
+// Drawn-area boundaries use a warm amber/gold so they stay legible against
+// blue satellite imagery and cannot be confused with the cyan accent.
+const BOUNDARY_COLOR = "#e3b341";
 
 // Camera bounds. Zoom-out never restricts navigation: the whole world stays
 // reachable and the camera never locks to a region.
@@ -163,6 +180,7 @@ function MapFallback({
   scenes,
   showScenes,
   overlay,
+  panelOpen,
 }: {
   message: string;
   location: SelectedLocation | null;
@@ -171,6 +189,7 @@ function MapFallback({
   scenes: StacItem[];
   showScenes: boolean;
   overlay?: RasterOverlay | null;
+  panelOpen: boolean;
 }) {
   return (
     <div className="absolute inset-0 z-20 overflow-hidden bg-abyss-950">
@@ -182,7 +201,14 @@ function MapFallback({
         overlay={overlay}
         ariaLabel="Interactive map (lightweight renderer)"
       />
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3">
+      {/* The banner would otherwise sit under the layer panel; step it right
+          while the panel is open so both stay readable. */}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3 transition-[padding] duration-200",
+          panelOpen && "sm:pl-[16rem]",
+        )}
+      >
         <div
           role="alert"
           className="pointer-events-auto w-full max-w-xl rounded-xl border border-white/10 bg-abyss-900/95 p-4 shadow-float backdrop-blur animate-fade-in"
@@ -198,7 +224,7 @@ function MapFallback({
                 engine is disabled. A lightweight renderer is active below: pan, zoom and
                 click-to-select still work.
               </p>
-              <p className="mt-2 flex items-start gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-left text-[0.6875rem] leading-relaxed text-ink-400">
+              <p className="mt-2 flex items-start gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-2 text-left text-2xs leading-relaxed text-ink-400">
                 <AlertTriangle
                   className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-caution"
                   aria-hidden
@@ -208,7 +234,7 @@ function MapFallback({
               <button
                 type="button"
                 onClick={onRetry}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-ink-100 transition hover:border-water-400/40 hover:bg-water-400/10"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-ink-100 transition hover:border-water-300/40 hover:bg-water-300/10"
               >
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden />
                 Retry map engine
@@ -238,6 +264,24 @@ export function WaterAtlasMap() {
     selectDrawnArea,
     clearLocation,
   } = useWorkspace();
+  const {
+    basemap,
+    setBasemap,
+    viewMode,
+    setViewMode,
+    labelsVisible,
+    toggleLabels,
+    command,
+    clearCommand,
+    sendCommand,
+    drawing,
+    startDrawing,
+    stopDrawing,
+    drawVertices,
+    addDrawVertex,
+    removeLastDrawVertex,
+    clearDrawVertices,
+  } = useMapUi();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
@@ -251,8 +295,15 @@ export function WaterAtlasMap() {
   // Bumped whenever the basemap style finishes (re)loading. Overlay effects
   // depend on it so they re-apply their data after a `setStyle` wipe.
   const [styleEpoch, setStyleEpoch] = useState(0);
-  const [basemap, setBasemap] = useState<BasemapId>(BASEMAPS[0].id);
   const appliedBasemapRef = useRef<BasemapId>(BASEMAPS[0].id);
+  // The layers panel floats over the map and starts closed so the map stays
+  // unobstructed; the status bar steps aside while it is open rather than
+  // being covered by it.
+  const [layersOpen, setLayersOpen] = useState(false);
+  // Bumped when the style is replaced so the place-label layer can be restored.
+  const [northResetAt, setNorthResetAt] = useState(0);
+  // Saved investigation count, for the status bar.
+  const { areas } = useStudyAreas();
   // Drag-to-draw state. Kept in refs because the map's mouse handlers run
   // outside React's render cycle; only the final ring is pushed into state.
   const drawStartRef = useRef<{ lng: number; lat: number } | null>(null);
@@ -267,6 +318,16 @@ export function WaterAtlasMap() {
   useEffect(() => {
     modeRef.current = selectionMode;
   }, [selectionMode]);
+  // The drawn vertices live in the UI store but the map's click handler is
+  // bound once, so mirror the vertex list and the drawing flag into refs.
+  const drawingRef = useRef(drawing);
+  const drawVerticesRef = useRef<number[][]>(drawVertices);
+  useEffect(() => {
+    drawingRef.current = drawing;
+  }, [drawing]);
+  useEffect(() => {
+    drawVerticesRef.current = drawVertices;
+  }, [drawVertices]);
   // Bridges the map's mouse handlers back into React state.
   const commitDrawRef = useRef<(ring: number[][]) => void>(() => {});
 
@@ -304,7 +365,7 @@ export function WaterAtlasMap() {
     try {
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: STYLE_URL,
+        style: BASEMAPS.find((b) => b.id === appliedBasemapRef.current)?.url ?? STYLE_URL,
         center: GLOBAL_CENTER,
         zoom: GLOBAL_ZOOM,
         minZoom: MIN_ZOOM,
@@ -378,14 +439,19 @@ export function WaterAtlasMap() {
     resizeObserver = new ResizeObserver(() => map.resize());
     resizeObserver.observe(containerRef.current);
 
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
+    // The zoom and compass controls live in the left toolbar, so the default
+    // NavigationControl is not added; the scale bar stays as map chrome.
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
     onClick = (event) => {
-      // In draw mode a click starts a drag rectangle, handled by the mouse
-      // handlers below; it must not also drop a point marker.
-      if (modeRef.current === "draw") return;
       const { lat, lng } = event.lngLat;
+      // Vertex drawing owns the click entirely while it is armed.
+      if (drawingRef.current) {
+        addDrawVertex(Number(lng.toFixed(5)), Number(lat.toFixed(5)));
+        return;
+      }
+      // The legacy drag-rectangle tool must not also drop a point marker.
+      if (modeRef.current === "draw") return;
       selectLocation({
         latitude: Number(lat.toFixed(5)),
         longitude: Number(lng.toFixed(5)),
@@ -403,7 +469,7 @@ export function WaterAtlasMap() {
     // click in draw mode therefore does nothing rather than selecting a
     // degenerate zero-area shape.
     onMouseDown = (event) => {
-      if (modeRef.current !== "draw") return;
+      if (drawingRef.current || modeRef.current !== "draw") return;
       drawStartRef.current = { lng: event.lngLat.lng, lat: event.lngLat.lat };
       setDrawStart(true);
       map.dragPan.disable();
@@ -516,6 +582,46 @@ export function WaterAtlasMap() {
             "line-width": 1.6,
             "line-opacity": 0.9,
             "line-dasharray": [3, 2],
+          },
+        });
+      }
+      // The polygon the user is placing point-by-point. Drawn in the warm
+      // boundary amber so it reads as "area I am drawing", never as a
+      // provider layer or the cyan selection accent.
+      if (!map.getSource(DRAW_SOURCE)) {
+        map.addSource(DRAW_SOURCE, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+        map.addLayer({
+          id: DRAW_FILL,
+          type: "fill",
+          source: DRAW_SOURCE,
+          filter: ["==", "$type", "Polygon"],
+          paint: { "fill-color": BOUNDARY_COLOR, "fill-opacity": 0.14 },
+        });
+        map.addLayer({
+          id: DRAW_LINE,
+          type: "line",
+          source: DRAW_SOURCE,
+          filter: ["==", "$type", "Polygon"],
+          paint: {
+            "line-color": BOUNDARY_COLOR,
+            "line-width": 2,
+            "line-opacity": 0.95,
+            "line-dasharray": [4, 2],
+          },
+        });
+        map.addLayer({
+          id: DRAW_POINTS,
+          type: "circle",
+          source: DRAW_SOURCE,
+          filter: ["==", "$type", "Point"],
+          paint: {
+            "circle-radius": 4,
+            "circle-color": BOUNDARY_COLOR,
+            "circle-stroke-width": 1.5,
+            "circle-stroke-color": "#04101f",
           },
         });
       }
@@ -857,6 +963,164 @@ export function WaterAtlasMap() {
     map.setStyle(target.url);
   }, [basemap, status.kind]);
 
+  // Render the polygon the user is placing point by point. A single point is a
+  // circle marker; three or more are closed into a ring so the user can see the
+  // area that will be validated.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      const source = map.getSource(DRAW_SOURCE) as GeoJSONSource | undefined;
+      if (!source) return;
+      const features: GeoJSON.Feature[] = [];
+      if (drawVertices.length >= 3) {
+        features.push({
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "Polygon",
+            coordinates: [[...drawVertices, drawVertices[0]!]],
+          },
+        });
+      } else if (drawVertices.length >= 1) {
+        features.push({
+          type: "Feature",
+          properties: {},
+          geometry: { type: "LineString", coordinates: drawVertices },
+        });
+      }
+      for (const vertex of drawVertices) {
+        features.push({
+          type: "Feature",
+          properties: {},
+          geometry: { type: "Point", coordinates: vertex },
+        });
+      }
+      source.setData({ type: "FeatureCollection", features });
+      const visibility = drawVertices.length ? "visible" : "none";
+      for (const id of [DRAW_FILL, DRAW_LINE, DRAW_POINTS]) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visibility);
+      }
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once("load", apply);
+  }, [drawVertices, status.kind, styleEpoch]);
+
+  // Handle camera commands queued by the left toolbar.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !command) return;
+    switch (command.type) {
+      case "zoom-in":
+        map.zoomTo(Math.min(map.getZoom() + 1, MAX_ZOOM), { duration: 220 });
+        break;
+      case "zoom-out":
+        map.zoomTo(Math.max(map.getZoom() - 1, MIN_ZOOM), { duration: 220 });
+        break;
+      case "reset-north":
+        map.easeTo({ bearing: 0, pitch: 0, duration: 320 });
+        setNorthResetAt((n) => n + 1);
+        break;
+      case "locate":
+        if (typeof navigator === "undefined" || !navigator.geolocation) break;
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            map.easeTo({ center: [longitude, latitude], zoom: FOCUS_ZOOM, duration: 700 });
+          },
+          () => {
+            /* Denied or unavailable: the map simply stays where it is. */
+          },
+          { enableHighAccuracy: false, timeout: 8000 },
+        );
+        break;
+    }
+    clearCommand();
+  }, [command, clearCommand, status.kind]);
+
+  // Imagery view: draw a real NASA GIBS observation layer over the basemap. It
+  // is a measured product (satellite estimate), not a repainted basemap, so the
+  // label and the layer note say which dataset is shown.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      for (const id of [VIEW_LAYER, VIEW_SOURCE]) {
+        if (id === VIEW_LAYER && map.getLayer(id)) map.removeLayer(id);
+        if (id === VIEW_SOURCE && map.getSource(id)) map.removeSource(id);
+      }
+      if (viewMode !== "imagery") return;
+      const layer = mapLayers.data?.layers.find((l) => l.id === IMAGERY_LAYER_ID);
+      if (!layer?.available || !layer.tile_template) return;
+      const url = layer.tile_template.replace("/default/", "/default/");
+      map.addSource(VIEW_SOURCE, {
+        type: "raster",
+        tiles: [url],
+        tileSize: 256,
+        maxzoom: layer.max_zoom,
+        attribution: layer.attribution,
+      });
+      map.addLayer({
+        id: VIEW_LAYER,
+        type: "raster",
+        source: VIEW_SOURCE,
+        paint: { "raster-opacity": 0.85, "raster-fade-duration": 200 },
+      });
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once("load", apply);
+  }, [viewMode, mapLayers.data, status.kind, styleEpoch]);
+
+  // Place labels: the map style's own symbol layers. They are switched with the
+  // same mechanism the style exposes, so nothing is re-implemented.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      const style = map.getStyle();
+      if (!style?.layers) return;
+      const value = labelsVisible ? "visible" : "none";
+      for (const layer of style.layers) {
+        if (layer.type !== "symbol") continue;
+        try {
+          map.setLayoutProperty(layer.id, "visibility", value);
+        } catch {
+          /* a layer may not support the property; skip it */
+        }
+      }
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once("load", apply);
+  }, [labelsVisible, status.kind, styleEpoch, northResetAt]);
+
+  // Keyboard shortcuts for the area tool: Enter saves, Escape cancels and
+  // Backspace removes the last point. Bound only while the tool is armed so
+  // they cannot interfere with the rest of the workspace.
+  useEffect(() => {
+    if (!drawing) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        finishDraw();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        setDrawError(null);
+        stopDrawing();
+      } else if (event.key === "Backspace") {
+        event.preventDefault();
+        removeLastDrawVertex();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   const activeRasterLayer = mapLayers.data?.layers.find(
     (l) => l.id === activeRasterLayerId,
   );
@@ -878,6 +1142,35 @@ export function WaterAtlasMap() {
 
   const sceneCount = scenes.data?.items.length ?? 0;
   const mapUnavailable = status.kind === "unsupported";
+  const areaCount = areas.length;
+  const imageryLayer = mapLayers.data?.layers.find((l) => l.id === IMAGERY_LAYER_ID);
+  const imageryLabel =
+    viewMode === "imagery"
+      ? (imageryLayer?.name ?? "True-colour imagery")
+      : "Off";
+
+  /**
+   * Commit the placed boundary points. The ring is handed to the workspace,
+   * which validates it server-side exactly as the drag tool does; nothing here
+   * fabricates a geometry or an area.
+   */
+  const finishDraw = useCallback(() => {
+    const vertices = drawVerticesRef.current;
+    if (vertices.length < 3) {
+      setDrawError("Place at least three points before saving the area.");
+      return;
+    }
+    setDrawError(null);
+    const ring = [...vertices, vertices[0]!];
+    void selectDrawnArea(ring).then((area) => {
+      if (area) {
+        stopDrawing();
+      } else {
+        setDrawError("That area could not be analysed. Adjust the boundary and try again.");
+      }
+    });
+  }, [selectDrawnArea, stopDrawing]);
+
   const showSceneBadge = !mapUnavailable && layers.satellite && sceneCount > 0;
   const showSceneError = !mapUnavailable && layers.satellite && scenes.error && !scenes.loading;
   const showSceneEmpty =
@@ -920,95 +1213,97 @@ export function WaterAtlasMap() {
           scenes={scenes.data?.items ?? []}
           showScenes={layers.satellite}
           overlay={rasterOverlay}
+          panelOpen={layersOpen}
         />
       ) : (
         <>
-          {/* Selection tools. Two explicit, labelled modes so it is always clear
-              whether a click drops a point or starts drawing an area. */}
-          <div className="absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-xl border border-white/10 bg-abyss-900/90 p-1.5 shadow-float backdrop-blur">
-            <p className="px-1.5 pb-0.5 pt-1 text-[0.625rem] font-semibold uppercase tracking-wide text-ink-400">
-              Select area
-            </p>
-            <button
-              type="button"
-              aria-pressed={selectionMode === "point"}
-              onClick={() => {
+          {/* Vertical toolbar pinned to the left edge. The right edge stays
+              clear for the investigation rail and the top centre for the
+              Map / Analytics control. */}
+          <div className="absolute left-3 top-3 z-20 flex max-h-[calc(100%-1.5rem)] flex-col gap-2">
+            <MapToolbar
+              basemaps={BASEMAPS}
+              basemap={basemap}
+              onSelectBasemap={(id) => setBasemap(id as BasemapId)}
+              viewMode={viewMode}
+              onToggleView={() => setViewMode(viewMode === "imagery" ? "map" : "imagery")}
+              onZoomIn={() => sendCommand("zoom-in")}
+              onZoomOut={() => sendCommand("zoom-out")}
+              drawing={drawing}
+              onToggleDraw={() => {
                 setDrawError(null);
-                setSelectionMode("point");
+                if (drawing) {
+                  stopDrawing();
+                } else {
+                  clearDrawVertices();
+                  startDrawing();
+                }
               }}
-              className={cn(
-                "flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium transition",
-                selectionMode === "point"
-                  ? "bg-water-400/15 text-water-100 ring-1 ring-water-400/40"
-                  : "text-ink-200 hover:bg-white/[0.06]",
-              )}
-            >
-              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Point
-            </button>
-            <button
-              type="button"
-              aria-pressed={selectionMode === "draw"}
-              onClick={() => {
+              vertexCount={drawVertices.length}
+              onFinishDraw={() => {
+                if (drawVertices.length < 3) {
+                  setDrawError("Place at least three points before saving the area.");
+                  return;
+                }
                 setDrawError(null);
-                setSelectionMode(selectionMode === "draw" ? "point" : "draw");
+                void selectDrawnArea([...drawVertices, drawVertices[0]!]).then((area) => {
+                  stopDrawing();
+                  if (!area) {
+                    setDrawError(
+                      "That area could not be analysed. Adjust the boundary and try again.",
+                    );
+                  }
+                });
               }}
-              className={cn(
-                "flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium transition",
-                selectionMode === "draw"
-                  ? "bg-water-400/15 text-water-100 ring-1 ring-water-400/40"
-                  : "text-ink-200 hover:bg-white/[0.06]",
-              )}
-            >
-              <SquareDashed className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Draw an area
-            </button>
-            {location ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setDrawError(null);
-                  setDraftRing(null);
-                  clearLocation();
-                }}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium text-ink-300 transition hover:bg-white/[0.06] hover:text-ink-100"
+              onCancelDraw={() => {
+                setDrawError(null);
+                stopDrawing();
+              }}
+              onLocate={() => sendCommand("locate")}
+              locating={false}
+              labelsVisible={labelsVisible}
+              onToggleLabels={toggleLabels}
+              onResetNorth={() => sendCommand("reset-north")}
+              layersOpen={layersOpen}
+              onToggleLayers={() => setLayersOpen((value) => !value)}
+            />
+
+            {layersOpen ? (
+              <div
+                id="map-layer-panel"
+                className="chrome pointer-events-auto max-h-[calc(100%-3rem)] w-60 overflow-y-auto p-3"
               >
-                <X className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                Reset selection
-              </button>
-            ) : null}
-            <div className="mt-0.5 border-t border-white/[0.08] px-1.5 pb-0.5 pt-1.5">
-              <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-ink-400">
-                Basemap
-              </p>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {BASEMAPS.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    aria-pressed={basemap === b.id}
-                    onClick={() => setBasemap(b.id)}
-                    className={cn(
-                      "rounded-md px-1.5 py-0.5 text-[0.6875rem] font-medium transition",
-                      basemap === b.id
-                        ? "bg-water-400/15 text-water-100 ring-1 ring-water-400/40"
-                        : "text-ink-300 hover:bg-white/[0.06]",
-                    )}
-                  >
-                    {b.label}
-                  </button>
-                ))}
+                <MapLayerControls onClose={() => setLayersOpen(false)} />
               </div>
-            </div>
+            ) : null}
           </div>
 
+          {drawing ? (
+            <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center px-16">
+              <div className="max-w-md rounded-lg border border-boundary/45 bg-abyss-900/95 px-3 py-2 text-center shadow-float backdrop-blur">
+                <p className="text-xs font-medium text-boundary-soft">
+                  {drawVertices.length === 0
+                    ? "Click the map to place the first boundary point"
+                    : drawVertices.length < 3
+                      ? `Place ${3 - drawVertices.length} more point${
+                          3 - drawVertices.length === 1 ? "" : "s"
+                        } to close the area`
+                      : "Press Enter to save this area, or Escape to cancel"}
+                </p>
+                <p className="mt-0.5 text-2xs text-ink-300">
+                  Backspace removes the last point. The backend validates the boundary.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
           {selectionMode === "draw" ? (
-            <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center px-4">
-              <div className="max-w-md rounded-lg border border-water-400/40 bg-abyss-900/95 px-3 py-2 text-center shadow-float backdrop-blur">
-                <p className="text-xs font-medium text-water-100">
+            <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center px-16">
+              <div className="max-w-md rounded-lg border border-water-300/45 bg-abyss-900/95 px-3 py-2 text-center shadow-float backdrop-blur">
+                <p className="text-xs font-medium text-water-200">
                   {drawStart ? "Release to select this area" : "Drag on the map to draw a rectangle"}
                 </p>
-                <p className="mt-0.5 text-[0.6875rem] text-ink-300">
+                <p className="mt-0.5 text-2xs text-ink-300">
                   The analysis runs at the centre of the area you draw.
                 </p>
               </div>
@@ -1027,8 +1322,8 @@ export function WaterAtlasMap() {
           ) : null}
 
           {location?.area ? (
-            <div className="pointer-events-none absolute bottom-3 right-3 z-10 max-w-xs rounded-lg border border-water-400/30 bg-abyss-900/90 px-3 py-2 backdrop-blur">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-water-200">
+            <div className="pointer-events-none absolute bottom-14 right-3 z-10 max-w-xs rounded-lg border border-boundary/40 bg-abyss-900/90 px-3 py-2 backdrop-blur">
+              <p className="text-2xs font-semibold uppercase tracking-wide text-boundary-soft">
                 Selected area
               </p>
               <p className="mt-0.5 text-xs text-ink-300">
@@ -1041,8 +1336,8 @@ export function WaterAtlasMap() {
           ) : null}
 
           {showSceneBadge ? (
-            <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-white/10 bg-abyss-900/85 px-3 py-2 backdrop-blur">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-ink-300">
+            <div className="pointer-events-none absolute bottom-14 left-3 z-10 rounded-lg border border-white/10 bg-abyss-900/85 px-3 py-2 backdrop-blur">
+              <p className="text-2xs font-semibold uppercase tracking-wide text-ink-300">
                 Satellite footprints
               </p>
               <p className="mt-0.5 text-xs text-ink-400">
@@ -1053,24 +1348,65 @@ export function WaterAtlasMap() {
           {showSceneError ? (
             <div
               role="status"
-              className="absolute bottom-3 left-3 z-10 max-w-xs rounded-lg border border-signal-alert/30 bg-abyss-900/90 px-3 py-2 backdrop-blur"
+              className="absolute bottom-14 left-3 z-10 max-w-xs rounded-lg border border-signal-alert/30 bg-abyss-900/90 px-3 py-2 backdrop-blur"
             >
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-signal-alert">
+              <p className="text-2xs font-semibold uppercase tracking-wide text-signal-alert">
                 Satellite scenes unavailable
               </p>
               <p className="mt-0.5 text-xs text-ink-300">{scenes.error}</p>
             </div>
           ) : null}
           {showSceneEmpty ? (
-            <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-white/10 bg-abyss-900/85 px-3 py-2 backdrop-blur">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-ink-300">
+            <div className="pointer-events-none absolute bottom-14 left-3 z-10 rounded-lg border border-white/10 bg-abyss-900/85 px-3 py-2 backdrop-blur">
+              <p className="text-2xs font-semibold uppercase tracking-wide text-ink-300">
                 Satellite footprints
               </p>
               <p className="mt-0.5 text-xs text-ink-400">No scenes in this window.</p>
             </div>
           ) : null}
+
+          {/* Bottom status bar. It steps right while the layer panel is open so
+              the two never overlap. */}
+          <div
+            className={cn(
+              "pointer-events-none absolute bottom-0 z-20 hidden w-full justify-center p-3 transition-[padding] duration-200 md:flex",
+              layersOpen && "md:pl-[17rem]",
+            )}
+          >
+            <MapStatusBar
+              className="pointer-events-auto max-w-[52rem]"
+              count={areaCount}
+              basemapLabel={BASEMAPS.find((b) => b.id === basemap)?.label ?? basemap}
+              imageryLabel={imageryLabel}
+              selected={location}
+            />
+          </div>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * The layer panel content. It composes the existing layer toggles (which are
+ * wired to real workspace state) with the annotation colour the drawn area
+ * uses, so the panel is the single place map layers are controlled.
+ */
+function MapLayerControls({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="label-caps">Map layers</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md p-0.5 text-ink-400 transition hover:text-ink-100"
+          aria-label="Close layer panel"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      </div>
+      <LayerControls embedded />
     </div>
   );
 }

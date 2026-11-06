@@ -83,7 +83,7 @@ function DataSourcesCard() {
                   <span className="block truncate text-xs font-medium text-ink-100">
                     {provider.name}
                   </span>
-                  <span className="block truncate text-[0.6875rem] text-ink-500">
+                  <span className="block truncate text-2xs text-ink-500">
                     {provider.product ?? provider.id}
                   </span>
                 </span>
@@ -119,19 +119,19 @@ export default function IntelligenceHomePage() {
       <section className="panel relative overflow-hidden p-6 sm:p-8">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(700px_320px_at_88%_-20%,rgba(18,163,201,0.18),transparent_62%)]"
+          className="pointer-events-none absolute inset-0 -z-10 grid-lines opacity-70"
         />
         <div className="max-w-2xl">
           <div className="flex items-center gap-3">
             <BrandMark className="h-10 w-10" />
             <div>
               <p className="font-display text-lg font-semibold text-ink-50">AquaNexus</p>
-              <p className="text-[0.6875rem] uppercase tracking-[0.16em] text-ink-500">
+              <p className="text-2xs uppercase tracking-[0.16em] text-ink-500">
                 Global water intelligence
               </p>
             </div>
           </div>
-          <h1 className="mt-5 font-display text-2xl font-semibold tracking-tight text-ink-50 sm:text-3xl">
+          <h1 className="mt-4 font-display text-2xl font-semibold tracking-[-0.02em] text-ink-50 sm:text-3xl">
             Understand Water. Detect Risks. Find Solutions.
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-300">
@@ -142,7 +142,7 @@ export default function IntelligenceHomePage() {
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/explore"
-              className="group inline-flex items-center gap-2 rounded-lg bg-water-400 px-5 py-2.5 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
+              className="group inline-flex items-center gap-2 rounded-lg bg-ink-100 px-4 py-2 text-xs font-semibold text-abyss-950 transition hover:bg-white"
             >
               <Compass className="h-4 w-4" aria-hidden />
               Explore map
@@ -150,7 +150,7 @@ export default function IntelligenceHomePage() {
             </Link>
             <Link
               href="/study-areas"
-              className="inline-flex items-center gap-2 rounded-lg border border-white/12 bg-white/[0.02] px-5 py-2.5 text-sm font-semibold text-ink-100 transition hover:border-water-400/40 hover:bg-water-400/[0.08]"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/12 bg-white/[0.02] px-4 py-2 text-xs font-semibold text-ink-100 transition hover:border-water-300/40 hover:bg-water-300/[0.08]"
             >
               <Plus className="h-4 w-4 text-water-300" aria-hidden />
               Create study area
@@ -192,7 +192,7 @@ export default function IntelligenceHomePage() {
                   action={
                     <Link
                       href="/explore"
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-water-400 px-4 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-ink-100 px-3.5 py-2 text-xs font-semibold text-abyss-950 transition hover:bg-white"
                     >
                       <Compass className="h-4 w-4" aria-hidden />
                       Explore the map
@@ -208,7 +208,7 @@ export default function IntelligenceHomePage() {
                   <Link
                     key={area.id}
                     href={`/study-areas/${area.id}`}
-                    className="panel flex items-start gap-3 p-4 transition hover:border-water-400/30"
+                    className="panel flex items-start gap-3 p-3.5 transition hover:border-water-300/30"
                   >
                     <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-water-300">
                       <MapPin className="h-4 w-4" aria-hidden />
@@ -221,7 +221,7 @@ export default function IntelligenceHomePage() {
                         {formatCoord(area.location.latitude, "lat")} ·{" "}
                         {formatCoord(area.location.longitude, "lon")}
                       </span>
-                      <span className="mt-1 block text-[0.6875rem] text-ink-500">
+                      <span className="mt-1 block text-2xs text-ink-500">
                         Updated {formatDateTime(area.updated_at)}
                       </span>
                     </span>
@@ -245,7 +245,7 @@ export default function IntelligenceHomePage() {
                       <span className="min-w-0 flex-1 truncate text-sm text-ink-200">
                         {area.name}
                       </span>
-                      <span className="shrink-0 text-[0.6875rem] text-ink-500">
+                      <span className="shrink-0 text-2xs text-ink-500">
                         {formatDateTime(area.updated_at)}
                       </span>
                       <ArrowRight className="h-3.5 w-3.5 shrink-0 text-ink-500" aria-hidden />
@@ -267,7 +267,7 @@ export default function IntelligenceHomePage() {
               <ClassificationBadge classification="simulation" compact />
               <ClassificationBadge classification="derived" compact />
             </div>
-            <p className="mt-3 text-[0.6875rem] leading-relaxed text-ink-500">
+            <p className="mt-3 text-2xs leading-relaxed text-ink-500">
               Every value carries its classification, method and limitations. Missing data stays
               visibly missing — AquaNexus never fills a gap with a plausible-looking number.
             </p>

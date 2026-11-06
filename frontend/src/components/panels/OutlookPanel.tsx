@@ -42,7 +42,7 @@ function SignalCard({ signal }: { signal: OutlookSignal }) {
         </span>
         <span className="text-xs text-ink-400">{signal.unit}</span>
       </p>
-      <p className="mt-1 text-[0.6875rem] leading-relaxed text-ink-500">{signal.method}</p>
+      <p className="mt-1 text-2xs leading-relaxed text-ink-500">{signal.method}</p>
     </div>
   );
 }
@@ -64,7 +64,7 @@ export function OutlookPanel({
         icon={<CalendarClock className="h-4 w-4" aria-hidden />}
       />
       <div className="space-y-4 p-4">
-        <div className="flex items-start gap-2 rounded-lg border border-water-400/20 bg-water-400/[0.05] px-3 py-2.5">
+        <div className="flex items-start gap-2 rounded-lg border border-water-300/20 bg-water-300/[0.05] px-3 py-2.5">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-water-300" aria-hidden />
           <p className="text-xs leading-relaxed text-ink-200">
             Everything in this section is a forecast or a value derived from it. Forecasts are not
@@ -102,7 +102,7 @@ export function OutlookPanel({
               <div className="rounded-lg border border-white/[0.06] bg-abyss-950/40 p-3">
                 <p className="label-caps mb-2">Forecast rainfall series</p>
                 <RainfallChart forecast={data.forecast} height={220} />
-                <p className="mt-2 text-[0.6875rem] text-ink-500">
+                <p className="mt-2 text-2xs text-ink-500">
                   Provider: {data.forecast.provider.name}
                   {data.forecast.total !== null && data.forecast.total !== undefined
                     ? ` · total ${formatNumber(data.forecast.total, 1)} ${data.forecast.unit}`
@@ -116,14 +116,14 @@ export function OutlookPanel({
             {data.rainy_periods.length || data.dry_periods.length ? (
               <div className="grid gap-2 sm:grid-cols-2">
                 {data.rainy_periods.length ? (
-                  <div className="rounded-lg border border-water-400/20 bg-water-400/[0.05] px-3 py-2.5">
+                  <div className="rounded-lg border border-water-300/20 bg-water-300/[0.05] px-3 py-2.5">
                     <p className="flex items-center gap-1.5 text-xs font-semibold text-water-200">
                       <CloudRain className="h-3.5 w-3.5" aria-hidden />
                       Rainy forecast periods
                     </p>
                     <ul className="mt-1.5 space-y-1">
                       {data.rainy_periods.map((p) => (
-                        <li key={p.start_date} className="text-[0.6875rem] text-ink-300">
+                        <li key={p.start_date} className="text-2xs text-ink-300">
                           {formatDate(p.start_date)} → {formatDate(p.end_date)} · {p.days} day
                           {p.days === 1 ? "" : "s"}
                           {p.total_mm !== null && p.total_mm !== undefined
@@ -142,7 +142,7 @@ export function OutlookPanel({
                     </p>
                     <ul className="mt-1.5 space-y-1">
                       {data.dry_periods.map((p) => (
-                        <li key={p.start_date} className="text-[0.6875rem] text-ink-400">
+                        <li key={p.start_date} className="text-2xs text-ink-400">
                           {formatDate(p.start_date)} → {formatDate(p.end_date)} · {p.days} day
                           {p.days === 1 ? "" : "s"}
                         </li>
@@ -159,7 +159,7 @@ export function OutlookPanel({
                   <TrendingUp className="h-3.5 w-3.5 text-water-300" aria-hidden />
                   Recent rainfall vs prior-year window
                 </p>
-                <p className="mt-1 text-[0.6875rem] leading-relaxed text-ink-400">
+                <p className="mt-1 text-2xs leading-relaxed text-ink-400">
                   {data.comparison.classification?.label ?? "Anomaly"} ·{" "}
                   {data.comparison.anomaly_percent !== null &&
                   data.comparison.anomaly_percent !== undefined
@@ -177,7 +177,7 @@ export function OutlookPanel({
                     tone={p.status === "ok" ? "good" : p.status === "partial" ? "caution" : "muted"}
                     label={p.status}
                   />
-                  <span className="text-[0.6875rem] text-ink-400">{p.provider_name}</span>
+                  <span className="text-2xs text-ink-400">{p.provider_name}</span>
                 </span>
               ))}
             </div>
@@ -187,7 +187,7 @@ export function OutlookPanel({
                 {data.limitations.map((limitation) => (
                   <li
                     key={limitation}
-                    className="flex items-start gap-1.5 text-[0.6875rem] leading-relaxed text-ink-500"
+                    className="flex items-start gap-1.5 text-2xs leading-relaxed text-ink-500"
                   >
                     <Info className="mt-0.5 h-3 w-3 shrink-0 text-ink-600" aria-hidden />
                     <span>{limitation}</span>

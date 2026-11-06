@@ -44,7 +44,7 @@ const LAYERS: {
   },
 ];
 
-export function LayerControls() {
+export function LayerControls({ embedded = false }: { embedded?: boolean } = {}) {
   const { layers, toggleLayer, location, waterBodies } = useWorkspace();
 
   const waterNote =
@@ -57,11 +57,13 @@ export function LayerControls() {
       : null;
 
   return (
-    <div className="panel p-3">
-      <div className="mb-2 flex items-center gap-2 px-1">
-        <Layers className="h-4 w-4 text-water-300" aria-hidden />
-        <p className="label-caps">Map layers</p>
-      </div>
+    <div className={embedded ? "" : "panel p-3"}>
+      {embedded ? null : (
+        <div className="mb-2 flex items-center gap-2 px-1">
+          <Layers className="h-4 w-4 text-water-300" aria-hidden />
+          <p className="label-caps">Map layers</p>
+        </div>
+      )}
       <ul className="space-y-1">
         {LAYERS.map((layer) => {
           const Icon = layer.icon;
@@ -76,7 +78,7 @@ export function LayerControls() {
                 className={cn(
                   "flex w-full items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition",
                   active
-                    ? "border-water-400/30 bg-water-400/[0.08]"
+                    ? "border-water-300/30 bg-water-300/[0.08]"
                     : "border-transparent hover:bg-white/[0.04]",
                 )}
               >
@@ -96,14 +98,14 @@ export function LayerControls() {
                   >
                     {layer.label}
                   </span>
-                  <span className="block truncate text-[0.6875rem] text-ink-500">
+                  <span className="block truncate text-2xs text-ink-500">
                     {layer.description}
                   </span>
                 </span>
                 <span
                   className={cn(
                     "relative h-4 w-7 shrink-0 rounded-full transition",
-                    active ? "bg-water-400" : "bg-ink-700",
+                    active ? "bg-water-300" : "bg-ink-700",
                   )}
                   aria-hidden
                 >
@@ -120,7 +122,7 @@ export function LayerControls() {
         })}
       </ul>
       {waterNote ? (
-        <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-[0.6875rem] leading-relaxed text-ink-400">
+        <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-2xs leading-relaxed text-ink-400">
           {waterNote}
         </p>
       ) : null}

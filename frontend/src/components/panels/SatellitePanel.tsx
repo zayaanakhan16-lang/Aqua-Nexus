@@ -71,7 +71,7 @@ function SceneRow({ item, onInspect }: { item: StacItem; onInspect: (scene: View
       <SceneThumb item={item} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-mono text-xs text-ink-100">{item.id}</p>
-        <p className="mt-0.5 text-[0.6875rem] text-ink-400">
+        <p className="mt-0.5 text-2xs text-ink-400">
           {item.collection}
           {item.acquired_at ? ` · ${formatDate(item.acquired_at)}` : ""}
           {item.cloud_cover !== null && item.cloud_cover !== undefined
@@ -79,7 +79,7 @@ function SceneRow({ item, onInspect }: { item: StacItem; onInspect: (scene: View
             : ""}
         </p>
         {item.cloud_cover !== null && item.cloud_cover !== undefined && item.cloud_cover > 90 ? (
-          <p className="mt-0.5 text-[0.625rem] text-ink-500">
+          <p className="mt-0.5 text-3xs text-ink-500">
             Heavily clouded: surface detail is largely obscured.
           </p>
         ) : null}
@@ -99,7 +99,7 @@ function SceneRow({ item, onInspect }: { item: StacItem; onInspect: (scene: View
                 thumbnail: item.thumbnail as string,
               })
             }
-            className="inline-flex items-center gap-1 text-[0.6875rem] text-water-300 transition hover:text-water-200"
+            className="inline-flex items-center gap-1 text-2xs text-water-300 transition hover:text-water-200"
           >
             <Maximize2 className="h-3 w-3" aria-hidden />
             Inspect
@@ -108,7 +108,7 @@ function SceneRow({ item, onInspect }: { item: StacItem; onInspect: (scene: View
             href={item.thumbnail}
             target="_blank"
             rel="noreferrer noopener"
-            className="inline-flex items-center gap-1 text-[0.6875rem] text-ink-400 transition hover:text-ink-200"
+            className="inline-flex items-center gap-1 text-2xs text-ink-400 transition hover:text-ink-200"
           >
             Record
             <ExternalLink className="h-3 w-3" aria-hidden />
@@ -135,14 +135,14 @@ function HLSRow({ item }: { item: HLSItem }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate font-mono text-xs text-ink-100">{item.id}</p>
-        <p className="mt-0.5 text-[0.6875rem] text-ink-400">
+        <p className="mt-0.5 text-2xs text-ink-400">
           {item.data_source}
           {item.acquired_at ? ` · ${formatDate(item.acquired_at)}` : ""}
           {item.cloud_cover !== null && item.cloud_cover !== undefined
             ? ` · ${formatNumber(item.cloud_cover, 0)}% cloud`
             : ""}
         </p>
-        <p className="mt-0.5 text-[0.625rem] text-ink-500">
+        <p className="mt-0.5 text-3xs text-ink-500">
           Harmonized 30 m grid — coarser than native 10 m Sentinel-2.
         </p>
       </div>
@@ -151,7 +151,7 @@ function HLSRow({ item }: { item: HLSItem }) {
           href={item.record_url}
           target="_blank"
           rel="noreferrer noopener"
-          className="inline-flex shrink-0 items-center gap-1 text-[0.6875rem] text-water-300 transition hover:text-water-200"
+          className="inline-flex shrink-0 items-center gap-1 text-2xs text-water-300 transition hover:text-water-200"
         >
           Record
           <ExternalLink className="h-3 w-3" aria-hidden />
@@ -170,7 +170,7 @@ function HLSSection({ slice, onRetry }: { slice: SliceState<HLSSearchResult>; on
         <Satellite className="h-4 w-4 text-water-300" aria-hidden />
         <h3 className="text-sm font-medium text-ink-100">NASA HLS (Harmonized Landsat Sentinel-2)</h3>
       </div>
-      <p className="text-[0.6875rem] leading-relaxed text-ink-500">
+      <p className="text-2xs leading-relaxed text-ink-500">
         NASA&apos;s harmonized 30 m product, discovered through the CMR STAC catalogue. Kept
         separate from the Copernicus Sentinel-2 list above so the two are not confused.
       </p>
@@ -203,7 +203,7 @@ function HLSSection({ slice, onRetry }: { slice: SliceState<HLSSearchResult>; on
             </ul>
           )}
 
-          <p className="text-[0.6875rem] leading-relaxed text-ink-500">{data.note}</p>
+          <p className="text-2xs leading-relaxed text-ink-500">{data.note}</p>
         </>
       ) : null}
     </div>
@@ -274,7 +274,7 @@ export function SatellitePanel({
                 </ul>
               )}
 
-              <p className="text-[0.6875rem] leading-relaxed text-ink-500">{data.note}</p>
+              <p className="text-2xs leading-relaxed text-ink-500">{data.note}</p>
             </div>
 
             <HLSSection slice={hls} onRetry={onRetry} />

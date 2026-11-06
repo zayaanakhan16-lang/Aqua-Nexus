@@ -47,7 +47,7 @@ function BodyRow({ body }: { body: WaterBody }) {
   return (
     <li className="rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 py-2.5">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-water-400/20 bg-water-400/[0.07] text-water-300">
+        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-water-300/20 bg-water-300/[0.07] text-water-300">
           <Icon className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
@@ -55,7 +55,7 @@ function BodyRow({ body }: { body: WaterBody }) {
             <p className="truncate text-sm font-medium text-ink-100">
               {body.name ?? `Unnamed ${meta.label.toLowerCase()}`}
             </p>
-            <span className="shrink-0 text-[0.6875rem] uppercase tracking-wide text-ink-500">
+            <span className="shrink-0 text-2xs uppercase tracking-wide text-ink-500">
               {meta.label}
             </span>
           </div>
@@ -73,7 +73,7 @@ function BodyRow({ body }: { body: WaterBody }) {
                   label: body.name ?? `Mapped ${meta.label.toLowerCase()}`,
                 })
               }
-              className="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium text-water-300 transition hover:text-water-200"
+              className="inline-flex items-center gap-1.5 text-2xs font-medium text-water-300 transition hover:text-water-200"
             >
               <MapPin className="h-3 w-3" aria-hidden />
               Analyse this feature
@@ -83,7 +83,7 @@ function BodyRow({ body }: { body: WaterBody }) {
                 href={osmHref}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium text-ink-400 transition hover:text-ink-200"
+                className="inline-flex items-center gap-1.5 text-2xs font-medium text-ink-400 transition hover:text-ink-200"
               >
                 <ExternalLink className="h-3 w-3" aria-hidden />
                 OpenStreetMap
@@ -155,7 +155,7 @@ export function WaterAtlasPanel({
                   tone={data.provider.status === "ok" ? "good" : "caution"}
                   label={data.provider.status}
                 />
-                <span className="text-[0.6875rem] text-ink-400">{data.provider.provider_name}</span>
+                <span className="text-2xs text-ink-400">{data.provider.provider_name}</span>
               </span>
             </div>
 
@@ -177,7 +177,7 @@ export function WaterAtlasPanel({
               />
             )}
 
-            <p className={cn("text-[0.6875rem] leading-relaxed text-ink-500")}>{data.note}</p>
+            <p className={cn("text-2xs leading-relaxed text-ink-500")}>{data.note}</p>
           </>
         ) : null}
       </div>

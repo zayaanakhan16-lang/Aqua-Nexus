@@ -44,7 +44,7 @@ export function MapPanel({
       {showHint ? (
         <div className="pointer-events-none absolute left-3 top-3 z-10 flex items-center gap-1.5 rounded-lg border border-white/10 bg-abyss-900/85 px-2.5 py-1.5 backdrop-blur">
           <MousePointerClick className="h-3.5 w-3.5 text-water-300" aria-hidden />
-          <span className="text-[0.6875rem] text-ink-300">Click the map to select a point</span>
+          <span className="text-2xs text-ink-300">Click the map to select a point</span>
         </div>
       ) : null}
     </div>

@@ -84,7 +84,7 @@ function IndicatorRow({ indicator }: { indicator: Indicator }) {
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
             aria-controls={panelId}
-            className="mt-1 inline-flex items-center gap-1 text-[0.6875rem] font-medium text-ink-400 transition hover:text-water-300"
+            className="mt-1 inline-flex items-center gap-1 text-2xs font-medium text-ink-400 transition hover:text-water-300"
           >
             Method &amp; limitations
             <ChevronDown
@@ -283,7 +283,7 @@ function SummaryBody({
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   <span
                     className={cn(
-                      "text-[0.6875rem] font-medium uppercase tracking-wide",
+                      "text-2xs font-medium uppercase tracking-wide",
                       provider.status === "ok"
                         ? "text-signal-good"
                         : provider.status === "partial"
@@ -309,7 +309,7 @@ function SummaryBody({
 
         {tab === "notes" ? (
           <div className="space-y-3 px-4 py-4">
-            <div className="flex items-start gap-2 rounded-lg border border-water-400/20 bg-water-400/[0.05] p-3">
+            <div className="flex items-start gap-2 rounded-lg border border-water-300/20 bg-water-300/[0.05] p-3">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-water-300" aria-hidden />
               <p className="text-xs leading-relaxed text-ink-200">
                 AquaNexus reports what the data supports and states what it does not.

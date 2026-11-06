@@ -54,23 +54,23 @@ function ItemRow({ item }: { item: FloodEvidenceItem }) {
                 ? `${item.value}${item.unit ? ` ${item.unit}` : ""}`
                 : evidenceItemLabel(item.status)}
             </span>
-            <span className="text-[0.6875rem] uppercase tracking-wide text-ink-500">
+            <span className="text-2xs uppercase tracking-wide text-ink-500">
               {meta.label}
             </span>
           </div>
           {item.period ? (
-            <p className="mt-1 text-[0.6875rem] text-ink-500">Window: {item.period}</p>
+            <p className="mt-1 text-2xs text-ink-500">Window: {item.period}</p>
           ) : null}
           {item.method ? (
-            <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-ink-400">{item.method}</p>
+            <p className="mt-1.5 text-2xs leading-relaxed text-ink-400">{item.method}</p>
           ) : null}
-          <p className="mt-1 text-[0.6875rem] text-ink-500">Source: {item.source}</p>
+          <p className="mt-1 text-2xs text-ink-500">Source: {item.source}</p>
           {item.limitations.length ? (
             <ul className="mt-2 space-y-1">
               {item.limitations.map((limitation) => (
                 <li
                   key={limitation}
-                  className="flex items-start gap-1.5 text-[0.6875rem] leading-relaxed text-ink-500"
+                  className="flex items-start gap-1.5 text-2xs leading-relaxed text-ink-500"
                 >
                   <Info className="mt-0.5 h-3 w-3 shrink-0 text-ink-600" aria-hidden />
                   <span>{limitation}</span>
@@ -137,7 +137,7 @@ export function FloodPanel({
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-ink-100">{data.headline}</p>
                 <p className="mt-1 text-xs leading-relaxed text-ink-300">{data.detail}</p>
-                <p className="mt-1 text-[0.6875rem] leading-relaxed text-ink-500">
+                <p className="mt-1 text-2xs leading-relaxed text-ink-500">
                   {status.meaning}
                 </p>
               </div>
@@ -149,13 +149,13 @@ export function FloodPanel({
                   <p className="text-xs font-semibold text-ink-200">
                     GloFAS modelled discharge — reanalysis vs. forecast
                   </p>
-                  <span className="text-[0.6875rem] text-ink-500">
+                  <span className="text-2xs text-ink-500">
                     {data.discharge.model ?? "GloFAS"} · ~{data.discharge.grid_resolution_km} km
                     grid cell
                   </span>
                 </div>
                 <DischargeChart series={data.discharge} height={240} />
-                <p className="px-1 pt-1 text-[0.6875rem] leading-relaxed text-ink-500">
+                <p className="px-1 pt-1 text-2xs leading-relaxed text-ink-500">
                   {data.discharge.note} Provider grid cell{" "}
                   {data.discharge.grid_cell
                     ? `${data.discharge.grid_cell.latitude.toFixed(3)}, ${data.discharge.grid_cell.longitude.toFixed(3)}`
@@ -189,13 +189,13 @@ export function FloodPanel({
                     tone={p.status === "ok" ? "good" : p.status === "partial" ? "caution" : "muted"}
                     label={p.status}
                   />
-                  <span className="text-[0.6875rem] text-ink-400">{p.provider_name}</span>
+                  <span className="text-2xs text-ink-400">{p.provider_name}</span>
                 </span>
               ))}
             </div>
 
             {data.notes.length ? (
-              <ul className="space-y-1 text-[0.6875rem] leading-relaxed text-ink-500">
+              <ul className="space-y-1 text-2xs leading-relaxed text-ink-500">
                 {data.notes.map((note) => (
                   <li key={note}>{note}</li>
                 ))}

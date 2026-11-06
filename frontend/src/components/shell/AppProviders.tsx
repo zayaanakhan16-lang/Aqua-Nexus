@@ -8,13 +8,16 @@
  */
 import type { ReactNode } from "react";
 
+import { MapUiProvider } from "@/lib/map-ui";
 import { StudyAreaProvider } from "@/lib/study-areas";
 import { ToastProvider } from "@/lib/toast";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
-      <StudyAreaProvider>{children}</StudyAreaProvider>
+      <StudyAreaProvider>
+        <MapUiProvider>{children}</MapUiProvider>
+      </StudyAreaProvider>
     </ToastProvider>
   );
 }

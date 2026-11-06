@@ -87,7 +87,7 @@ export function OnboardingCard() {
         <button
           type="button"
           onClick={dismiss}
-          className="rounded-md border border-water-400/30 bg-water-400/10 px-3 py-1.5 text-xs font-medium text-water-200 transition hover:bg-water-400/20"
+          className="rounded-md border border-water-300/30 bg-water-300/10 px-3 py-1.5 text-xs font-medium text-water-200 transition hover:bg-water-300/20"
         >
           Start exploring
         </button>

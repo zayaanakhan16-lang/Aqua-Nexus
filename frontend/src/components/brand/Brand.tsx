@@ -71,7 +71,7 @@ export function BrandLockup({
           AquaNexus
         </span>
         {subtitle ? (
-          <span className={cn("block text-[0.625rem] uppercase tracking-[0.16em] text-ink-500", subtitleClassName)}>
+          <span className={cn("block text-3xs uppercase tracking-[0.16em] text-ink-500", subtitleClassName)}>
             {subtitle}
           </span>
         ) : null}

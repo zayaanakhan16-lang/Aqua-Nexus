@@ -38,7 +38,7 @@ function AnomalyCard({ comparison }: { comparison: PrecipitationComparison | nul
     <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="label-caps">Rainfall vs. baseline</p>
-        <span className="text-[0.6875rem] text-ink-400">
+        <span className="text-2xs text-ink-400">
           vs. {comparison.baseline_years.join(", ") || "prior year"}
         </span>
       </div>
@@ -63,7 +63,7 @@ function AnomalyCard({ comparison }: { comparison: PrecipitationComparison | nul
       </div>
       <p className="mt-1 text-xs text-ink-300">{comparison.classification.label}</p>
       {comparison.notes.length ? (
-        <p className="mt-2 border-t border-white/[0.06] pt-2 text-[0.6875rem] leading-relaxed text-ink-400">
+        <p className="mt-2 border-t border-white/[0.06] pt-2 text-2xs leading-relaxed text-ink-400">
           {comparison.notes[0]}
         </p>
       ) : null}
@@ -103,7 +103,7 @@ export function RainfallPanel({
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition",
                   windowDays === d
-                    ? "bg-water-400/20 text-water-200"
+                    ? "bg-water-300/20 text-water-200"
                     : "text-ink-400 hover:text-ink-100",
                 )}
               >

@@ -51,7 +51,7 @@ const CATEGORIES: { id: CategoryId; label: string; icon: typeof Layers }[] = [
 function Legend({ layer }: { layer: MapLayer }) {
   if (!layer.legend.length) {
     return (
-      <p className="text-[0.6875rem] leading-relaxed text-ink-500">
+      <p className="text-2xs leading-relaxed text-ink-500">
         No colour legend is published for this layer.
       </p>
     );
@@ -72,7 +72,7 @@ function Legend({ layer }: { layer: MapLayer }) {
         {layer.legend.map((stop, index) => (
           <li
             key={`${stop.label}-${index}`}
-            className="flex items-center gap-2 text-[0.6875rem] text-ink-400"
+            className="flex items-center gap-2 text-2xs text-ink-400"
           >
             <span
               className="h-2.5 w-2.5 shrink-0 rounded-sm border border-white/15"
@@ -83,7 +83,7 @@ function Legend({ layer }: { layer: MapLayer }) {
           </li>
         ))}
       </ul>
-      <p className="text-[0.625rem] leading-relaxed text-ink-500">{layer.legend_note}</p>
+      <p className="text-3xs leading-relaxed text-ink-500">{layer.legend_note}</p>
     </div>
   );
 }
@@ -99,7 +99,7 @@ function LayerRow({ layer }: { layer: MapLayer }) {
       className={cn(
         "rounded-lg border transition",
         active
-          ? "border-water-400/40 bg-water-400/[0.08]"
+          ? "border-water-300/40 bg-water-300/[0.08]"
           : "border-white/[0.06] bg-white/[0.015]",
         disabled && "opacity-60",
       )}
@@ -128,11 +128,11 @@ function LayerRow({ layer }: { layer: MapLayer }) {
               <ClassificationBadge classification={layer.classification} compact />
             </span>
           </div>
-          <p className="mt-1 text-[0.6875rem] leading-relaxed text-ink-400">
+          <p className="mt-1 text-2xs leading-relaxed text-ink-400">
             {layer.description}
           </p>
 
-          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[0.625rem]">
+          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-3xs">
             <div className="min-w-0">
               <dt className="text-ink-500">Units</dt>
               <dd className="truncate text-ink-300">{layer.units || "—"}</dd>
@@ -152,7 +152,7 @@ function LayerRow({ layer }: { layer: MapLayer }) {
           </dl>
 
           {disabled && layer.unavailable_reason ? (
-            <p className="mt-2 flex items-start gap-1.5 rounded-md border border-signal-alert/25 bg-signal-alert/[0.07] px-2 py-1.5 text-[0.625rem] leading-relaxed text-ink-300">
+            <p className="mt-2 flex items-start gap-1.5 rounded-md border border-signal-alert/25 bg-signal-alert/[0.07] px-2 py-1.5 text-3xs leading-relaxed text-ink-300">
               <Info className="mt-0.5 h-3 w-3 shrink-0 text-signal-alert" aria-hidden />
               {layer.unavailable_reason}
             </p>
@@ -163,7 +163,7 @@ function LayerRow({ layer }: { layer: MapLayer }) {
               {layer.limitations.slice(0, 2).map((limitation) => (
                 <li
                   key={limitation}
-                  className="text-[0.625rem] leading-relaxed text-ink-500"
+                  className="text-3xs leading-relaxed text-ink-500"
                 >
                   • {limitation}
                 </li>
@@ -174,7 +174,7 @@ function LayerRow({ layer }: { layer: MapLayer }) {
           <button
             type="button"
             onClick={() => setShowLegend((v) => !v)}
-            className="mt-2 text-[0.6875rem] font-medium text-water-300 transition hover:text-water-200"
+            className="mt-2 text-2xs font-medium text-water-300 transition hover:text-water-200"
           >
             {showLegend ? "Hide legend" : "Show legend"}
           </button>
@@ -189,7 +189,7 @@ function LayerRow({ layer }: { layer: MapLayer }) {
               href={layer.docs_url}
               target="_blank"
               rel="noreferrer noopener"
-              className="mt-2 inline-block text-[0.625rem] text-water-300 underline decoration-dotted transition hover:text-water-200"
+              className="mt-2 inline-block text-3xs text-water-300 underline decoration-dotted transition hover:text-water-200"
             >
               Product documentation ↗
             </a>
@@ -238,7 +238,7 @@ export function GlobalLayersPanel({ className }: { className?: string }) {
           <Layers className="h-4 w-4 shrink-0 text-water-300" aria-hidden />
           <div className="min-w-0">
             <p className="truncate text-xs font-semibold text-ink-100">Global data layers</p>
-            <p className="truncate text-[0.625rem] text-ink-500">
+            <p className="truncate text-3xs text-ink-500">
               {catalog ? `${availableCount} of ${totalCount} available now` : "Loading catalog…"}
             </p>
           </div>
@@ -246,7 +246,7 @@ export function GlobalLayersPanel({ className }: { className?: string }) {
         <button
           type="button"
           onClick={refreshMapLayers}
-          className="inline-flex shrink-0 items-center gap-1 text-[0.6875rem] font-medium text-ink-400 transition hover:text-water-300"
+          className="inline-flex shrink-0 items-center gap-1 text-2xs font-medium text-ink-400 transition hover:text-water-300"
           aria-label="Refresh layer availability"
         >
           <RefreshCw className="h-3 w-3" aria-hidden />
@@ -289,9 +289,9 @@ export function GlobalLayersPanel({ className }: { className?: string }) {
                     aria-selected={active}
                     onClick={() => setCategory(c.id)}
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[0.625rem] font-medium transition",
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-3xs font-medium transition",
                       active
-                        ? "border-water-400/40 bg-water-400/10 text-water-200"
+                        ? "border-water-300/40 bg-water-300/10 text-water-200"
                         : "border-white/[0.06] text-ink-400 hover:text-ink-200",
                     )}
                   >
@@ -303,21 +303,21 @@ export function GlobalLayersPanel({ className }: { className?: string }) {
             </div>
 
             {activeLayer ? (
-              <div className="space-y-2 rounded-lg border border-water-400/20 bg-water-400/[0.05] px-2.5 py-2">
+              <div className="space-y-2 rounded-lg border border-water-300/20 bg-water-300/[0.05] px-2.5 py-2">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-[0.6875rem] font-semibold text-ink-100">
+                  <p className="truncate text-2xs font-semibold text-ink-100">
                     {activeLayer.name}
                   </p>
                   <button
                     type="button"
                     onClick={() => setActiveRasterLayer(null)}
-                    className="inline-flex shrink-0 items-center gap-1 text-[0.625rem] text-ink-400 transition hover:text-signal-alert"
+                    className="inline-flex shrink-0 items-center gap-1 text-3xs text-ink-400 transition hover:text-signal-alert"
                   >
                     <EyeOff className="h-3 w-3" aria-hidden />
                     Clear
                   </button>
                 </div>
-                <label className="flex items-center gap-2 text-[0.625rem] text-ink-400">
+                <label className="flex items-center gap-2 text-3xs text-ink-400">
                   <CalendarDays className="h-3 w-3 shrink-0" aria-hidden />
                   <span className="shrink-0">Date</span>
                   <input
@@ -325,7 +325,7 @@ export function GlobalLayersPanel({ className }: { className?: string }) {
                     value={rasterLayerDate ?? catalog.default_date}
                     max={catalog.default_date}
                     onChange={(e) => setRasterLayerDate(e.target.value || null)}
-                    className="min-w-0 flex-1 rounded border border-white/10 bg-abyss-900 px-1.5 py-1 text-[0.625rem] text-ink-100 outline-none focus:border-water-400/50"
+                    className="min-w-0 flex-1 rounded border border-white/10 bg-abyss-900 px-1.5 py-1 text-3xs text-ink-100 outline-none focus:border-water-300/50"
                   />
                   {rasterLayerDate ? (
                     <button
@@ -337,7 +337,7 @@ export function GlobalLayersPanel({ className }: { className?: string }) {
                     </button>
                   ) : null}
                 </label>
-                <label className="flex items-center gap-2 text-[0.625rem] text-ink-400">
+                <label className="flex items-center gap-2 text-3xs text-ink-400">
                   <Eye className="h-3 w-3 shrink-0" aria-hidden />
                   <span className="shrink-0">Opacity</span>
                   <input
@@ -347,14 +347,14 @@ export function GlobalLayersPanel({ className }: { className?: string }) {
                     step={0.05}
                     value={rasterOpacity}
                     onChange={(e) => setRasterOpacity(Number(e.target.value))}
-                    className="min-w-0 flex-1 accent-water-400"
+                    className="min-w-0 flex-1 accent-water-300"
                     aria-label="Layer opacity"
                   />
                   <span className="w-8 shrink-0 text-right font-mono text-ink-300">
                     {Math.round(rasterOpacity * 100)}%
                   </span>
                 </label>
-                <p className="text-[0.625rem] leading-relaxed text-ink-500">
+                <p className="text-3xs leading-relaxed text-ink-500">
                   {rasterLayerDate
                     ? `Showing ${rasterLayerDate}. `
                     : "Showing the most recent date GIBS serves. "}
@@ -362,7 +362,7 @@ export function GlobalLayersPanel({ className }: { className?: string }) {
                 </p>
               </div>
             ) : (
-              <p className="text-[0.625rem] leading-relaxed text-ink-500">
+              <p className="text-3xs leading-relaxed text-ink-500">
                 Select a layer to draw it over the map. The legend below the layer
                 explains its colours.
               </p>
@@ -385,7 +385,7 @@ export function GlobalLayersPanel({ className }: { className?: string }) {
 
           {catalog.notes.length ? (
             <div className="shrink-0 border-t border-white/[0.06] px-3 py-2">
-              <p className="flex items-start gap-1.5 text-[0.625rem] leading-relaxed text-ink-500">
+              <p className="flex items-start gap-1.5 text-3xs leading-relaxed text-ink-500">
                 <Info className="mt-0.5 h-3 w-3 shrink-0 text-ink-500" aria-hidden />
                 <span>{catalog.notes[0]}</span>
               </p>

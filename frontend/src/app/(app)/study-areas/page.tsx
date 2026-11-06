@@ -42,7 +42,7 @@ export default function StudyAreasPage() {
           </button>
           <Link
             href="/explore"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-water-400 px-3.5 py-2 text-xs font-semibold text-abyss-950 transition hover:bg-water-300"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-ink-100 px-3.5 py-2 text-xs font-semibold text-abyss-950 transition hover:bg-water-300"
           >
             <Compass className="h-3.5 w-3.5" aria-hidden />
             Explore map
@@ -72,7 +72,7 @@ export default function StudyAreasPage() {
               action={
                 <Link
                   href="/explore"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-water-400 px-4 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-ink-100 px-4 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
                 >
                   <Compass className="h-4 w-4" aria-hidden />
                   Explore the map

@@ -85,7 +85,7 @@ export function EvidenceSection() {
               icon={<ShieldCheck className="h-4 w-4" aria-hidden />}
             />
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.05] px-4 py-2.5">
-              <span className="text-[0.6875rem] text-ink-500">
+              <span className="text-2xs text-ink-500">
                 Catalogue served by the AquaNexus backend
               </span>
               <BackendStatusChip />
@@ -117,7 +117,7 @@ export function EvidenceSection() {
                       {provider.units ? ` · ${provider.units}` : ""}
                     </p>
                     {provider.attribution ? (
-                      <p className="mt-1 text-[0.6875rem] text-ink-500">{provider.attribution}</p>
+                      <p className="mt-1 text-2xs text-ink-500">{provider.attribution}</p>
                     ) : null}
                     {provider.url ? (
                       <a
@@ -140,7 +140,7 @@ export function EvidenceSection() {
         <Reveal className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <Link
             href="/home"
-            className="group inline-flex items-center gap-2 rounded-lg bg-water-400 px-4 py-2.5 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
+            className="group inline-flex items-center gap-2 rounded-lg bg-ink-100 px-4 py-2 text-xs font-semibold text-abyss-950 transition hover:bg-white"
           >
             See source status in the workspace
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
@@ -166,7 +166,7 @@ export function EvidenceSection() {
         </Reveal>
 
         {/* Honesty note: classification dot legend for quick scanning. */}
-        <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.6875rem] text-ink-500">
+        <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-2xs text-ink-500">
           <span className="text-ink-400">Colour key:</span>
           {TAXONOMY.map((key) => (
             <span key={key} className="inline-flex items-center gap-1.5">

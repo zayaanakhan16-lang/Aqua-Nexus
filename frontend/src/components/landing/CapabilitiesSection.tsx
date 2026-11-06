@@ -139,13 +139,13 @@ export function CapabilitiesSection() {
               <Reveal key={module.id} delayMs={i * 70}>
                 <article
                   id={module.id}
-                  className="panel group flex h-full flex-col p-5 transition-colors hover:border-water-400/25"
+                  className="panel group flex h-full flex-col p-5 transition-colors hover:border-water-300/25"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-water-400/25 bg-water-400/[0.08] text-water-300">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-water-300/25 bg-water-300/[0.08] text-water-300">
                       <Icon className="h-5 w-5" aria-hidden />
                     </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-good/25 bg-signal-good/[0.08] px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-wide text-signal-good">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-good/25 bg-signal-good/[0.08] px-2.5 py-1 text-3xs font-semibold uppercase tracking-wide text-signal-good">
                       <span className="h-1.5 w-1.5 rounded-full bg-signal-good" aria-hidden />
                       {module.status}
                     </span>
@@ -157,7 +157,7 @@ export function CapabilitiesSection() {
                   <ul className="mt-4 space-y-1.5 border-t border-white/[0.06] pt-4">
                     {module.points.map((point) => (
                       <li key={point} className="flex gap-2 text-xs leading-relaxed text-ink-400">
-                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-water-400/70" aria-hidden />
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-water-300/70" aria-hidden />
                         {point}
                       </li>
                     ))}

@@ -44,9 +44,9 @@ function IndicatorLine({ indicator }: { indicator: Indicator }) {
             )}
           </p>
         </div>
-        <p className="mt-1 text-[0.6875rem] leading-relaxed text-ink-400">{indicator.method}</p>
+        <p className="mt-1 text-2xs leading-relaxed text-ink-400">{indicator.method}</p>
         {indicator.limitations[0] ? (
-          <p className="mt-1 flex items-start gap-1.5 text-[0.6875rem] leading-relaxed text-ink-500">
+          <p className="mt-1 flex items-start gap-1.5 text-2xs leading-relaxed text-ink-500">
             <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-signal-caution" aria-hidden />
             <span>{indicator.limitations[0]}</span>
           </p>
@@ -113,7 +113,7 @@ export function WaterStressPanel({
             </div>
 
             {data.notes.length ? (
-              <ul className="space-y-1 text-[0.6875rem] leading-relaxed text-ink-500">
+              <ul className="space-y-1 text-2xs leading-relaxed text-ink-500">
                 {data.notes.map((note) => (
                   <li key={note}>{note}</li>
                 ))}

@@ -80,7 +80,7 @@ export function ImageViewer({
             <p className="truncate font-mono text-xs text-ink-100" title={scene.id}>
               {scene.id}
             </p>
-            <p className="text-[0.6875rem] text-ink-400">
+            <p className="text-2xs text-ink-400">
               Provider-rendered preview — not an AquaNexus analytical raster
             </p>
           </div>
@@ -144,7 +144,7 @@ export function ImageViewer({
             >
               <Minus className="h-3.5 w-3.5" aria-hidden />
             </button>
-            <span className="w-12 text-center text-[0.6875rem] text-ink-400">
+            <span className="w-12 text-center text-2xs text-ink-400">
               {Math.round(zoom * 100)}%
             </span>
             <button
@@ -181,7 +181,7 @@ export function ImageViewer({
                 href={scene.recordUrl}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-flex items-center gap-1 text-[0.6875rem] text-water-300 transition hover:text-water-200"
+                className="inline-flex items-center gap-1 text-2xs text-water-300 transition hover:text-water-200"
               >
                 <Maximize2 className="h-3 w-3" aria-hidden />
                 Full record
@@ -191,7 +191,7 @@ export function ImageViewer({
               href={scene.thumbnail}
               target="_blank"
               rel="noreferrer noopener"
-              className="inline-flex items-center gap-1 text-[0.6875rem] text-water-300 transition hover:text-water-200"
+              className="inline-flex items-center gap-1 text-2xs text-water-300 transition hover:text-water-200"
             >
               <Maximize2 className="h-3 w-3" aria-hidden />
               Original preview

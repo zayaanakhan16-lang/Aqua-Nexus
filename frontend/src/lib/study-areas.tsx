@@ -40,6 +40,26 @@ interface StudyAreaValue {
 
 const StudyAreaContext = createContext<StudyAreaValue | null>(null);
 
+/**
+ * Read-only fallback for a component rendered outside the provider (an isolated
+ * unit render, for example). Nothing is saved and nothing is claimed to exist,
+ * which keeps such a render honest and deterministic instead of throwing.
+ */
+const FALLBACK_STUDY_AREAS: StudyAreaValue = Object.freeze({
+  areas: [],
+  loading: false,
+  error: null,
+  reload: async () => {},
+  create: async () => {
+    throw new Error("Investigation storage is unavailable in this context.");
+  },
+  rename: async () => {
+    throw new Error("Investigation storage is unavailable in this context.");
+  },
+  remove: async () => {},
+  getById: () => undefined,
+}) satisfies StudyAreaValue;
+
 function describe(error: unknown): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error) return error.message;
@@ -100,6 +120,6 @@ export function StudyAreaProvider({ children }: { children: ReactNode }) {
 
 export function useStudyAreas(): StudyAreaValue {
   const ctx = useContext(StudyAreaContext);
-  if (!ctx) throw new Error("useStudyAreas must be used within a StudyAreaProvider");
+  if (!ctx) return FALLBACK_STUDY_AREAS;
   return ctx;
 }

@@ -49,7 +49,7 @@ export function ProductPreview() {
               <span className="h-2.5 w-2.5 rounded-full bg-signal-alert/60" aria-hidden />
               <span className="h-2.5 w-2.5 rounded-full bg-signal-caution/60" aria-hidden />
               <span className="h-2.5 w-2.5 rounded-full bg-signal-good/60" aria-hidden />
-              <span className="ml-3 rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 font-mono text-[0.625rem] text-ink-300">
+              <span className="ml-3 rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 font-mono text-3xs text-ink-300">
                 aquanexus / explore
               </span>
             </div>
@@ -64,7 +64,7 @@ export function ProductPreview() {
                 <div className="rounded-lg border border-white/[0.06] bg-abyss-900/60 p-3">
                   <div className="mb-2 flex items-center gap-2 text-ink-300">
                     <Layers className="h-3.5 w-3.5 text-water-300" />
-                    <span className="text-[0.625rem] font-semibold uppercase tracking-[0.14em]">
+                    <span className="text-3xs font-semibold uppercase tracking-[0.14em]">
                       Map layers
                     </span>
                   </div>
@@ -75,7 +75,7 @@ export function ProductPreview() {
                         <li key={row.label} className="flex items-center gap-2.5">
                           <span
                             className={`flex h-4 w-7 items-center rounded-full px-0.5 ${
-                              row.on ? "bg-water-400/80" : "bg-white/10"
+                              row.on ? "bg-water-300/80" : "bg-white/10"
                             }`}
                           >
                             <span
@@ -127,11 +127,11 @@ export function ProductPreview() {
                   <Chip>Clear selection</Chip>
                 </div>
                 <div className="absolute bottom-3 left-3 rounded-lg border border-white/10 bg-abyss-900/85 px-3 py-2">
-                  <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-ink-300">
+                  <p className="text-3xs font-semibold uppercase tracking-wide text-ink-300">
                     Legend · Precipitation
                   </p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-[0.6875rem] text-ink-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-water-400" /> mm · daily mean rate
+                  <p className="mt-0.5 flex items-center gap-1.5 text-2xs text-ink-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-water-300" /> mm · daily mean rate
                   </p>
                 </div>
               </div>
@@ -172,7 +172,7 @@ export function ProductPreview() {
             </p>
             <Link
               href="/home"
-              className="group inline-flex shrink-0 items-center gap-2 rounded-lg border border-water-400/30 bg-water-400/[0.08] px-4 py-2 text-sm font-semibold text-water-100 transition hover:bg-water-400/[0.16]"
+              className="group inline-flex shrink-0 items-center gap-2 rounded-lg border border-water-300/30 bg-water-300/[0.08] px-3.5 py-2 text-xs font-semibold text-water-200 transition hover:bg-water-300/[0.16]"
             >
               Open the workspace
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />

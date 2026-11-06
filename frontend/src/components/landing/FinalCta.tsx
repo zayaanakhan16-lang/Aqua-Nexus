@@ -68,7 +68,7 @@ export function FinalCta() {
         <div className="mt-8 flex justify-center">
           <Link
             href="/explore"
-            className="group inline-flex items-center gap-2 rounded-lg bg-water-400 px-6 py-3 text-sm font-semibold text-abyss-950 shadow-float transition hover:bg-water-300"
+            className="group inline-flex items-center gap-2 rounded-lg bg-ink-100 px-5 py-2.5 text-xs font-semibold text-abyss-950 transition hover:bg-white"
           >
             Create Study Area
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden />
@@ -90,7 +90,7 @@ export function LandingFooter() {
               A global water-intelligence platform for investigating rainfall, modelled
               water balance and satellite coverage with transparent, evidence-based methods.
             </p>
-            <p className="mt-4 text-[0.6875rem] text-ink-500">
+            <p className="mt-4 text-2xs text-ink-500">
               Not an official warning service. AquaNexus presents data and methods for
               investigation — it does not issue flood or drought warnings.
             </p>
@@ -98,7 +98,7 @@ export function LandingFooter() {
 
           {FOOTER_LINKS.map((group) => (
             <nav key={group.heading} aria-label={group.heading}>
-              <p className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-ink-500">
+              <p className="text-3xs font-semibold uppercase tracking-[0.16em] text-ink-500">
                 {group.heading}
               </p>
               <ul className="mt-3 space-y-2">

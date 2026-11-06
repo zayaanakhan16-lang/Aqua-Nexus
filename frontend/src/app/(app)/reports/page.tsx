@@ -64,7 +64,7 @@ export default function ReportsPage() {
             action={
               <Link
                 href="/explore"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-water-400 px-4 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-ink-100 px-4 py-2 text-sm font-semibold text-abyss-950 transition hover:bg-water-300"
               >
                 <Plus className="h-4 w-4" aria-hidden />
                 Start an investigation
@@ -88,13 +88,13 @@ export default function ReportsPage() {
                     <span className="block truncate text-sm font-medium text-ink-100">
                       {area.name}
                     </span>
-                    <span className="mt-0.5 block truncate font-mono text-[0.6875rem] text-ink-400">
+                    <span className="mt-0.5 block truncate font-mono text-2xs text-ink-400">
                       {formatCoord(area.location.latitude, "lat")} ·{" "}
                       {formatCoord(area.location.longitude, "lon")} · updated{" "}
                       {formatDateTime(area.updated_at)}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[0.6875rem] font-medium text-water-300">
+                  <span className="shrink-0 text-2xs font-medium text-water-300">
                     Open report
                   </span>
                   <ArrowRight className="h-3.5 w-3.5 shrink-0 text-ink-500" aria-hidden />
@@ -122,8 +122,8 @@ export default function ReportsPage() {
             "AI interpretation grounded in results",
             "Missing data and uncertainty",
           ].map((item) => (
-            <li key={item} className="flex items-start gap-1.5 text-[0.6875rem] text-ink-400">
-              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-water-400" aria-hidden />
+            <li key={item} className="flex items-start gap-1.5 text-2xs text-ink-400">
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-water-300" aria-hidden />
               <span>{item}</span>
             </li>
           ))}
