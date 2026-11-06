@@ -363,6 +363,36 @@ CSS bundle, which is how it surfaced.
 - Do not run `next build` while `next dev` is serving from the same `.next/`
   directory. Stop the dev server, or remove `.next/` and restart it afterwards.
 
+### Water balance scenario simulator (this session)
+
+`components/panels/WaterScenarioSimulator.tsx` renders inside the Water
+Planning section. It is deliberately **arithmetic, not a second rules engine**:
+the only measured input is the daily rainfall series, and every other number is
+an assumption the user sets. That is what lets the panel label the result
+illustrative and name its single measured source. Do not add a reference
+dataset or an inference step here — that would be the second AI path the rules
+forbid.
+
+- `lib/water-scenario.ts` is pure computation with its own tests. A missing
+  reading is skipped, never counted as zero; an absent series yields no numbers
+  rather than a balance computed from nothing.
+- The simulator reads the `history` slice: 365 days from
+  `/api/v1/precipitation/historical`. The 7-day forecast only ever covered one
+  month, so the annual view had nothing to stand on. No backend change.
+- Readouts prefer a volume, which needs a drawn region for its area, and fall
+  back to a depth in millimetres when no area is recorded. Both are honest; the
+  volume is simply unavailable without an area.
+
+### A React duplicate key can hide a row, not just warn
+
+The Water Profile source ledger keyed rows on `provider_id` alone, but the
+summary legitimately lists `open_meteo_archive` twice (the ERA5 archive serves
+both a rainfall and a temperature product). React dropped one row, so the panel
+showed four connected sources where five were returned. On a panel whose job is
+provenance, that is an under-report, not a cosmetic warning. If a list is keyed
+on an id, confirm the id is actually unique in the data before trusting the
+list to show everything.
+
 ### Remaining work when resumed
 
 1. Nothing blocking. Optional: a deeper manual screen-reader pass (VoiceOver/
