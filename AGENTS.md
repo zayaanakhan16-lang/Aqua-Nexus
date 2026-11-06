@@ -315,6 +315,21 @@ CSS inference. That was wrong. Pixel measurement found real failures:
   `ink-400` remains fine for icon-only map chrome; do not use it for text
   under ~14px.
 
+### A contrast check that samples nothing is not a pass
+
+`scripts/pixel-verify.py` reported "all sampled text passes AA" for every
+route while the stylesheet had not loaded at all — zero probes means zero
+failures, so a completely unstyled page read as a clean pass. A `next build`
+run against a live `next dev` server shares `.next/` and corrupts the dev
+CSS bundle, which is how it surfaced.
+
+- The verifier now records a `NO-PROBES` failure when a route yields no text
+  elements, so an unloaded or broken stylesheet fails loudly.
+- Verify a gate can fail before trusting it to pass: stub the probe to return
+  `[]` and confirm the verifier exits non-zero.
+- Do not run `next build` while `next dev` is serving from the same `.next/`
+  directory. Stop the dev server, or remove `.next/` and restart it afterwards.
+
 ### Remaining work when resumed
 
 1. Nothing blocking. Optional: a deeper manual screen-reader pass (VoiceOver/
