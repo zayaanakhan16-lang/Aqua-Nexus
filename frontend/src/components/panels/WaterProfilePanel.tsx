@@ -383,8 +383,14 @@ export function WaterProfilePanel({
           </h3>
           {data?.providers.length ? (
             <ul className="mt-2 divide-y divide-white/[0.05] rounded-lg border border-white/[0.07]">
-              {data.providers.map((p) => (
-                <li key={p.provider_id} className="flex items-center justify-between gap-3 px-3 py-2">
+              {/* A provider can legitimately appear more than once — the same
+                  archive serves both a rainfall and a climate product — so the
+                  key pairs the id with the product to keep every row. */}
+              {data.providers.map((p, i) => (
+                <li
+                  key={`${p.provider_id}-${i}`}
+                  className="flex items-center justify-between gap-3 px-3 py-2"
+                >
                   <span className="flex min-w-0 items-center gap-2">
                     <StatusDot
                       tone={

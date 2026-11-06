@@ -29,11 +29,16 @@ ROUTES = [
     # checked for overflow too.
     "/",
     "/explore",
-    # The two water-intelligence sections added by the AgriSense restyle. They
-    # render long scrolling panels, so they are the most likely to overflow.
+    # Sections that render long scrolling panels, so the most likely to overflow.
     "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=profile",
     "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=planning",
     "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=water-atlas",
+    "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=weather",
+    "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=precipitation",
+    "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=outlook",
+    "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=flood",
+    "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=water-stress",
+    "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=sources",
     "/study-areas",
     "/reports",
     "/global",
