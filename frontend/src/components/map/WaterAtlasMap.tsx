@@ -3,9 +3,9 @@
 /**
  * Global water atlas map.
  *
- * MapLibre GL JS v4 with a key-free OpenFreeMap "Liberty" style: natural-colour
- * oceans, lakes and rivers, green land and parks, visible roads and place names
- * at every zoom level. Clicking the map selects a coordinate; a marker shows the
+ * MapLibre GL JS v4 with a key-free OpenFreeMap vector style, defaulting to the
+ * low-light navy "Ocean" basemap so the workspace stays on one dark surface.
+ * Clicking the map selects a coordinate; a marker shows the
  * active location; satellite scene footprints render only when the satellite
  * layer is enabled and real scene metadata has loaded. Nothing decorative is
  * drawn: every overlay is tied to state, and no map style or layer invents
@@ -26,7 +26,11 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, RefreshCw, X } from "lucide-react";
-import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from "maplibre-gl";
+import maplibregl, {
+  type GeoJSONSource,
+  type Map as MapLibreMap,
+  type StyleSpecification,
+} from "maplibre-gl";
 
 import { cn } from "@/lib/utils";
 import { useWorkspace, type SelectedLocation, type SelectionMode } from "@/lib/workspace";
@@ -35,21 +39,29 @@ import { useStudyAreas } from "@/lib/study-areas";
 import type { StacItem } from "@/lib/schemas";
 import { detectWebGLSupport } from "@/lib/webgl";
 import { RasterMap, type RasterOverlay } from "@/components/map/RasterMap";
+import { AQUA_OCEAN_STYLE } from "@/components/map/aquaBasemapStyle";
 import { MapToolbar } from "@/components/map/MapToolbar";
 import { MapStatusBar } from "@/components/map/MapStatusBar";
 import { LayerControls } from "@/components/panels/LayerControls";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-// Key-free OpenFreeMap vector styles. "Liberty" is the natural-colour default;
-// the others give users a lighter or darker canvas for reading overlays.
+// Key-free OpenFreeMap vector styles. "Dark" is the default: a low-light navy
+// canvas keeps the map inside the workspace's dark surface language and lets
+// the amber drawn-area stroke and the cyan accent stay legible. The lighter
+// styles remain available for reading overlays and street detail.
 const BASEMAPS = [
-  { id: "liberty", label: "Terrain", description: "Natural-colour land, water and place names", url: "https://tiles.openfreemap.org/styles/liberty" },
-  { id: "bright", label: "Bright", description: "High-contrast streets and labels", url: "https://tiles.openfreemap.org/styles/bright" },
-  { id: "positron", label: "Light", description: "Pale canvas for reading overlays", url: "https://tiles.openfreemap.org/styles/positron" },
-  { id: "dark", label: "Dark", description: "Low-light canvas for bright rasters", url: "https://tiles.openfreemap.org/styles/dark" },
-] as const satisfies readonly { id: BasemapId; label: string; description: string; url: string }[];
-const STYLE_URL = BASEMAPS[0].url;
+  { id: "dark", label: "Ocean", description: "Deep-ocean canvas tinted to the app palette", style: AQUA_OCEAN_STYLE },
+  { id: "liberty", label: "Terrain", description: "Natural-colour land, water and place names", style: "https://tiles.openfreemap.org/styles/liberty" },
+  { id: "bright", label: "Bright", description: "High-contrast streets and labels", style: "https://tiles.openfreemap.org/styles/bright" },
+  { id: "positron", label: "Light", description: "Pale canvas for reading overlays", style: "https://tiles.openfreemap.org/styles/positron" },
+] as const satisfies readonly {
+  id: BasemapId;
+  label: string;
+  description: string;
+  style: StyleSpecification | string;
+}[];
+const DEFAULT_STYLE = BASEMAPS[0].style;
 
 /** Escape contributor-supplied names before they reach the popup's innerHTML. */
 function escapeHtml(value: string): string {
@@ -365,7 +377,7 @@ export function WaterAtlasMap() {
     try {
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: BASEMAPS.find((b) => b.id === appliedBasemapRef.current)?.url ?? STYLE_URL,
+        style: BASEMAPS.find((b) => b.id === appliedBasemapRef.current)?.style ?? DEFAULT_STYLE,
         center: GLOBAL_CENTER,
         zoom: GLOBAL_ZOOM,
         minZoom: MIN_ZOOM,
@@ -960,7 +972,7 @@ export function WaterAtlasMap() {
     const target = BASEMAPS.find((b) => b.id === basemap);
     if (!target || appliedBasemapRef.current === target.id) return;
     appliedBasemapRef.current = target.id;
-    map.setStyle(target.url);
+    map.setStyle(target.style);
   }, [basemap, status.kind]);
 
   // Render the polygon the user is placing point by point. A single point is a

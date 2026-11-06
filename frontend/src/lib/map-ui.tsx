@@ -156,7 +156,7 @@ const MapUiContext = createContext<MapUiValue | null>(null);
  * change, which keeps such renders deterministic instead of throwing.
  */
 const FALLBACK: MapUiValue = Object.freeze({
-  basemap: "liberty",
+  basemap: "dark",
   setBasemap: () => {},
   viewMode: "map",
   setViewMode: () => {},
@@ -181,7 +181,7 @@ const FALLBACK: MapUiValue = Object.freeze({
 }) satisfies MapUiValue;
 
 export function MapUiProvider({ children }: { children: ReactNode }) {
-  const [basemap, setBasemapState] = useState<BasemapId>("liberty");
+  const [basemap, setBasemapState] = useState<BasemapId>("dark");
   const [viewMode, setViewModeState] = useState<MapViewMode>("map");
   const [labelsVisible, setLabelsVisible] = useState(true);
   const [locating, setLocating] = useState(false);
