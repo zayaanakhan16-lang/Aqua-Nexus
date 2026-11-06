@@ -102,6 +102,8 @@ interface WorkspaceValue {
   summary: SliceState<LocationSummary>;
   comparison: SliceState<PrecipitationComparison>;
   forecast: SliceState<PrecipitationSeries>;
+  /** A full year of measured daily rainfall, used by the planning scenario. */
+  history: SliceState<PrecipitationSeries>;
   weather: SliceState<WeatherForecast>;
   discharge: SliceState<DischargeSeries>;
   scenes: SliceState<StacSearchResult>;
@@ -193,6 +195,7 @@ export function WorkspaceProvider({
     emptySlice(),
   );
   const [forecast, setForecast] = useState<SliceState<PrecipitationSeries>>(emptySlice());
+  const [history, setHistory] = useState<SliceState<PrecipitationSeries>>(emptySlice());
   const [weather, setWeather] = useState<SliceState<WeatherForecast>>(emptySlice());
   const [discharge, setDischarge] = useState<SliceState<DischargeSeries>>(emptySlice());
   const [scenes, setScenes] = useState<SliceState<StacSearchResult>>(emptySlice());
@@ -238,6 +241,7 @@ export function WorkspaceProvider({
       setSummary({ data: null, loading: true, error: null, errorCode: null });
       setComparison({ data: null, loading: true, error: null, errorCode: null });
       setForecast({ data: null, loading: true, error: null, errorCode: null });
+      setHistory({ data: null, loading: true, error: null, errorCode: null });
       setWeather({ data: null, loading: true, error: null, errorCode: null });
       setDischarge({ data: null, loading: true, error: null, errorCode: null });
       setScenes({ data: null, loading: true, error: null, errorCode: null });
@@ -255,6 +259,7 @@ export function WorkspaceProvider({
         summaryRes,
         comparisonRes,
         forecastRes,
+        historyRes,
         weatherRes,
         dischargeRes,
         scenesRes,
@@ -269,6 +274,7 @@ export function WorkspaceProvider({
         api.summary(latitude, longitude, { label, windowDays: days }),
         api.comparison(latitude, longitude, days, 1),
         api.forecast(latitude, longitude, 7),
+        api.historical(latitude, longitude, 365),
         api.weather(latitude, longitude, 7),
         api.discharge(latitude, longitude, 14),
         api.scenes(latitude, longitude, { days: 30, limit: 12 }),
@@ -298,6 +304,7 @@ export function WorkspaceProvider({
       apply(summaryRes, setSummary);
       apply(comparisonRes, setComparison);
       apply(forecastRes, setForecast);
+      apply(historyRes, setHistory);
       apply(weatherRes, setWeather);
       apply(dischargeRes, setDischarge);
       apply(scenesRes, setScenes);
@@ -523,6 +530,7 @@ export function WorkspaceProvider({
       summary,
       comparison,
       forecast,
+      history,
       weather,
       discharge,
       scenes,
@@ -563,6 +571,7 @@ export function WorkspaceProvider({
       summary,
       comparison,
       forecast,
+      history,
       weather,
       discharge,
       scenes,

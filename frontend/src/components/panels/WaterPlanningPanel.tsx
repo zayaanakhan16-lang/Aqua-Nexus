@@ -16,11 +16,18 @@ import { AlertTriangle, CalendarRange, Droplets, Info, Lightbulb, MapPin } from 
 
 import { Chip, Panel, PanelHeader, StatusDot } from "@/components/ui/primitives";
 import { UnavailableNotice } from "@/components/ui/states";
+import { WaterScenarioSimulator } from "@/components/panels/WaterScenarioSimulator";
 import { formatCoord } from "@/lib/format";
 import { useMapUi } from "@/lib/map-ui";
 import type { StudyArea } from "@/lib/schemas";
 import type { SliceState } from "@/lib/workspace";
-import type { DischargeSeries, LocationSummary, WaterBodyResult, WeatherForecast } from "@/lib/schemas";
+import type {
+  DischargeSeries,
+  LocationSummary,
+  PrecipitationSeries,
+  WaterBodyResult,
+  WeatherForecast,
+} from "@/lib/schemas";
 
 const SEASONS = [
   { id: "winter", label: "Winter", months: [12, 1, 2], note: "Low evaporation; recharge window in many temperate basins." },
@@ -159,6 +166,7 @@ export function WaterPlanningPanel({
   areaKm2,
   summary,
   weather,
+  history,
   discharge,
   waterBodies,
   windowDays,
@@ -168,6 +176,7 @@ export function WaterPlanningPanel({
   areaKm2?: number | null;
   summary: SliceState<LocationSummary>;
   weather: SliceState<WeatherForecast>;
+  history: SliceState<PrecipitationSeries>;
   discharge: SliceState<DischargeSeries>;
   waterBodies: SliceState<WaterBodyResult>;
   windowDays: number;
@@ -414,6 +423,9 @@ export function WaterPlanningPanel({
           </p>
         </div>
       </Panel>
+
+      {/* ------------------------------------------------ scenario simulator */}
+      <WaterScenarioSimulator history={history} areaKm2={areaKm2 ?? null} />
 
       {/* ------------------------------------------------------- expert tips */}
       <Panel className="overflow-hidden">

@@ -220,6 +220,7 @@ export function IntelligenceTabs({
     summary,
     comparison,
     forecast,
+    history,
     weather,
     discharge,
     scenes,
@@ -414,6 +415,7 @@ export function IntelligenceTabs({
                   areaKm2={location?.area?.area_km2 ?? null}
                   summary={summary}
                   weather={weather}
+                  history={history}
                   discharge={discharge}
                   waterBodies={waterBodies}
                   windowDays={windowDays}
