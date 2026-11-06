@@ -10,10 +10,13 @@
  * return data.
  *
  * Layout follows the AgriSense analytics pattern: one continuous dark surface
- * that scrolls like a single page, with a single section control at the top.
- * There is exactly one header and one section switcher — the sections below
+ * that scrolls like a single page, with a single flat section chip row at the
+ * top. There is exactly one header and one section switcher — the sections below
  * never repeat them. Used by both the Explore Map workspace and the saved
  * investigation workspace, so there is exactly one results experience.
+ *
+ * This is the only section navigation in the product: the app shell carries no
+ * tabs of its own.
  */
 import { MapPin, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -119,10 +122,14 @@ function InvestigationProgress() {
 /**
  * Section switcher for the intelligence surface.
  *
- * Shows only the sections belonging to the group the user is currently in, so
- * the surface presents one level of choice at a time rather than seventeen flat
- * tabs. The eight primary destinations live in the top bar (`shell/TopNav`), so
- * this control never repeats them. Arrow keys move within the group.
+ * One flat, horizontally scrollable chip row over every section, exactly like
+ * the AgriSense analytics `SectionTabs`. The former eight primary destinations
+ * are gone from the header, so this row is now the single place sections are
+ * chosen — there is no second control to keep in step with it, and the group
+ * labels survive only as quiet dividers that give the row structure without
+ * becoming a second level of navigation.
+ *
+ * Arrow keys move within the row.
  */
 function SectionSwitcher({
   activeId,
@@ -133,54 +140,57 @@ function SectionSwitcher({
   onSelect: (id: WorkspaceTabId) => void;
   hasLocation: boolean;
 }) {
-  const group = groupForTab(activeId);
-  const sections = group.sections;
-
-  // A single-section group needs no switcher at all: the top bar already names
-  // it, and a lone tab would just be a duplicate label.
-  if (sections.length < 2) return null;
+  const flat = WORKSPACE_SECTIONS;
 
   return (
     <div className="chrome overflow-hidden p-1">
       <div
         role="tablist"
-        aria-label={`${group.label} sections`}
+        aria-label="Analysis sections"
         className="flex items-stretch gap-0.5 overflow-x-auto scrollbar-none"
       >
-        {sections.map((t) => {
+        {flat.map((t) => {
           const Icon = t.icon;
           const active = t.id === activeId;
           const blocked = Boolean(t.needsLocation) && !hasLocation;
+          const startsGroup = WORKSPACE_GROUPS.some((g) => g.sections[0]?.id === t.id);
+          const showDivider = startsGroup && t.id !== flat[0]?.id;
           return (
-            <button
-              key={t.id}
-              role="tab"
-              id={`tab-${t.id}`}
-              aria-selected={active}
-              aria-controls={`panel-${t.id}`}
-              tabIndex={active ? 0 : -1}
-              title={blocked ? "Select a location to populate this section" : undefined}
-              onClick={() => onSelect(t.id)}
-              onKeyDown={(event) => {
-                const idx = sections.findIndex((x) => x.id === t.id);
-                if (event.key === "ArrowRight") {
-                  event.preventDefault();
-                  onSelect(sections[(idx + 1) % sections.length]!.id);
-                } else if (event.key === "ArrowLeft") {
-                  event.preventDefault();
-                  onSelect(sections[(idx - 1 + sections.length) % sections.length]!.id);
-                }
-              }}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
-                active
-                  ? "bg-water-300/[0.14] text-water-200"
-                  : "text-ink-400 hover:bg-white/[0.06] hover:text-ink-100",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {t.label}
-            </button>
+            <div key={t.id} className="flex items-stretch">
+              {showDivider ? (
+                <span className="mx-1 w-px shrink-0 self-stretch bg-white/[0.08]" aria-hidden />
+              ) : null}
+              <button
+                role="tab"
+                id={`tab-${t.id}`}
+                aria-selected={active}
+                aria-controls={`panel-${t.id}`}
+                tabIndex={active ? 0 : -1}
+                title={blocked ? "Select a location to populate this section" : t.label}
+                onClick={() => onSelect(t.id)}
+                onKeyDown={(event) => {
+                  const idx = flat.findIndex((x) => x.id === t.id);
+                  if (event.key === "ArrowRight") {
+                    event.preventDefault();
+                    onSelect(flat[(idx + 1) % flat.length]!.id);
+                  } else if (event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    onSelect(flat[(idx - 1 + flat.length) % flat.length]!.id);
+                  }
+                }}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+                  active
+                    ? "bg-water-300/[0.14] text-water-200"
+                    : blocked
+                      ? "text-ink-500 hover:bg-white/[0.04] hover:text-ink-300"
+                      : "text-ink-400 hover:bg-white/[0.06] hover:text-ink-100",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {t.label}
+              </button>
+            </div>
           );
         })}
       </div>
@@ -191,15 +201,18 @@ function SectionSwitcher({
 export function IntelligenceTabs({
   initialTab,
   tabRequest,
+  onTabChange,
   className,
 }: {
   initialTab?: WorkspaceTabId;
   /**
    * A tab the caller wants opened, e.g. from a URL search param. Unlike
-   * `initialTab` it is honoured on later changes too, so a sidebar link to
+   * `initialTab` it is honoured on later changes too, so a link to
    * `/explore?tab=flood` switches the section without a full remount.
    */
   tabRequest?: WorkspaceTabId;
+  /** Notified whenever the user picks a section, so the caller can sync the URL. */
+  onTabChange?: (tab: WorkspaceTabId) => void;
   className?: string;
 }) {
   const {
@@ -329,7 +342,14 @@ export function IntelligenceTabs({
 
       {/* --------------------------------------- single section control */}
       <div className="mt-3">
-        <SectionSwitcher activeId={tab} onSelect={setTab} hasLocation={Boolean(location)} />
+        <SectionSwitcher
+          activeId={tab}
+          onSelect={(id) => {
+            setTab(id);
+            onTabChange?.(id);
+          }}
+          hasLocation={Boolean(location)}
+        />
       </div>
 
       {/* --------------------------------------------------- section body */}

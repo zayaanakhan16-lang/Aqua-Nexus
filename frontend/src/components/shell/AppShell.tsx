@@ -3,26 +3,26 @@
 /**
  * Application shell.
  *
- * A compact top bar: brand, the eight primary workspace destinations, the
- * utility destinations that are not primary tabs, and live backend status.
- * There is deliberately no left sidebar — the primary navigation is one
- * horizontal bar, matching the AgriSense pattern, so the workspace gets the
- * full width and no second navigation surface competes with it.
+ * A slim top bar carrying the brand, the utility destinations that are not part
+ * of the analysis workflow, and live backend status. There is deliberately no
+ * sidebar and no row of primary tabs: the AgriSense shell puts *no* navigation
+ * in the header at all, and lets the workspace own it.
  *
- * The section-level navigation lives inside the workspace itself
- * (`IntelligenceTabs`), so the two levels never duplicate each other.
+ * Workspace navigation therefore lives entirely inside the workspace itself:
+ * `MapAnalyticsToggle` switches mode, and `IntelligenceTabs` carries the section
+ * chip row. Keeping the header free of tabs is what stops the two levels from
+ * duplicating each other and gives the map the full width.
  */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bookmark, FileText, Globe2 } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { BrandLockup } from "@/components/brand/Brand";
 import { StatusDot } from "@/components/ui/primitives";
 import { AppProviders } from "@/components/shell/AppProviders";
-import { TopNav } from "@/components/shell/TopNav";
 
 /**
  * Secondary destinations.
@@ -108,29 +108,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           Skip to content
         </a>
 
-        <header className="shell-panel sticky top-0 z-40 flex shrink-0 flex-col gap-2 border-b border-white/[0.08] px-3 py-2 sm:px-4 lg:flex-row lg:items-center lg:gap-4">
-          <div className="flex shrink-0 items-center gap-3">
-            <Link
-              href="/explore"
-              className="shrink-0 rounded-md transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-water-300/60"
-              aria-label="AquaNexus workspace"
-            >
-              <BrandLockup markClassName="h-7 w-7" subtitle={null} />
-            </Link>
-            <div className="ml-auto flex items-center gap-3 lg:hidden">
-              <UtilityLinks />
-            </div>
-          </div>
+        <header className="shell-panel sticky top-0 z-40 flex shrink-0 items-center gap-3 border-b border-white/[0.08] px-3 py-2 sm:px-4">
+          <Link
+            href="/explore"
+            className="shrink-0 rounded-md transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-water-300/60"
+            aria-label="AquaNexus workspace"
+          >
+            <BrandLockup markClassName="h-7 w-7" subtitle={null} />
+          </Link>
 
-          {/* `useSearchParams` needs a boundary so the route can still be
-              statically prerendered. */}
-          <Suspense fallback={<div className="h-9" />}>
-            <TopNav className="min-w-0 lg:flex-1" />
-          </Suspense>
-
-          <div className="hidden shrink-0 items-center gap-3 lg:flex">
+          <div className="ml-auto flex items-center gap-3">
             <UtilityLinks />
-            <span className="h-4 w-px bg-white/10" aria-hidden />
+            <span className="hidden h-4 w-px bg-white/10 sm:block" aria-hidden />
             <BackendStatus />
           </div>
         </header>

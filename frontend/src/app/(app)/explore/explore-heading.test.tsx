@@ -3,6 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ExploreClient from "@/app/(app)/explore/ExploreClient";
 
+// The workspace syncs the selected section back to the URL, so it reads the
+// router. Rendering it outside a Next.js router needs these stubs; the heading
+// assertions below do not depend on navigation.
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => "/explore",
+}));
+
 /**
  * The Explore workspace is a full-bleed map with no visible page title, so it
  * must still expose a single top-level heading for screen-reader orientation.

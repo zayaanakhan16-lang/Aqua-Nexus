@@ -10,10 +10,9 @@ import { WorkspaceProvider, useWorkspace } from "@/lib/workspace";
  * is the moment analysis becomes meaningful, so the surface must then move to
  * the Overview section by itself.
  *
- * Navigation is two-level: the eight primary destinations live in the top bar
- * (`shell/TopNav`) and this surface shows only the sections of the group it is
- * currently in. These assertions therefore read the group the surface reports
- * itself to be in, which is the visible equivalent of the old flat tab state.
+ * Navigation is a single flat chip row inside the workspace (the app shell
+ * carries no tabs), so these assertions read the group label the surface
+ * reports above its heading.
  */
 
 function SelectButton() {

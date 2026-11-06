@@ -15,8 +15,8 @@
  * place.
  */
 import { Compass, MapPin } from "lucide-react";
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { formatCoord } from "@/lib/format";
 import { useStudyAreas } from "@/lib/study-areas";
@@ -106,13 +106,19 @@ function SearchBar({ onAdd }: { onAdd: () => void }) {
 function ExploreWorkspace({
   initialTab,
   tabRequest,
+  onTabChange,
 }: {
   initialTab?: WorkspaceTabId;
   tabRequest?: WorkspaceTabId;
+  onTabChange?: (tab: WorkspaceTabId) => void;
 }) {
   const { location } = useWorkspace();
   const { areas } = useStudyAreas();
-  const [mode, setMode] = useState<WorkspaceMode>("map");
+  // A deep link that names a section (`/explore?tab=flood`) means the caller
+  // wants that section, not the map: open in analytics mode so the request is
+  // actually visible. The header no longer carries section links, so a deep
+  // link that landed on the map with no way to tell would be a dead end.
+  const [mode, setMode] = useState<WorkspaceMode>(initialTab ? "analytics" : "map");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const rail = <InvestigationList onAdd={() => setDialogOpen(true)} />;
@@ -167,6 +173,7 @@ function ExploreWorkspace({
             <IntelligenceTabs
               initialTab={initialTab ?? (location ? "overview" : "global-layers")}
               tabRequest={tabRequest}
+              onTabChange={onTabChange}
               className="min-h-[36rem]"
             />
           </div>
@@ -190,13 +197,29 @@ function ExploreWorkspace({
 
 /**
  * Reads the URL so `/explore?lat=…&lon=…&tab=…` opens a working workspace on
- * arrival. This is what the navigation sections link to: each section points at
- * the relevant tab, so the sidebar is real navigation rather than a dead label.
+ * arrival. A `tab` param selects the section *and* opens analytics mode, so a
+ * link to a section always lands on that section rather than on the map.
  */
 function ExploreWithParams() {
   // `useSearchParams` returns null outside a router context (e.g. a unit test
   // rendering the component directly), so every read is guarded.
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Selecting a section writes it back to the URL, so the chip row is real
+  // navigation: the browser back button steps through sections, and any section
+  // is shareable as a link. `replace` (not `push`) keeps section browsing from
+  // filling the history with one entry per click.
+  const syncTabToUrl = useCallback(
+    (tab: WorkspaceTabId) => {
+      if (!searchParams) return;
+      const next = new URLSearchParams(searchParams.toString());
+      next.set("tab", tab);
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    },
+    [searchParams, router, pathname],
+  );
 
   const initialLocation = ((): SelectedLocation | null => {
     if (!searchParams) return null;
@@ -223,7 +246,11 @@ function ExploreWithParams() {
 
   return (
     <WorkspaceProvider initialLocation={initialLocation}>
-      <ExploreWorkspace initialTab={initialTab} tabRequest={initialTab} />
+      <ExploreWorkspace
+        initialTab={initialTab}
+        tabRequest={initialTab}
+        onTabChange={syncTabToUrl}
+      />
     </WorkspaceProvider>
   );
 }
