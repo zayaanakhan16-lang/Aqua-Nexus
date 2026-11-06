@@ -120,17 +120,16 @@ function ExploreWorkspace({
       <SearchBar onAdd={() => setDialogOpen(true)} />
 
       <div className="relative flex min-h-0 flex-1 flex-col gap-3 lg:overflow-hidden">
-        {/* The single Map / Analytics control for this surface. */}
-        <div className="pointer-events-none absolute inset-x-0 top-3 z-30 hidden justify-center lg:flex">
+        {/* The single Map / Analytics control for this surface. One element,
+            repositioned by breakpoint: in flow above the map on small screens,
+            floating at the top centre of the workspace from lg up. Rendering it
+            once keeps exactly one tablist in the DOM. */}
+        <div className="pointer-events-none relative z-30 flex shrink-0 justify-center lg:absolute lg:inset-x-0 lg:top-3">
           <MapAnalyticsToggle
             mode={mode}
             onChange={setMode}
             className="pointer-events-auto"
           />
-        </div>
-
-        <div className="flex shrink-0 items-center justify-center lg:hidden">
-          <MapAnalyticsToggle mode={mode} onChange={setMode} />
         </div>
 
         {mode === "map" ? (

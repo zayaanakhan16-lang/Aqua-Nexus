@@ -30,7 +30,7 @@ export function EarthGlobe({ className }: { className?: string }) {
       {/* The sphere: the real Earth image, lit from the upper right. */}
       <div
         aria-hidden
-        className="absolute inset-0 overflow-hidden rounded-full bg-[#0a1a2f] shadow-[0_40px_120px_-30px_rgba(3,9,20,0.9)]"
+        className="absolute inset-0 overflow-hidden rounded-full bg-abyss-850 shadow-[0_40px_120px_-30px_rgba(3,9,20,0.9)]"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

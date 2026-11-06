@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { PALETTE } from "@/lib/palette";
 
 /**
  * AquaNexus brand mark.
@@ -17,13 +18,13 @@ export function BrandMark({ className }: { className?: string }) {
     >
       <defs>
         <linearGradient id="aquanexus-brand-a" x1="8" y1="6" x2="40" y2="42" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#9deafa" />
-          <stop offset="0.5" stopColor="#2cc0e4" />
-          <stop offset="1" stopColor="#0f8b74" />
+          <stop offset="0" stopColor={PALETTE.water200} />
+          <stop offset="0.5" stopColor={PALETTE.water300} />
+          <stop offset="1" stopColor={PALETTE.teal600} />
         </linearGradient>
         <linearGradient id="aquanexus-brand-b" x1="16" y1="14" x2="34" y2="36" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#eafcff" />
-          <stop offset="1" stopColor="#63d8f3" />
+          <stop offset="0" stopColor={PALETTE.ink100} />
+          <stop offset="1" stopColor={PALETTE.water300} />
         </linearGradient>
       </defs>
 
@@ -41,7 +42,7 @@ export function BrandMark({ className }: { className?: string }) {
       {/* Meridian + equator crosshair. */}
       <ellipse cx="24" cy="26" rx="3.7" ry="8.4" fill="none" stroke="url(#aquanexus-brand-b)" strokeWidth="1.2" strokeOpacity="0.85" />
       <path d="M15.8 26h16.4" stroke="url(#aquanexus-brand-b)" strokeWidth="1.2" strokeOpacity="0.85" />
-      <circle cx="24" cy="26" r="1.9" fill="#eafcff" />
+      <circle cx="24" cy="26" r="1.9" fill={PALETTE.ink100} />
     </svg>
   );
 }

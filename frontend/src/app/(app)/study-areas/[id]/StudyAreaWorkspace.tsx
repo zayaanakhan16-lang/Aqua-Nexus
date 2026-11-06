@@ -79,12 +79,10 @@ function WorkspaceBody({ area }: { area: StudyArea }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <LocationHeader area={area} />
       <div className="relative flex min-h-0 flex-1 flex-col gap-3 p-3">
-        <div className="pointer-events-none absolute inset-x-0 top-6 z-30 hidden justify-center lg:flex">
+        {/* One Map / Analytics control, repositioned by breakpoint, so exactly
+            one tablist exists on the surface. */}
+        <div className="pointer-events-none relative z-30 flex shrink-0 justify-center lg:absolute lg:inset-x-0 lg:top-6">
           <MapAnalyticsToggle mode={mode} onChange={setMode} className="pointer-events-auto" />
-        </div>
-
-        <div className="flex shrink-0 items-center justify-center lg:hidden">
-          <MapAnalyticsToggle mode={mode} onChange={setMode} />
         </div>
 
         <div className="chrome hidden flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 lg:flex">

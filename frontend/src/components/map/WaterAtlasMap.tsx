@@ -45,6 +45,7 @@ import { MapStatusBar } from "@/components/map/MapStatusBar";
 import { LayerControls } from "@/components/panels/LayerControls";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+import { MAP_COLORS } from "@/lib/palette";
 
 // Key-free OpenFreeMap vector styles. "Dark" is the default: a low-light navy
 // canvas keeps the map inside the workspace's dark surface language and lets
@@ -103,12 +104,12 @@ const IMAGERY_LAYER_ID = "modis_true_color";
 
 // Satellite footprints are a dashed, muted grey so they read as reference
 // metadata rather than an active selection (which is solid cyan).
-const SCENE_LINE_COLOR = "#9fb0c4";
+const SCENE_LINE_COLOR = MAP_COLORS.sceneLine;
 // The selection uses the water accent: unmistakably "this is your area".
-const SELECTION_COLOR = "#63d8f3";
+const SELECTION_COLOR = MAP_COLORS.selection;
 // Drawn-area boundaries use a warm amber/gold so they stay legible against
 // blue satellite imagery and cannot be confused with the cyan accent.
-const BOUNDARY_COLOR = "#e3b341";
+const BOUNDARY_COLOR = MAP_COLORS.boundary;
 
 // Camera bounds. Zoom-out never restricts navigation: the whole world stays
 // reachable and the camera never locks to a region.
@@ -545,14 +546,14 @@ export function WaterAtlasMap() {
           id: WATER_FILL,
           type: "fill",
           source: WATER_SOURCE,
-          paint: { "fill-color": "#2cc0e4", "fill-opacity": 0.16 },
+          paint: { "fill-color": MAP_COLORS.waterFill, "fill-opacity": 0.16 },
           layout: { visibility: "none" },
         });
         map.addLayer({
           id: WATER_LINE,
           type: "line",
           source: WATER_SOURCE,
-          paint: { "line-color": "#63d8f3", "line-width": 1.3, "line-opacity": 0.9 },
+          paint: { "line-color": MAP_COLORS.waterLine, "line-width": 1.3, "line-opacity": 0.9 },
           layout: { visibility: "none" },
         });
       }
@@ -633,7 +634,7 @@ export function WaterAtlasMap() {
             "circle-radius": 4,
             "circle-color": BOUNDARY_COLOR,
             "circle-stroke-width": 1.5,
-            "circle-stroke-color": "#04101f",
+            "circle-stroke-color": MAP_COLORS.markerStroke,
           },
         });
       }
@@ -822,7 +823,7 @@ export function WaterAtlasMap() {
       popupRef.current = new maplibregl.Popup({ closeButton: true, offset: 8 })
         .setLngLat(event.lngLat)
         .setHTML(
-          `<div style="font:12px/1.45 system-ui,sans-serif;color:#0b2237">` +
+          `<div style="font:12px/1.45 system-ui,sans-serif;color:${MAP_COLORS.popupText}">` +
             `<strong>${escapeHtml(name)}</strong><br/>` +
             `${escapeHtml(kind)} · ${escapeHtml(area)}<br/>` +
             `<span style="opacity:.7">Source: OpenStreetMap contributors</span></div>`,

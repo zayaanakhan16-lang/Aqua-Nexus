@@ -52,11 +52,7 @@ const FOOTER_LINKS = [
 
 export function FinalCta() {
   return (
-    <section className="relative overflow-hidden border-t border-white/[0.06] py-20 sm:py-28">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(760px_420px_at_50%_-10%,rgba(18,163,201,0.18),transparent_60%)]"
-      />
+    <section className="border-t border-white/[0.06] py-20 sm:py-28">
       <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
         <h2 className="text-balance font-display text-3xl font-semibold tracking-tight text-ink-50 sm:text-4xl">
           Start with a place. Follow the evidence.

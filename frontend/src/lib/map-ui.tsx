@@ -23,6 +23,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { PALETTE } from "@/lib/palette";
+
 export type BasemapId = "liberty" | "bright" | "positron" | "dark";
 export type MapViewMode = "map" | "imagery";
 
@@ -57,12 +59,12 @@ export const INVESTIGATION_GROUPS = [
 
 /** Annotation colours, chosen to read clearly on both blue map and dark panel. */
 export const INVESTIGATION_COLORS = [
-  { id: "amber", label: "Boundary amber", hex: "#e3b341" },
-  { id: "cyan", label: "Water cyan", hex: "#45b6e8" },
-  { id: "teal", label: "Aquifer teal", hex: "#38d0a6" },
-  { id: "violet", label: "Deep violet", hex: "#a78bfa" },
-  { id: "rose", label: "Alert rose", hex: "#f2708a" },
-  { id: "ice", label: "Ice white", hex: "#eaf5fa" },
+  { id: "amber", label: "Boundary amber", hex: PALETTE.boundary },
+  { id: "cyan", label: "Water cyan", hex: PALETTE.water300 },
+  { id: "teal", label: "Aquifer teal", hex: PALETTE.teal400 },
+  { id: "violet", label: "Deep violet", hex: PALETTE.viz5 },
+  { id: "rose", label: "Alert rose", hex: PALETTE.viz4 },
+  { id: "ice", label: "Ice white", hex: PALETTE.ink100 },
 ] as const;
 
 export const DEFAULT_ANNOTATION_COLOR = INVESTIGATION_COLORS[0].hex;

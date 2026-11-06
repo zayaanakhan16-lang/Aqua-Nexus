@@ -13,14 +13,15 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import type { DischargeSeries } from "@/lib/schemas";
+import { CHART_CHROME, CHART_COLORS, chartTooltip } from "@/lib/palette";
 
 const COLOR = {
-  historical: "#39d3b4",
-  forecast: "#45b6e8",
-  mean: "#8fa3b8",
-  band: "rgba(69,182,232,0.16)",
-  grid: "rgba(255,255,255,0.06)",
-  axis: "#8ea0b6",
+  historical: CHART_COLORS.historical,
+  forecast: CHART_COLORS.observed,
+  mean: CHART_COLORS.baseline,
+  band: CHART_CHROME.band,
+  grid: CHART_CHROME.grid,
+  axis: CHART_CHROME.axis,
 };
 
 export function DischargeChart({
@@ -65,9 +66,7 @@ export function DischargeChart({
       grid: { left: 56, right: 16, top: 34, bottom: 36 },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#08192e",
-        borderColor: "rgba(255,255,255,0.1)",
-        textStyle: { color: "#e3eaf1", fontSize: 12 },
+        ...chartTooltip(),
         valueFormatter: (v: unknown) =>
           v === null || v === undefined ? "no data" : `${v} m\u00b3/s`,
       },
@@ -109,7 +108,7 @@ export function DischargeChart({
           connectNulls: false,
           lineStyle: { color: COLOR.historical, width: 2 },
           itemStyle: { color: COLOR.historical },
-          areaStyle: { color: "rgba(57,211,180,0.12)" },
+          areaStyle: { color: CHART_CHROME.areaFill },
         },
         {
           name: "Forecast",

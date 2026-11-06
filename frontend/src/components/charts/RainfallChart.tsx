@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { shiftDateYears } from "@/lib/format";
 import type { PrecipitationComparison, PrecipitationSeries } from "@/lib/schemas";
+import { CHART_CHROME, CHART_COLORS, chartTooltip } from "@/lib/palette";
 
 interface RainfallChartProps {
   observed?: PrecipitationSeries | null;
@@ -20,12 +21,12 @@ interface RainfallChartProps {
 }
 
 const COLOR = {
-  observed: "#2cc0e4",
-  baseline: "#8fa3b8",
-  forecast: "#39d3b4",
-  grid: "rgba(255,255,255,0.06)",
-  axis: "#8ea0b6",
-  gap: "rgba(143,163,184,0.10)",
+  observed: CHART_COLORS.observed,
+  baseline: CHART_COLORS.baseline,
+  forecast: CHART_COLORS.forecast,
+  grid: CHART_CHROME.grid,
+  axis: CHART_CHROME.axis,
+  gap: CHART_CHROME.gap,
 };
 
 /** Date-only ISO key for a point. */
@@ -148,9 +149,7 @@ export function RainfallChart({
       grid: { left: 46, right: 14, top: 30, bottom: 40 },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#08192e",
-        borderColor: "rgba(255,255,255,0.1)",
-        textStyle: { color: "#e3eaf1", fontSize: 12 },
+        ...chartTooltip(),
         valueFormatter: (v: unknown) => (v === null || v === undefined ? "no data" : `${v} mm`),
       },
       legend: {

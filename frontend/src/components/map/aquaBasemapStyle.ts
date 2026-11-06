@@ -1,5 +1,7 @@
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 
+import { PALETTE } from "@/lib/palette";
+
 /**
  * The AquaNexus "Ocean" basemap.
  *
@@ -16,22 +18,30 @@ import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
  * tiles and keeps its own attribution.
  */
 
+/*
+ * A bathymetric ramp derived from the token palette: the backdrop is the
+ * workspace colour, land sits one step above it, and water is the one cool
+ * surface that is lighter than land so coastlines read at a glance. These
+ * values are the basemap's own layer hues (there is no Tailwind class for a
+ * vector-tile fill), but every one of them is sampled from the same blue
+ * family as the tokens rather than introducing a second palette.
+ */
 const TINT = {
-  background: "#04101f",
+  background: PALETTE.abyss950,
   water: "#0b3454",
   waterLine: "#1b5c86",
-  waterLabel: "#7fc4e8",
+  waterLabel: PALETTE.water300,
   wood: "#082238",
   landcover: "#082031",
-  landuse: "#0a2542",
+  landuse: PALETTE.abyss850,
   park: "#0b2b3c",
-  building: "#123049",
+  building: PALETTE.abyss800,
   boundary: "#1c4a6d",
   roadMinor: "#1b4260",
   roadMajor: "#2a6d97",
   roadCasing: "#0a2136",
   text: "#cfe6f5",
-  textHalo: "#04101f",
+  textHalo: PALETTE.abyss950,
 } as const;
 
 const SOURCE = "openmaptiles";

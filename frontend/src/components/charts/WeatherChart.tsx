@@ -12,13 +12,14 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { weatherCodeLabel } from "@/lib/weather";
 import type { WeatherForecast } from "@/lib/schemas";
+import { CHART_CHROME, CHART_COLORS, chartTooltip } from "@/lib/palette";
 
 const COLOR = {
-  tempMax: "#e4795b",
-  tempMin: "#63d8f3",
-  precip: "#2cc0e4",
-  grid: "rgba(255,255,255,0.06)",
-  axis: "#8ea0b6",
+  tempMax: CHART_COLORS.tempMax,
+  tempMin: CHART_COLORS.tempMin,
+  precip: CHART_COLORS.precip,
+  grid: CHART_CHROME.grid,
+  axis: CHART_CHROME.axis,
 };
 
 export function WeatherChart({
@@ -44,9 +45,7 @@ export function WeatherChart({
       grid: { left: 48, right: 52, top: 34, bottom: 36 },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#08192e",
-        borderColor: "rgba(255,255,255,0.1)",
-        textStyle: { color: "#e3eaf1", fontSize: 12 },
+        ...chartTooltip(),
         formatter: (params: unknown) => {
           const items = params as { dataIndex: number }[];
           if (!items.length) return "";

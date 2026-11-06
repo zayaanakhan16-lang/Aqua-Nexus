@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { ClassificationBadge, Chip, StatusDot } from "@/components/ui/primitives";
+import { PALETTE } from "@/lib/palette";
 
 const LAYER_ROWS = [
   { icon: CloudRain, label: "Precipitation", on: true },
@@ -96,14 +97,8 @@ export function ProductPreview() {
               {/* Map */}
               <div className="relative min-h-[16rem] bg-abyss-950" aria-hidden>
                 <svg viewBox="0 0 400 260" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
-                  <defs>
-                    <radialGradient id="pp-map" cx="52%" cy="40%" r="72%">
-                      <stop offset="0%" stopColor="#123a58" />
-                      <stop offset="100%" stopColor="#061426" />
-                    </radialGradient>
-                  </defs>
-                  <rect width="400" height="260" fill="url(#pp-map)" />
-                  <g stroke="#9deafa" strokeOpacity="0.12" strokeWidth="0.6">
+                  <rect width="400" height="260" fill={PALETTE.abyss950} />
+                  <g stroke={PALETTE.ink100} strokeOpacity="0.12" strokeWidth="0.6">
                     {[40, 80, 120, 160, 200, 240, 280, 320, 360].map((x) => (
                       <line key={`x${x}`} x1={x} y1="0" x2={x} y2="260" />
                     ))}
@@ -113,12 +108,12 @@ export function ProductPreview() {
                   </g>
                   <path
                     d="M120 96c30-24 78-16 96 12s6 62-22 76-52 34-70 8-18-72-4-96Z"
-                    fill="#2f9c86"
-                    fillOpacity="0.35"
+                    fill={PALETTE.teal400}
+                    fillOpacity="0.3"
                   />
                   <g>
-                    <circle cx="196" cy="150" r="16" fill="none" stroke="#63d8f3" strokeOpacity="0.6" />
-                    <circle cx="196" cy="150" r="4.5" fill="#eafcff" stroke="#12a3c9" strokeWidth="1.5" />
+                    <circle cx="196" cy="150" r="16" fill="none" stroke={PALETTE.water300} strokeOpacity="0.6" />
+                    <circle cx="196" cy="150" r="4.5" fill={PALETTE.ink100} stroke={PALETTE.water300} strokeWidth="1.5" />
                   </g>
                 </svg>
                 {/* Legend chip + controls, echoing the real map chrome. */}
