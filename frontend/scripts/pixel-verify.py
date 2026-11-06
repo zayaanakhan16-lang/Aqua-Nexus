@@ -170,6 +170,14 @@ def main() -> int:
                         need = 4.5 if small else 3.0
                         if ratio < need:
                             worst.append((ratio, need, p["text"], p["color"], bg, p["fontSize"]))
+                    if not probes:
+                        # A route that yields no probes proves nothing; treat it
+                        # as a failure so a broken stylesheet cannot masquerade
+                        # as a passing contrast check.
+                        failures.append(
+                            f"NO-PROBES {route} @{label}: no text elements were "
+                            "sampled, so contrast was not actually verified"
+                        )
                     worst.sort()
                     report.append(
                         f"--- contrast {route} @{label} ({len(probes)} text probes) ---"
