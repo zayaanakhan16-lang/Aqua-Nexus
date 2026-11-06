@@ -76,12 +76,58 @@ export function annotationColorHex(color: string | undefined): string {
   return DEFAULT_ANNOTATION_COLOR;
 }
 
+/**
+ * Water-resource taxonomy, kept separate from the investigation categories
+ * above. `REGION_TYPES` groups the resource kinds the way a water planner
+ * thinks about them (natural, managed, urban); `WATER_RESOURCE_TYPES` is the
+ * specific kind of water body the region describes.
+ */
+export const REGION_TYPES = [
+  {
+    id: "natural",
+    label: "Natural Water",
+    description: "River, lake, watershed, reservoir.",
+    resources: ["River Basin", "Watershed", "River", "Lake", "Reservoir"],
+  },
+  {
+    id: "managed",
+    label: "Managed Water",
+    description: "Canal, irrigation system, managed water zone.",
+    resources: ["Canal", "Groundwater Area", "Reservoir"],
+  },
+  {
+    id: "urban",
+    label: "Urban / Community",
+    description: "City, town, settlement, water-use area.",
+    resources: ["Coastal Region", "Groundwater Area", "Other"],
+  },
+] as const;
+
+export const WATER_RESOURCE_TYPES = [
+  "River Basin",
+  "Watershed",
+  "River",
+  "Lake",
+  "Reservoir",
+  "Canal",
+  "Groundwater Area",
+  "Coastal Region",
+  "Other",
+] as const;
+
+export const DEFAULT_REGION_TYPE = REGION_TYPES[0].label;
+export const DEFAULT_WATER_RESOURCE = WATER_RESOURCE_TYPES[0];
+
 export interface InvestigationAnnotation {
   /** "Point" or "Area" — mirrors how the selection was made. */
   type: string;
   category: string;
   group: string;
   color: string;
+  /** Natural / Managed / Urban grouping of the water region. */
+  regionType: string;
+  /** The specific water resource the region describes. */
+  waterResource: string;
 }
 
 export const DEFAULT_ANNOTATION: InvestigationAnnotation = {
@@ -89,6 +135,8 @@ export const DEFAULT_ANNOTATION: InvestigationAnnotation = {
   category: "River basin",
   group: DEFAULT_ANNOTATION_GROUP,
   color: DEFAULT_ANNOTATION_COLOR,
+  regionType: DEFAULT_REGION_TYPE,
+  waterResource: DEFAULT_WATER_RESOURCE,
 };
 
 const STORAGE_KEY = "aquanexus.annotations.v1";
@@ -106,12 +154,31 @@ function readAnnotations(): AnnotationMap {
     for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
       if (!value || typeof value !== "object") continue;
       const record = value as Partial<InvestigationAnnotation>;
+      const regionType =
+        typeof record.regionType === "string" ? record.regionType : DEFAULT_ANNOTATION.regionType;
+      const group = REGION_TYPES.find((g) => g.label === regionType);
+      const storedResource =
+        typeof record.waterResource === "string"
+          ? record.waterResource
+          : DEFAULT_ANNOTATION.waterResource;
+      // A stored resource that does not belong to the stored region type is
+      // reconciled here, so a pair edited in an older build cannot come back
+      // inconsistent (the dropdown would show a resource the group excludes).
+      const allowed = (group?.resources as readonly string[] | undefined) ?? [];
+      const waterResource =
+        allowed.length === 0 || allowed.includes(storedResource)
+          ? storedResource
+          : (allowed[0] as string);
       out[key] = {
         type: typeof record.type === "string" ? record.type : DEFAULT_ANNOTATION.type,
         category:
           typeof record.category === "string" ? record.category : DEFAULT_ANNOTATION.category,
         group: typeof record.group === "string" ? record.group : DEFAULT_ANNOTATION.group,
         color: typeof record.color === "string" ? record.color : DEFAULT_ANNOTATION.color,
+        // Annotations stored before the water taxonomy existed fall back to the
+        // defaults rather than loading as undefined.
+        regionType,
+        waterResource,
       };
     }
     return out;

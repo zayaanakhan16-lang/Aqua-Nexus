@@ -25,6 +25,7 @@ import {
   INVESTIGATION_CATEGORIES,
   INVESTIGATION_COLORS,
   INVESTIGATION_GROUPS,
+  REGION_TYPES,
   useMapUi,
   type InvestigationAnnotation,
 } from "@/lib/map-ui";
@@ -151,6 +152,61 @@ export function CreateStudyAreaDialog({
             placeholder="e.g. Lagos Lagoon"
             className="mt-1.5 h-9 w-full rounded-lg border border-white/10 bg-abyss-850/90 px-2.5 text-xs text-ink-100 placeholder:text-ink-500 focus:border-water-300/50"
           />
+        </div>
+
+        {/* ------------------------------------------------ water taxonomy */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="region-type" className="label-caps">
+              Region type
+            </label>
+            <select
+              id="region-type"
+              value={annotation.regionType}
+              onChange={(e) => {
+                // Changing the grouping narrows the resource list, so a
+                // resource that no longer belongs is reset to that group's
+                // first option rather than left in an inconsistent state.
+                const group = REGION_TYPES.find((g) => g.label === e.target.value);
+                const stillValid =
+                  group && (group.resources as readonly string[]).includes(annotation.waterResource);
+                setLocalAnnotation({
+                  ...annotation,
+                  regionType: e.target.value,
+                  waterResource: stillValid
+                    ? annotation.waterResource
+                    : ((group?.resources[0] ?? annotation.waterResource) as string),
+                });
+              }}
+              className={selectClass}
+            >
+              {REGION_TYPES.map((group) => (
+                <option key={group.id} value={group.label}>
+                  {group.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-3xs leading-relaxed text-ink-500">
+              {REGION_TYPES.find((g) => g.label === annotation.regionType)?.description ?? ""}
+            </p>
+          </div>
+          <div>
+            <label htmlFor="water-resource" className="label-caps">
+              Water resource type
+            </label>
+            <select
+              id="water-resource"
+              value={annotation.waterResource}
+              onChange={(e) => setLocalAnnotation({ ...annotation, waterResource: e.target.value })}
+              className={selectClass}
+            >
+              {REGION_TYPES.find((g) => g.label === annotation.regionType)?.resources.map((resource) => (
+                <option key={resource} value={resource}>
+                  {resource}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* ------------------------------------------------- classification */}

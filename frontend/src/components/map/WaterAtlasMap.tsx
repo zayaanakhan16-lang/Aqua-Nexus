@@ -269,6 +269,7 @@ export function WaterAtlasMap() {
     selectLocation,
     mapLayers,
     activeRasterLayerId,
+    waterBodyKindFilter,
     rasterLayerDate,
     rasterOpacity,
     refreshMapLayers,
@@ -779,7 +780,10 @@ export function WaterAtlasMap() {
       const source = map.getSource(WATER_SOURCE) as GeoJSONSource | undefined;
       if (!source) return;
       const bodies = layers.water ? waterBodies.data?.bodies ?? [] : [];
-      const features = bodies
+      const kindFilter = waterBodyKindFilter;
+      const visibleBodies =
+        kindFilter.length === 0 ? bodies : bodies.filter((b) => kindFilter.includes(b.kind));
+      const features = visibleBodies
         .filter((b) => b.coordinates.length >= 4)
         .map((b) => ({
           type: "Feature" as const,
@@ -800,7 +804,7 @@ export function WaterAtlasMap() {
 
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [waterBodies.data, layers.water, status.kind, styleEpoch]);
+  }, [waterBodies.data, layers.water, waterBodyKindFilter, status.kind, styleEpoch]);
 
   // Feature inspection: clicking a mapped water outline opens a small popup with
   // its real attributes. This is additive — the click handler that sets the

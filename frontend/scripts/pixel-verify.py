@@ -24,7 +24,19 @@ OUT = Path("/tmp/aquanexus-shots")
 OUT.mkdir(exist_ok=True)
 
 VIEWPORTS = [("1440", 1440, 900), ("1024", 1024, 768), ("768", 768, 1024), ("390", 390, 844)]
-ROUTES = ["/", "/home", "/explore", "/study-areas", "/reports", "/global"]
+ROUTES = [
+    "/",
+    "/home",
+    "/explore",
+    # The two water-intelligence sections added by the AgriSense restyle. They
+    # render long scrolling panels, so they are the most likely to overflow.
+    "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=profile",
+    "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=planning",
+    "/explore?lat=6.5244&lon=3.3792&label=Lagos&tab=water-atlas",
+    "/study-areas",
+    "/reports",
+    "/global",
+]
 
 TEXT_PROBE = """
 () => {

@@ -36,6 +36,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/lib/workspace";
+import { useStudyAreas } from "@/lib/study-areas";
 import { Chip, StatusDot } from "@/components/ui/primitives";
 import { EmptyState } from "@/components/ui/states";
 import { AIAnalysisPanel } from "@/components/panels/AIAnalysisPanel";
@@ -45,6 +46,8 @@ import { FloodPanel } from "@/components/panels/FloodPanel";
 import { OutlookPanel } from "@/components/panels/OutlookPanel";
 import { WaterAtlasPanel } from "@/components/panels/WaterAtlasPanel";
 import { WaterPresencePanel } from "@/components/panels/WaterPresencePanel";
+import { WaterProfilePanel } from "@/components/panels/WaterProfilePanel";
+import { WaterPlanningPanel } from "@/components/panels/WaterPlanningPanel";
 import { GlobalLayersPanel } from "@/components/panels/GlobalLayersPanel";
 import { IntelligencePanel } from "@/components/panels/IntelligencePanel";
 import { RainfallPanel } from "@/components/panels/RainfallPanel";
@@ -67,6 +70,8 @@ export type WorkspaceTabId =
   | "discharge"
   | "satellite"
   | "global-layers"
+  | "profile"
+  | "planning"
   | "ai"
   | "report"
   | "sources";
@@ -90,6 +95,8 @@ const TABS: {
   { id: "discharge", label: "River Discharge", icon: Droplets, needsLocation: true },
   { id: "satellite", label: "Satellite Explorer", icon: Satellite, needsLocation: true },
   { id: "global-layers", label: "Global Layers", icon: Layers },
+  { id: "profile", label: "Water Profile", icon: Droplets, needsLocation: true },
+  { id: "planning", label: "Water Planning", icon: CalendarRange, needsLocation: true },
   { id: "ai", label: "AI Analysis", icon: Sparkles, needsLocation: true },
   { id: "report", label: "Report", icon: FileText, needsLocation: true },
   { id: "sources", label: "Sources & Evidence", icon: FileCheck2 },
@@ -245,7 +252,10 @@ export function IntelligenceTabs({
     changeDetection,
     refresh,
     refreshAi,
+    windowDays,
+    setWindowDays,
   } = useWorkspace();
+  const { areas } = useStudyAreas();
   const [tab, setTab] = useState<WorkspaceTabId>(
     () => initialTab ?? (location ? "overview" : "global-layers"),
   );
@@ -286,6 +296,17 @@ export function IntelligenceTabs({
 
   const activeTab = TABS.find((t) => t.id === tab);
   const blocked = Boolean(activeTab?.needsLocation) && !location;
+
+  // The saved region the current selection corresponds to, matched on the same
+  // coordinate rule the Region List uses to mark its selected card. Null when
+  // the selection is a loose map point rather than a saved region.
+  const selectedArea =
+    areas.find(
+      (a) =>
+        location &&
+        Math.abs(location.latitude - a.location.latitude) < 1e-6 &&
+        Math.abs(location.longitude - a.location.longitude) < 1e-6,
+    ) ?? null;
 
   return (
     <section
@@ -386,6 +407,30 @@ export function IntelligenceTabs({
                 <SatellitePanel slice={scenes} hls={hls} onRetry={refresh} />
               ) : null}
               {tab === "global-layers" ? <GlobalLayersPanel /> : null}
+              {tab === "profile" ? (
+                <WaterProfilePanel
+                  area={selectedArea}
+                  areaKm2={location?.area?.area_km2 ?? null}
+                  summary={summary}
+                  weather={weather}
+                  discharge={discharge}
+                  waterBodies={waterBodies}
+                  waterPresence={waterPresence}
+                  onRetry={refresh}
+                />
+              ) : null}
+              {tab === "planning" ? (
+                <WaterPlanningPanel
+                  area={selectedArea}
+                  areaKm2={location?.area?.area_km2 ?? null}
+                  summary={summary}
+                  weather={weather}
+                  discharge={discharge}
+                  waterBodies={waterBodies}
+                  windowDays={windowDays}
+                  onWindowChange={setWindowDays}
+                />
+              ) : null}
               {tab === "ai" ? <AIAnalysisPanel slice={ai} onGenerate={refreshAi} /> : null}
               {tab === "report" ? <ReportPanel /> : null}
               {tab === "sources" ? <SourcesPanel /> : null}

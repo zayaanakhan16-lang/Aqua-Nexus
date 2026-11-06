@@ -45,6 +45,8 @@ const TAB_IDS: WorkspaceTabId[] = [
   "discharge",
   "satellite",
   "global-layers",
+  "profile",
+  "planning",
   "ai",
   "report",
   "sources",

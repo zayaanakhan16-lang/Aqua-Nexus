@@ -26,6 +26,8 @@ import { useEffect, useState } from "react";
 import {
   Activity,
   Bookmark,
+  CalendarRange,
+  ClipboardList,
   CloudRain,
   Compass,
   Droplets,
@@ -75,12 +77,14 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Local intelligence",
     items: [
       { href: "/explore?tab=water-presence", label: "Local Intelligence", icon: Droplets },
+      { href: "/explore?tab=profile", label: "Water Profile", icon: ClipboardList },
       { href: "/explore?tab=water-atlas", label: "Water Atlas", icon: Layers },
       { href: "/explore?tab=water-stress", label: "Water Stress", icon: Waves },
       { href: "/explore?tab=flood", label: "Flood Intelligence", icon: ShieldAlert },
       { href: "/explore?tab=precipitation", label: "Rainfall Intelligence", icon: CloudRain },
       { href: "/explore?tab=satellite", label: "Satellite Intelligence", icon: Satellite },
       { href: "/explore?tab=weather", label: "Environmental Analysis", icon: Leaf },
+      { href: "/explore?tab=planning", label: "Water Planning", icon: CalendarRange },
     ],
   },
   {

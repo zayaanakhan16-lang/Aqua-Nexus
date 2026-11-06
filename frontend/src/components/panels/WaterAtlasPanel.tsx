@@ -11,6 +11,10 @@
  */
 import { Droplets, ExternalLink, Layers, MapPin, Waves } from "lucide-react";
 
+import {
+  WaterDistributionChart,
+  distributionSlices,
+} from "@/components/charts/WaterDistributionChart";
 import { Chip, Panel, PanelHeader, Skeleton, StatusDot } from "@/components/ui/primitives";
 import { EmptyState, ErrorState, UnavailableNotice } from "@/components/ui/states";
 import { formatNumber } from "@/lib/format";
@@ -103,12 +107,14 @@ export function WaterAtlasPanel({
   slice: SliceState<WaterBodyResult>;
   onRetry: () => void;
 }) {
+  const { waterBodyKindFilter, setWaterBodyKindFilter } = useWorkspace();
   const data = slice.data;
   const byKind = new Map<string, number>();
   for (const body of data?.bodies ?? []) {
     byKind.set(body.kind, (byKind.get(body.kind) ?? 0) + 1);
   }
   const radiusKm = data ? Math.round(data.radius_m / 1000) : null;
+  const slices = distributionSlices(data);
 
   return (
     <Panel className="overflow-hidden">
@@ -145,11 +151,6 @@ export function WaterAtlasPanel({
                 <Droplets className="h-3 w-3" aria-hidden />
                 {data.count} feature{data.count === 1 ? "" : "s"} found
               </Chip>
-              {[...byKind.entries()].map(([kind, count]) => (
-                <Chip key={kind}>
-                  {kindMeta(kind).label}: {count}
-                </Chip>
-              ))}
               <span className="inline-flex items-center gap-1.5">
                 <StatusDot
                   tone={data.provider.status === "ok" ? "good" : "caution"}
@@ -158,6 +159,108 @@ export function WaterAtlasPanel({
                 <span className="text-2xs text-ink-400">{data.provider.provider_name}</span>
               </span>
             </div>
+
+            {/* Category filter — narrows which returned kinds are drawn on the map.
+                Only useful when more than one kind came back. */}
+            {byKind.size > 1 ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="label-caps">Filter map by kind</span>
+                  {waterBodyKindFilter.length ? (
+                    <button
+                      type="button"
+                      onClick={() => setWaterBodyKindFilter([])}
+                      className="text-2xs text-ink-400 underline-offset-2 transition hover:text-ink-100 hover:underline"
+                    >
+                      Show all
+                    </button>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[...byKind.entries()].map(([kind, count]) => {
+                    const active =
+                      waterBodyKindFilter.length === 0 || waterBodyKindFilter.includes(kind);
+                    return (
+                      <button
+                        key={kind}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          const current =
+                            waterBodyKindFilter.length === 0
+                              ? [...byKind.keys()]
+                              : waterBodyKindFilter;
+                          const next = current.includes(kind)
+                            ? current.filter((k) => k !== kind)
+                            : [...current, kind];
+                          // An empty selection would hide every feature, which is
+                          // indistinguishable from "nothing mapped" — treat it as
+                          // "no filter" instead.
+                          setWaterBodyKindFilter(next.length === 0 ? [] : next);
+                        }}
+                        className={
+                          active
+                            ? "rounded-md border border-water-300/40 bg-water-300/12 px-2 py-0.5 text-2xs font-medium text-water-200"
+                            : "rounded-md border border-white/10 px-2 py-0.5 text-2xs text-ink-400 transition hover:text-ink-100"
+                        }
+                      >
+                        {kindMeta(kind).label}: {count}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                {[...byKind.entries()].map(([kind, count]) => (
+                  <Chip key={kind}>
+                    {kindMeta(kind).label}: {count}
+                  </Chip>
+                ))}
+              </div>
+            )}
+
+            {slices.length ? (
+              <section aria-labelledby="water-distribution-heading" className="space-y-2">
+                <div>
+                  <h3 id="water-distribution-heading" className="text-xs font-medium text-ink-100">
+                    Water resource distribution
+                  </h3>
+                  <p className="mt-0.5 text-2xs leading-relaxed text-ink-500">
+                    Mapped features grouped by OpenStreetMap kind. Counts describe how much has
+                    been mapped by contributors, not how much water is present.
+                  </p>
+                </div>
+                <WaterDistributionChart data={data} />
+                {/* The chart is decorative for assistive tech; this table carries
+                    the same numbers so the distribution is never chart-only. */}
+                <table className="sr-only">
+                  <caption>Mapped water features by kind</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Kind</th>
+                      <th scope="col">Mapped features</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {slices.map((s) => (
+                      <tr key={s.kind}>
+                        <th scope="row">{s.label}</th>
+                        <td>{s.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            ) : data.service_reachable ? (
+              // Only shown when the service answered but mapped nothing. When the
+              // service did not answer, the notice above already explains why, and
+              // a second notice would just repeat it.
+              <UnavailableNotice
+                title="No distribution to show"
+                message="No mapped water features were returned in this radius, so there is no distribution to chart. This reflects contributor mapping coverage, not an absence of water."
+              />
+            ) : null}
 
             {data.bodies.length ? (
               <ul className="space-y-2">

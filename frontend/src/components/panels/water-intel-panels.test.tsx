@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FloodPanel } from "@/components/panels/FloodPanel";
@@ -161,6 +161,202 @@ describe("WaterAtlasPanel", () => {
     );
     expect(screen.getByText(/Mapping service did not answer/i)).toBeTruthy();
     expect(screen.getByText(/coverage failure, not evidence that no water bodies exist/i)).toBeTruthy();
+    // The unreachable case must not also stack a distribution notice on top —
+    // one explanation of the outage is enough.
+    expect(screen.queryByText("No distribution to show")).toBeNull();
+  });
+
+  it("charts the distribution of mapped kinds and mirrors it in a table", () => {
+    const result = bodies({
+      count: 3,
+      service_reachable: true,
+      provider: {
+        provider_id: "osm_overpass",
+        provider_name: "OpenStreetMap water features",
+        status: "ok",
+        message: "ok",
+        classification: "observation",
+        preliminary: false,
+      },
+      bodies: [
+        {
+          id: "way/1",
+          name: "Lagos Lagoon",
+          kind: "lake",
+          coordinates: [],
+          bbox: { west: 3.3, south: 6.4, east: 3.5, north: 6.5 },
+          area_km2: 12.5,
+          tags: {},
+          source_id: "osm_overpass",
+        },
+        {
+          id: "way/2",
+          name: null,
+          kind: "lake",
+          coordinates: [],
+          bbox: { west: 3.3, south: 6.4, east: 3.5, north: 6.5 },
+          area_km2: null,
+          tags: {},
+          source_id: "osm_overpass",
+        },
+        {
+          id: "way/3",
+          name: "Ogun River",
+          kind: "river",
+          coordinates: [],
+          bbox: { west: 3.3, south: 6.4, east: 3.5, north: 6.5 },
+          area_km2: null,
+          tags: {},
+          source_id: "osm_overpass",
+        },
+      ],
+    });
+    render(
+      <WorkspaceProvider>
+        <WaterAtlasPanel slice={{ data: result, loading: false, error: null, errorCode: null }} onRetry={noop} />
+      </WorkspaceProvider>,
+    );
+
+    expect(screen.getByText("Water resource distribution")).toBeTruthy();
+    // The chart is canvas-only, so the accessible table carries the numbers.
+    const table = screen.getByRole("table", { name: /Mapped water features by kind/i });
+    expect(table.textContent).toContain("Lake");
+    expect(table.textContent).toContain("River");
+    // Counts come from the returned bodies, not invented.
+    expect(screen.getAllByRole("row").length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("shows a distribution empty state when the service answers with nothing", () => {
+    const result = bodies({
+      count: 0,
+      service_reachable: true,
+      provider: {
+        provider_id: "osm_overpass",
+        provider_name: "OpenStreetMap water features",
+        status: "ok",
+        message: "ok",
+        classification: "observation",
+        preliminary: false,
+      },
+      bodies: [],
+    });
+    render(
+      <WorkspaceProvider>
+        <WaterAtlasPanel slice={{ data: result, loading: false, error: null, errorCode: null }} onRetry={noop} />
+      </WorkspaceProvider>,
+    );
+
+    expect(screen.getByText("No distribution to show")).toBeTruthy();
+    expect(screen.getByText(/contributor mapping coverage, not an absence of water/i)).toBeTruthy();
+  });
+
+  it("filters the map by kind and clears back to showing everything", () => {
+    const result = bodies({
+      count: 2,
+      service_reachable: true,
+      provider: {
+        provider_id: "osm_overpass",
+        provider_name: "OpenStreetMap water features",
+        status: "ok",
+        message: "ok",
+        classification: "observation",
+        preliminary: false,
+      },
+      bodies: [
+        {
+          id: "way/1",
+          name: "Lagos Lagoon",
+          kind: "lake",
+          coordinates: [],
+          bbox: { west: 3.3, south: 6.4, east: 3.5, north: 6.5 },
+          area_km2: 12.5,
+          tags: {},
+          source_id: "osm_overpass",
+        },
+        {
+          id: "way/2",
+          name: "Ogun River",
+          kind: "river",
+          coordinates: [],
+          bbox: { west: 3.3, south: 6.4, east: 3.5, north: 6.5 },
+          area_km2: null,
+          tags: {},
+          source_id: "osm_overpass",
+        },
+      ],
+    });
+    render(
+      <WorkspaceProvider>
+        <WaterAtlasPanel slice={{ data: result, loading: false, error: null, errorCode: null }} onRetry={noop} />
+      </WorkspaceProvider>,
+    );
+
+    // With more than one kind, the chips become a filter control.
+    const lakeBtn = screen.getByRole("button", { name: /^Lake: 1$/ });
+    expect(lakeBtn.getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(lakeBtn);
+    expect(screen.getByRole("button", { name: /^Lake: 1$/ }).getAttribute("aria-pressed")).toBe(
+      "false",
+    );
+    // A visible way back to "everything" appears once a filter is active.
+    fireEvent.click(screen.getByRole("button", { name: /Show all/i }));
+    expect(screen.getByRole("button", { name: /^Lake: 1$/ }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+  });
+
+  it("never lets the filter hide every kind", () => {
+    const result = bodies({
+      count: 2,
+      service_reachable: true,
+      provider: {
+        provider_id: "osm_overpass",
+        provider_name: "OpenStreetMap water features",
+        status: "ok",
+        message: "ok",
+        classification: "observation",
+        preliminary: false,
+      },
+      bodies: [
+        {
+          id: "way/1",
+          name: "Lagos Lagoon",
+          kind: "lake",
+          coordinates: [],
+          bbox: { west: 3.3, south: 6.4, east: 3.5, north: 6.5 },
+          area_km2: 12.5,
+          tags: {},
+          source_id: "osm_overpass",
+        },
+        {
+          id: "way/2",
+          name: "Ogun River",
+          kind: "river",
+          coordinates: [],
+          bbox: { west: 3.3, south: 6.4, east: 3.5, north: 6.5 },
+          area_km2: null,
+          tags: {},
+          source_id: "osm_overpass",
+        },
+      ],
+    });
+    render(
+      <WorkspaceProvider>
+        <WaterAtlasPanel slice={{ data: result, loading: false, error: null, errorCode: null }} onRetry={noop} />
+      </WorkspaceProvider>,
+    );
+
+    // Deselecting the last active kind must fall back to "no filter" rather than
+    // hiding every feature — an all-hidden map looks like "no water here".
+    fireEvent.click(screen.getByRole("button", { name: /^Lake: 1$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^River: 1$/ }));
+    expect(screen.getByRole("button", { name: /^Lake: 1$/ }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /^River: 1$/ }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
   });
 
   it("lists mapped features with their kind when the service answers", () => {

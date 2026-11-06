@@ -125,6 +125,13 @@ interface WorkspaceValue {
   mapLayers: SliceState<MapLayerCatalog>;
   /** The raster layer currently drawn over the basemap, or null for none. */
   activeRasterLayerId: string | null;
+  /**
+   * Water-feature kinds shown on the map. An empty set means "no filter" — every
+   * returned kind is drawn. Selecting kinds narrows the mapped water layer only;
+   * it never changes what the API returned.
+   */
+  waterBodyKindFilter: string[];
+  setWaterBodyKindFilter: (kinds: string[]) => void;
   /** Requested raster date (ISO) or null for "most recent available". */
   rasterLayerDate: string | null;
   rasterOpacity: number;
@@ -214,6 +221,7 @@ export function WorkspaceProvider({
   // Global raster layers do not depend on the selected location.
   const [mapLayers, setMapLayers] = useState<SliceState<MapLayerCatalog>>(emptySlice());
   const [activeRasterLayerId, setActiveRasterLayerId] = useState<string | null>(null);
+  const [waterBodyKindFilter, setWaterBodyKindFilter] = useState<string[]>([]);
   const [rasterLayerDate, setRasterLayerDateState] = useState<string | null>(null);
   const [rasterOpacity, setRasterOpacityState] = useState(0.75);
   const [selectionMode, setSelectionModeState] = useState<SelectionMode>("point");
@@ -528,6 +536,8 @@ export function WorkspaceProvider({
       outlook,
       mapLayers,
       activeRasterLayerId,
+      waterBodyKindFilter,
+      setWaterBodyKindFilter,
       rasterLayerDate,
       rasterOpacity,
       selectionMode,
@@ -566,6 +576,8 @@ export function WorkspaceProvider({
       outlook,
       mapLayers,
       activeRasterLayerId,
+      waterBodyKindFilter,
+      setWaterBodyKindFilter,
       rasterLayerDate,
       rasterOpacity,
       selectionMode,
