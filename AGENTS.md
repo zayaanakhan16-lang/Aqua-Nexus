@@ -69,10 +69,17 @@ WebGL is genuinely absent. Do not re-enable a globe projection.
 
 Basemap style is OpenFreeMap `liberty`
 (`https://tiles.openfreemap.org/styles/liberty`) — key-free, natural-colour
-oceans/land/rivers. The hero Earth (`landing/EarthGlobe.tsx`) is a pure-CSS
-rotating sphere over the self-hosted NASA Blue Marble image: no WebGL, no
-canvas and no 3D dependency, so it renders everywhere and cannot break the
-build. It is landing-only and never required for the working map.
+oceans/land/rivers.
+
+There is no marketing landing page. `/` is a server redirect into `/home`, and
+`/explore` is the single water-intelligence workspace. The former
+`components/landing/*` tree, its self-hosted NASA Blue Marble image and its
+`landing.test.tsx` suite were removed by owner request; the honesty discipline
+they helped enforce now lives entirely in the product surfaces
+(`ui/states.tsx`, the `components/panels/*` unavailable states, and the
+`WaterPlanningPanel` illustrative-labelling copy). Keep those honest states —
+they are the remaining guard against presenting invented values as measured
+results.
 
 ## Verified state
 
@@ -85,10 +92,11 @@ build. It is landing-only and never required for the working map.
   also pins the drawn-area path: the ring is validated server-side and the area
   size shown is the backend's value, and a rejected ring surfaces its error
   instead of failing silently.
-- Landing tests (`components/landing/landing.test.tsx`) enforce honesty copy:
-  the NASA Blue Marble attribution and the "no readings and no live" disclosure
-  on the product-preview schematic. Do not remove those without cause.
-- Landing typography uses the `font-display` class (see `app/globals.css` and
+- Landing tests (`components/landing/landing.test.tsx`) enforced honesty copy
+  (NASA Blue Marble attribution and the "no readings and no live" disclosure).
+  Both the page and the suite were removed by owner request; the honesty rules
+  they pinned now live in the product panels, which have their own tests.
+- Headings use the `font-display` class (see `app/globals.css` and
   `lib/fonts.ts`). Restore it, do not redesign headings, if a regression appears.
 - Live smoke test (real network, not mocked) verified 200 for `/health`,
   `/geocode`, `/precipitation/historical`, `/precipitation/comparison`,
@@ -304,7 +312,7 @@ CSS inference. That was wrong. Pixel measurement found real failures:
 - `text-ink-400` (#6f8399) at 11-12px on panel surfaces composited to
   3.29-4.40:1, below the 4.5:1 AA threshold for small text.
 - Affected every coordinate line (`formatCoord` output) plus the app-shell
-  backend status chip and the landing breadcrumb.
+  backend status chip and the (since removed) landing breadcrumb.
 - Fixed by raising those sites to `text-ink-300` (#9fb0c4), which measures
   5.80:1 or better against every background observed, including the sticky
   header's `backdrop-blur` surface sampled while content scrolled beneath it
