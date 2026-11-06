@@ -60,7 +60,11 @@ function SearchBar({ onAdd }: { onAdd: () => void }) {
   const { location, windowDays } = useWorkspace();
 
   return (
-    <div className="chrome flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
+    // `relative z-40` lifts this bar (and the suggestion listbox it contains)
+    // above the Map / Analytics toggle. The bar's `.chrome` surface uses
+    // `backdrop-filter`, which caps its own stacking context, so the listbox
+    // cannot out-rank the floating toggle from inside it.
+    <div className="chrome relative z-40 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
       <span className="flex shrink-0 items-center gap-1.5">
         <Compass className="h-3.5 w-3.5 text-water-300" aria-hidden />
         <span className="label-caps">Find a location</span>

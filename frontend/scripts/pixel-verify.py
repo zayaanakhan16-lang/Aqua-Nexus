@@ -25,10 +25,9 @@ OUT.mkdir(exist_ok=True)
 
 VIEWPORTS = [("1440", 1440, 900), ("1024", 1024, 768), ("768", 768, 1024), ("390", 390, 844)]
 ROUTES = [
-    # "/" is a redirect into /home; keep it in the sweep so the redirect is
+    # "/" is a redirect into /explore; keep it in the sweep so the redirect is
     # checked for overflow too.
     "/",
-    "/home",
     "/explore",
     # The two water-intelligence sections added by the AgriSense restyle. They
     # render long scrolling panels, so they are the most likely to overflow.

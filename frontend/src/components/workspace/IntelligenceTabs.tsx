@@ -15,28 +15,19 @@
  * never repeat them. Used by both the Explore Map workspace and the saved
  * investigation workspace, so there is exactly one results experience.
  */
-import {
-  Activity,
-  CalendarClock,
-  CalendarRange,
-  CloudRain,
-  Droplets,
-  FileCheck2,
-  FileText,
-  Layers,
-  MapPin,
-  RefreshCw,
-  Satellite,
-  ShieldAlert,
-  Sparkles,
-  Thermometer,
-  Waves,
-} from "lucide-react";
+import { MapPin, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/lib/workspace";
 import { useStudyAreas } from "@/lib/study-areas";
+import {
+  WORKSPACE_GROUPS,
+  WORKSPACE_SECTIONS,
+  groupForTab,
+  isWorkspaceTabId,
+  type WorkspaceTabId,
+} from "@/lib/navigation";
 import { Chip, StatusDot } from "@/components/ui/primitives";
 import { EmptyState } from "@/components/ui/states";
 import { AIAnalysisPanel } from "@/components/panels/AIAnalysisPanel";
@@ -57,50 +48,12 @@ import { SourcesPanel } from "@/components/panels/SourcesPanel";
 import { WaterStressPanel } from "@/components/panels/WaterStressPanel";
 import { WeatherPanel } from "@/components/panels/WeatherPanel";
 
-export type WorkspaceTabId =
-  | "overview"
-  | "weather"
-  | "precipitation"
-  | "water-presence"
-  | "water-atlas"
-  | "water-stress"
-  | "flood"
-  | "outlook"
-  | "change"
-  | "discharge"
-  | "satellite"
-  | "global-layers"
-  | "profile"
-  | "planning"
-  | "ai"
-  | "report"
-  | "sources";
-
-const TABS: {
-  id: WorkspaceTabId;
-  label: string;
-  icon: typeof Activity;
-  /** Sections that do not need a selected location stay usable before one is set. */
-  needsLocation?: boolean;
-}[] = [
-  { id: "overview", label: "Overview", icon: Activity, needsLocation: true },
-  { id: "weather", label: "Weather", icon: Thermometer, needsLocation: true },
-  { id: "precipitation", label: "Precipitation", icon: CloudRain, needsLocation: true },
-  { id: "water-presence", label: "Water Presence", icon: Droplets, needsLocation: true },
-  { id: "water-atlas", label: "Water Atlas", icon: Layers, needsLocation: true },
-  { id: "water-stress", label: "Water Stress", icon: Waves, needsLocation: true },
-  { id: "flood", label: "Flood", icon: ShieldAlert, needsLocation: true },
-  { id: "outlook", label: "Outlook", icon: CalendarClock, needsLocation: true },
-  { id: "change", label: "Change", icon: CalendarRange, needsLocation: true },
-  { id: "discharge", label: "River Discharge", icon: Droplets, needsLocation: true },
-  { id: "satellite", label: "Satellite Explorer", icon: Satellite, needsLocation: true },
-  { id: "global-layers", label: "Global Layers", icon: Layers },
-  { id: "profile", label: "Water Profile", icon: Droplets, needsLocation: true },
-  { id: "planning", label: "Water Planning", icon: CalendarRange, needsLocation: true },
-  { id: "ai", label: "AI Analysis", icon: Sparkles, needsLocation: true },
-  { id: "report", label: "Report", icon: FileText, needsLocation: true },
-  { id: "sources", label: "Sources & Evidence", icon: FileCheck2 },
-];
+/**
+ * The section contract lives in `lib/navigation`, which also defines the eight
+ * primary destinations each section belongs to. Re-exported here because this
+ * module is where callers historically imported it from.
+ */
+export type { WorkspaceTabId } from "@/lib/navigation";
 
 /**
  * Live investigation status.
@@ -163,7 +116,14 @@ function InvestigationProgress() {
   );
 }
 
-/** Horizontally scrollable section switcher for the intelligence surface. */
+/**
+ * Section switcher for the intelligence surface.
+ *
+ * Shows only the sections belonging to the group the user is currently in, so
+ * the surface presents one level of choice at a time rather than seventeen flat
+ * tabs. The eight primary destinations live in the top bar (`shell/TopNav`), so
+ * this control never repeats them. Arrow keys move within the group.
+ */
 function SectionSwitcher({
   activeId,
   onSelect,
@@ -173,14 +133,21 @@ function SectionSwitcher({
   onSelect: (id: WorkspaceTabId) => void;
   hasLocation: boolean;
 }) {
+  const group = groupForTab(activeId);
+  const sections = group.sections;
+
+  // A single-section group needs no switcher at all: the top bar already names
+  // it, and a lone tab would just be a duplicate label.
+  if (sections.length < 2) return null;
+
   return (
     <div className="chrome overflow-hidden p-1">
       <div
         role="tablist"
-        aria-label="Intelligence sections"
+        aria-label={`${group.label} sections`}
         className="flex items-stretch gap-0.5 overflow-x-auto scrollbar-none"
       >
-        {TABS.map((t) => {
+        {sections.map((t) => {
           const Icon = t.icon;
           const active = t.id === activeId;
           const blocked = Boolean(t.needsLocation) && !hasLocation;
@@ -195,13 +162,13 @@ function SectionSwitcher({
               title={blocked ? "Select a location to populate this section" : undefined}
               onClick={() => onSelect(t.id)}
               onKeyDown={(event) => {
-                const idx = TABS.findIndex((x) => x.id === t.id);
+                const idx = sections.findIndex((x) => x.id === t.id);
                 if (event.key === "ArrowRight") {
                   event.preventDefault();
-                  onSelect(TABS[(idx + 1) % TABS.length]!.id);
+                  onSelect(sections[(idx + 1) % sections.length]!.id);
                 } else if (event.key === "ArrowLeft") {
                   event.preventDefault();
-                  onSelect(TABS[(idx - 1 + TABS.length) % TABS.length]!.id);
+                  onSelect(sections[(idx - 1 + sections.length) % sections.length]!.id);
                 }
               }}
               className={cn(
@@ -294,7 +261,8 @@ export function IntelligenceTabs({
       waterBodies.error,
   );
 
-  const activeTab = TABS.find((t) => t.id === tab);
+  const activeTab = WORKSPACE_SECTIONS.find((t) => t.id === tab);
+  const activeGroup = groupForTab(tab);
   const blocked = Boolean(activeTab?.needsLocation) && !location;
 
   // The saved region the current selection corresponds to, matched on the same
@@ -317,7 +285,8 @@ export function IntelligenceTabs({
       <div className="chrome p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-display text-base font-semibold text-ink-100">
+            <p className="label-caps text-water-300">{activeGroup.label}</p>
+            <h2 className="mt-1 font-display text-base font-semibold text-ink-100">
               Water Intelligence
             </h2>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">

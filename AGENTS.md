@@ -56,6 +56,30 @@ point the user picks back to `/explore`. Do not add a second workspace route.
 Component names that still contain "Atlas" (`WaterAtlasMap`) are shared map
 internals and are deliberately retained.
 
+## Navigation (compact top bar, no sidebar)
+
+The primary navigation is a single compact horizontal bar of **eight**
+destinations — Overview, Water Resources, Aquatic Ecosystems, Watersheds &
+Terrain, Weather & Water, Water Planning Studio, Risks & Decisions, Report —
+matching the AgriSense pattern. It lives in `components/shell/TopNav.tsx` and the
+grouping is defined once in `lib/navigation.ts`:
+
+- `WORKSPACE_GROUPS` is the single source of truth. Each of the eight groups owns
+  a subset of the `WorkspaceTabId` sections, and a section belongs to **exactly
+  one** group.
+- The active primary destination is **derived** (`groupForTab`) from the section
+  in the URL, never stored separately, so the top bar and the in-workspace
+  section control can never disagree, and deep links (`/explore?tab=flood`)
+  stay authoritative.
+- `IntelligenceTabs` shows only the sections of the current group. A group with
+  one section renders no section control at all, because the top bar already
+  names it.
+- There is **no left sidebar**. Three non-primary surfaces (saved
+  investigations, the report centre, the global dataset view) are reachable from
+  an icon-only utility cluster in the top bar. Do not promote them to primary
+  tabs and do not reintroduce a sidebar: the workspace needs the full width.
+- `/` is a redirect into `/explore`. There is no home dashboard route.
+
 ## Map (2D, MapLibre GL JS v4 — do not reintroduce a globe)
 
 The map is MapLibre GL JS **4.7.1** with the default 2D Mercator view.
@@ -71,8 +95,9 @@ Basemap style is OpenFreeMap `liberty`
 (`https://tiles.openfreemap.org/styles/liberty`) — key-free, natural-colour
 oceans/land/rivers.
 
-There is no marketing landing page. `/` is a server redirect into `/home`, and
-`/explore` is the single water-intelligence workspace. The former
+There is no marketing landing page and no separate home dashboard. `/` is a
+server redirect into `/explore`, which is the single water-intelligence
+workspace. The former
 `components/landing/*` tree, its self-hosted NASA Blue Marble image and its
 `landing.test.tsx` suite were removed by owner request; the honesty discipline
 they helped enforce now lives entirely in the product surfaces
@@ -257,14 +282,14 @@ Resume verification pass complete. State is committed, pushed and green.
   4-page PDF (`%PDF-` magic, correct coords, `-26.3%` rainfall anomaly,
   sources, findings and limitations).
 - Responsive sweep: no horizontal overflow at 1440/1024/768/390/360 on `/`,
-  `/home`, `/explore`, `/study-areas`, nor on any of the 10 `/explore` tabs at
+  `/explore`, `/study-areas`, nor on any of the `/explore` sections at
   390px. Every page exposes exactly one `<h1>`.
 - Keyboard/a11y: skip link, logical tab order, visible focus ring on every
   focusable element; modal traps Tab/Shift+Tab and closes on Escape.
 - Contrast: measured with a pixel-sampling auditor (`/tmp/a11y/audit.py`) that
   takes the CSS computed colour as foreground and the real composited
   background pixels from an element screenshot. 1909 text elements across
-  desktop 1440x900 and mobile 390x844, on `/`, `/home`, `/explore` and all
+  desktop 1440x900 and mobile 390x844, on `/`, `/explore` and all
   `/explore` tabs: **zero below WCAG AA**.
 
 ### Groq support (this session)
@@ -294,14 +319,14 @@ First-class Groq support was added as the preferred AI provider:
   4-page PDF (`%PDF-` magic, correct coords, `-26.3%` rainfall anomaly,
   sources, findings and limitations).
 - Responsive sweep: no horizontal overflow at 1440/1024/768/390/360 on `/`,
-  `/home`, `/explore`, `/study-areas`, nor on any of the 10 `/explore` tabs at
+  `/explore`, `/study-areas`, nor on any of the `/explore` sections at
   390px. Every page exposes exactly one `<h1>`.
 - Keyboard/a11y: skip link, logical tab order, visible focus ring on every
   focusable element; modal traps Tab/Shift+Tab and closes on Escape.
 - Contrast: measured with a pixel-sampling auditor (`/tmp/a11y/audit.py`) that
   takes the CSS computed colour as foreground and the real composited
   background pixels from an element screenshot. 1909 text elements across
-  desktop 1440x900 and mobile 390x844, on `/`, `/home`, `/explore` and all
+  desktop 1440x900 and mobile 390x844, on `/`, `/explore` and all
   `/explore` tabs: **zero below WCAG AA**.
 
 ### Contrast correction (this session)

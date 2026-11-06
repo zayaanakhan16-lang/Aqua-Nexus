@@ -6,9 +6,14 @@ import { WorkspaceProvider, useWorkspace } from "@/lib/workspace";
 
 /**
  * Before a location is chosen the results surface must still be usable, so it
- * opens on the location-independent Global Layers tab. Choosing a location is
- * the moment analysis becomes meaningful, so the surface must then move to
- * Overview by itself.
+ * opens on the location-independent Global Layers section. Choosing a location
+ * is the moment analysis becomes meaningful, so the surface must then move to
+ * the Overview section by itself.
+ *
+ * Navigation is two-level: the eight primary destinations live in the top bar
+ * (`shell/TopNav`) and this surface shows only the sections of the group it is
+ * currently in. These assertions therefore read the group the surface reports
+ * itself to be in, which is the visible equivalent of the old flat tab state.
  */
 
 function SelectButton() {
@@ -23,9 +28,9 @@ function SelectButton() {
   );
 }
 
-function selectedTab(label: string) {
-  const tab = screen.getByRole("tab", { name: label });
-  return tab.getAttribute("aria-selected") === "true";
+/** The primary group the surface currently reports itself to be in. */
+function activeGroup(): string {
+  return screen.getByText(/water intelligence/i).closest("div")!.querySelector("p")!.textContent!;
 }
 
 describe("IntelligenceTabs default surface", () => {
@@ -33,8 +38,8 @@ describe("IntelligenceTabs default surface", () => {
     vi.restoreAllMocks();
   });
 
-  it("opens on Global Layers with no location, then switches to Overview once one is chosen", async () => {
-    // Every provider call fails: the tab contract must not depend on data.
+  it("opens on a location-independent section, then switches to Overview once a location is chosen", async () => {
+    // Every provider call fails: the section contract must not depend on data.
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ error: { code: "x", message: "unavailable" } }), {
         status: 503,
@@ -49,16 +54,16 @@ describe("IntelligenceTabs default surface", () => {
       </WorkspaceProvider>,
     );
 
-    expect(selectedTab("Global Layers")).toBe(true);
-    expect(selectedTab("Overview")).toBe(false);
+    // Global Layers is reachable with no location and lives in the Watersheds
+    // group; the Overview section is not the default.
+    expect(activeGroup()).toMatch(/watersheds/i);
 
     await act(async () => {
       screen.getByText("select").click();
       await Promise.resolve();
     });
 
-    expect(selectedTab("Overview")).toBe(true);
-    expect(selectedTab("Global Layers")).toBe(false);
+    expect(activeGroup()).toMatch(/overview/i);
   });
 });
 

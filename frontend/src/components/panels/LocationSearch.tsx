@@ -209,7 +209,7 @@ export function LocationSearch() {
         <div
           id={listboxId}
           role="listbox"
-          className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-lg border border-white/10 bg-abyss-900/97 p-1 shadow-float backdrop-blur animate-fade-in"
+          className="absolute z-50 mt-2 max-h-80 w-full overflow-y-auto rounded-lg border border-white/10 bg-abyss-900/97 p-1 shadow-float backdrop-blur animate-fade-in"
         >
           {coordinates ? (
             <button
