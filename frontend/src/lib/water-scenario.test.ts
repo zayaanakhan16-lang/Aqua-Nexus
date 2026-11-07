@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_ASSUMPTIONS,
+  DEFAULT_PRESET_ID,
+  SCENARIO_PRESETS,
+  compareToBaseline,
   computeScenario,
   monthlyRainfall,
+  presetById,
 } from "@/lib/water-scenario";
 
 /**
@@ -104,5 +108,87 @@ describe("computeScenario", () => {
     });
     // 10 mm over 2 km² = 10 * 2 * 1000 m³.
     expect(result.months[0]!.supplyM3).toBeCloseTo(20000);
+  });
+
+  it("leaves the measurement untouched when the rainfall factor is 1", () => {
+    const result = computeScenario({
+      rainfallByMonth: rain,
+      areaKm2: 1,
+      assumptions: DEFAULT_ASSUMPTIONS,
+      rainfallFactor: 1,
+    });
+    expect(result.months[0]!.rainfallMm).toBe(result.months[0]!.measuredRainfallMm);
+  });
+
+  it("scales the scenario rainfall while keeping the measurement readable", () => {
+    const result = computeScenario({
+      rainfallByMonth: rain,
+      areaKm2: 1,
+      assumptions: DEFAULT_ASSUMPTIONS,
+      rainfallFactor: 0.5,
+    });
+    // The scenario halves the month, but the measured value is still reported so
+    // the surface can show that a scenario is in effect.
+    expect(result.months[0]!.rainfallMm).toBeCloseTo(50);
+    expect(result.months[0]!.measuredRainfallMm).toBeCloseTo(100);
+  });
+
+  it("ignores a negative or non-finite rainfall factor rather than inverting the series", () => {
+    const result = computeScenario({
+      rainfallByMonth: rain,
+      areaKm2: 1,
+      assumptions: DEFAULT_ASSUMPTIONS,
+      rainfallFactor: -1,
+    });
+    expect(result.months[0]!.rainfallMm).toBeCloseTo(100);
+  });
+});
+
+describe("compareToBaseline", () => {
+  const rain = new Array<number | null>(12).fill(100);
+
+  it("returns a baseline and a selected row computed from the same series", () => {
+    const rows = compareToBaseline({
+      rainfallByMonth: rain,
+      areaKm2: 10,
+      assumptions: { ...DEFAULT_ASSUMPTIONS, capturePct: 100, irrigatedShare: 0 },
+      rainfallFactor: 0.5,
+    });
+    expect(rows).toHaveLength(2);
+    // The baseline is the observed preset (30% capture), so it keeps the
+    // measurement: 12 months x 100 mm x 30% = 360 mm. The scenario halves the
+    // measured months and captures all of them: 12 x 50 x 100% = 600 mm.
+    expect(rows[0]!.annualSupplyMm).toBeCloseTo(360);
+    expect(rows[1]!.annualSupplyMm).toBeCloseTo(600);
+  });
+
+  it("carries nulls on both rows when there is no measured series", () => {
+    const rows = compareToBaseline({
+      rainfallByMonth: new Array<number | null>(12).fill(null),
+      areaKm2: 10,
+      assumptions: DEFAULT_ASSUMPTIONS,
+      rainfallFactor: 1,
+    });
+    expect(rows.every((row) => row.annualNetMm === null)).toBe(true);
+  });
+});
+
+describe("scenario presets", () => {
+  it("names the unchanged-rainfall preset first so observed is the default", () => {
+    expect(SCENARIO_PRESETS[0]!.id).toBe(DEFAULT_PRESET_ID);
+    expect(SCENARIO_PRESETS[0]!.rainfallFactor).toBe(1);
+  });
+
+  it("gives every preset a unique id and a description", () => {
+    const ids = SCENARIO_PRESETS.map((preset) => preset.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const preset of SCENARIO_PRESETS) {
+      expect(preset.description.length).toBeGreaterThan(0);
+      expect(preset.rainfallFactor).toBeGreaterThan(0);
+    }
+  });
+
+  it("falls back to the observed preset for an unknown id", () => {
+    expect(presetById("not-a-preset").id).toBe(DEFAULT_PRESET_ID);
   });
 });

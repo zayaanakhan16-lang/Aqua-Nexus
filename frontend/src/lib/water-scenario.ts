@@ -38,10 +38,75 @@ export const DEFAULT_ASSUMPTIONS: ScenarioAssumptions = {
   capturePct: 30,
 };
 
+/**
+ * Scenario presets.
+ *
+ * A preset only sets the *assumptions* the user could have set by hand — it is
+ * a starting point for the sliders, never an input of its own and never a
+ * forecast. `rainfallFactor` scales the measured series so a dry or wet year
+ * can be explored, and is applied as a clearly labelled multiplier rather than
+ * replacing the measurement. Nothing here asserts what the weather will do.
+ */
+export interface ScenarioPreset {
+  id: string;
+  label: string;
+  description: string;
+  assumptions: ScenarioAssumptions;
+  /** Multiplier applied to each measured month. 1 leaves the measurement alone. */
+  rainfallFactor: number;
+}
+
+export const SCENARIO_PRESETS: readonly ScenarioPreset[] = [
+  {
+    id: "observed",
+    label: "Observed rainfall",
+    description: "The measured series, unchanged. No assumption is applied to rainfall.",
+    assumptions: DEFAULT_ASSUMPTIONS,
+    rainfallFactor: 1,
+  },
+  {
+    id: "reduced",
+    label: "Reduced rainfall",
+    description: "Assumes each measured month delivers 75% of what was recorded.",
+    assumptions: { ...DEFAULT_ASSUMPTIONS, capturePct: 25 },
+    rainfallFactor: 0.75,
+  },
+  {
+    id: "drought",
+    label: "Drought conditions",
+    description: "Assumes a 50% shortfall against every measured month, with tighter capture.",
+    assumptions: { ...DEFAULT_ASSUMPTIONS, capturePct: 20, distributionLossPct: 25 },
+    rainfallFactor: 0.5,
+  },
+  {
+    id: "demand-growth",
+    label: "Increased demand",
+    description: "Keeps measured rainfall but assumes demand rises by half again.",
+    assumptions: { ...DEFAULT_ASSUMPTIONS, irrigatedShare: 0.3, demandMmPerMonth: 90 },
+    rainfallFactor: 1,
+  },
+  {
+    id: "efficient",
+    label: "Improved efficiency",
+    description: "Measured rainfall with delivery losses cut to 5% and better capture.",
+    assumptions: { ...DEFAULT_ASSUMPTIONS, distributionLossPct: 5, capturePct: 45 },
+    rainfallFactor: 1,
+  },
+] as const;
+
+export const DEFAULT_PRESET_ID = SCENARIO_PRESETS[0]!.id;
+
+/** Look up a preset by id, falling back to the unchanged-rainfall preset. */
+export function presetById(id: string): ScenarioPreset {
+  return SCENARIO_PRESETS.find((preset) => preset.id === id) ?? SCENARIO_PRESETS[0]!;
+}
+
 export interface ScenarioMonth {
   month: number;
   label: string;
   /** Measured rainfall for this month, or null when the series is missing it. */
+  measuredRainfallMm: number | null;
+  /** Scenario rainfall: the measurement with the preset's factor applied. */
   rainfallMm: number | null;
   /** Captured rainfall, in mm over the whole region. */
   supplyMm: number | null;
@@ -108,12 +173,20 @@ export function computeScenario({
   rainfallByMonth,
   areaKm2,
   assumptions,
+  rainfallFactor = 1,
 }: {
   rainfallByMonth: ReadonlyArray<number | null>;
   areaKm2: number | null;
   assumptions: ScenarioAssumptions;
+  /**
+   * Multiplier applied to every measured month. The default of 1 leaves the
+   * measurement untouched, which is what makes the "observed" preset a
+   * restatement of the data rather than a scenario.
+   */
+  rainfallFactor?: number;
 }): ScenarioResult {
   const area = areaKm2 && areaKm2 > 0 ? areaKm2 : null;
+  const factor = Number.isFinite(rainfallFactor) && rainfallFactor >= 0 ? rainfallFactor : 1;
   const lossFactor = Math.max(0, 1 - assumptions.distributionLossPct / 100);
   const grossDemandMm =
     lossFactor > 0
@@ -123,7 +196,8 @@ export function computeScenario({
   const toM3 = (mm: number): number | null => (area === null ? null : mm * area * MM_KM2_TO_M3);
 
   const months: ScenarioMonth[] = MONTH_LABELS.map((label, i) => {
-    const rainfall = rainfallByMonth[i] ?? null;
+    const measured = rainfallByMonth[i] ?? null;
+    const rainfall = measured === null ? null : measured * factor;
     const supplyMm = rainfall === null ? null : (rainfall * assumptions.capturePct) / 100;
     const demandMm = grossDemandMm;
     const netMm = supplyMm === null || demandMm === null ? null : supplyMm - demandMm;
@@ -131,6 +205,7 @@ export function computeScenario({
     return {
       month: i + 1,
       label,
+      measuredRainfallMm: measured,
       rainfallMm: rainfall,
       supplyMm,
       demandMm,
@@ -168,4 +243,66 @@ export function computeScenario({
     coveredMonths: covered.length,
     hasRainfall: covered.length > 0,
   };
+}
+
+/** One row of a two-scenario comparison. Every figure is a scenario output. */
+export interface ScenarioComparisonRow {
+  id: string;
+  label: string;
+  annualSupplyMm: number | null;
+  annualDemandMm: number | null;
+  annualNetMm: number | null;
+  deficitMonths: number;
+  coveredMonths: number;
+}
+
+/**
+ * Compare the selected scenario against the unchanged-rainfall baseline.
+ *
+ * Both sides are computed from the *same* measured series, so the only thing
+ * that differs between them is the assumptions. That is what makes the delta a
+ * property of the scenario rather than of the data. When the baseline has no
+ * rainfall there is nothing honest to compare, so the rows carry nulls and the
+ * surface says so instead of showing a zero delta.
+ */
+export function compareToBaseline({
+  rainfallByMonth,
+  areaKm2,
+  assumptions,
+  rainfallFactor,
+}: {
+  rainfallByMonth: ReadonlyArray<number | null>;
+  areaKm2: number | null;
+  assumptions: ScenarioAssumptions;
+  rainfallFactor: number;
+}): ScenarioComparisonRow[] {
+  const baseline = presetById("observed");
+  const baselineResult = computeScenario({
+    rainfallByMonth,
+    areaKm2,
+    assumptions: baseline.assumptions,
+    rainfallFactor: baseline.rainfallFactor,
+  });
+  const selected = computeScenario({ rainfallByMonth, areaKm2, assumptions, rainfallFactor });
+
+  return [
+    {
+      id: "baseline",
+      label: "Baseline (observed rainfall)",
+      annualSupplyMm: baselineResult.annualSupplyMm,
+      annualDemandMm: baselineResult.annualDemandMm,
+      annualNetMm: baselineResult.annualNetMm,
+      deficitMonths: baselineResult.deficitMonths,
+      coveredMonths: baselineResult.coveredMonths,
+    },
+    {
+      id: "selected",
+      label: "Selected scenario",
+      annualSupplyMm: selected.annualSupplyMm,
+      annualDemandMm: selected.annualDemandMm,
+      annualNetMm: selected.annualNetMm,
+      deficitMonths: selected.deficitMonths,
+      coveredMonths: selected.coveredMonths,
+    },
+  ];
 }
