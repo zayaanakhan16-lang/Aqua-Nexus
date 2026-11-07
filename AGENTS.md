@@ -393,6 +393,32 @@ provenance, that is an under-report, not a cosmetic warning. If a list is keyed
 on an id, confirm the id is actually unique in the data before trusting the
 list to show everything.
 
+### Water region digital twin (observed vs simulated)
+
+`components/panels/WaterScenarioSimulator.tsx` is the digital twin. The
+distinction the brief cares about is that **observed and simulated must be
+visibly different states, not a slider position**:
+
+- Observed mode is the `observed` preset (rainfall factor 1) and restates the
+  measured series with no assumption applied. It carries no simulation badge.
+- Any other preset, or any hand-moved slider, is a scenario and carries the
+  `SIMULATION — NOT A REAL OBSERVATION` badge plus a disclaimer.
+- `rainfallFactor` scales the measurement but `ScenarioMonth` keeps
+  `measuredRainfallMm` alongside the scaled `rainfallMm`, so the chart can draw
+  the measured series over the scenario bars and a scaled scenario stays
+  visibly an assumption rather than a reading.
+- `compareToBaseline` computes both columns from the *same* series, which is
+  what makes the delta a property of the assumptions. With no measured series
+  both columns are null and the table says so rather than printing a 0 delta.
+
+**Lesson about briefs that describe a reference from memory.** The brief asked
+to "remove the eight top-level tabs" and add a sidebar, describing them as
+AgriSense's header navigation. Cloning the reference showed the opposite: the
+eight items are AgriSense's *in-workspace* analytics section row
+(`features/analytics/sections.ts`), its `AppShell` has two nav items and no
+sidebar at all (only a `md:hidden` mobile drawer). AquaNexus already matched
+that. Read the reference before acting on a description of it.
+
 ### Remaining work when resumed
 
 1. Nothing blocking. Optional: a deeper manual screen-reader pass (VoiceOver/
